@@ -466,4 +466,4 @@ try:
             y=df_cagr['CAGR'],
             mode='lines',
             name='CAGR',
-            line=dict(color=color_primary
+            line=dict(color=color_primary)
