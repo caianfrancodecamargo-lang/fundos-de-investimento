@@ -63,14 +63,14 @@ st.markdown("""
     [data-testid="stSidebar"] input {
         background-color: #ffffff !important;
         border: 2px solid rgba(255, 255, 255, 0.5) !important;
-        color: #000000 !important;  /* ← FONTE PRETA */
+        color: #000000 !important;
         border-radius: 8px;
         padding: 0.5rem !important;
         font-weight: 500 !important;
     }
 
     [data-testid="stSidebar"] input::placeholder {
-        color: #666666 !important;  /* ← PLACEHOLDER CINZA */
+        color: #666666 !important;
         opacity: 0.7 !important;
     }
 
@@ -466,4 +466,303 @@ try:
             y=df_cagr['CAGR'],
             mode='lines',
             name='CAGR',
-            line=dict(color=color_primary)))
+            line=dict(color=color_primary, width=2.5),
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
+        ))
+        fig2.add_trace(go.Scatter(
+            x=df_cagr['DT_COMPTC'],
+            y=[mean_cagr] * len(df_cagr),
+            mode='lines',
+            line=dict(dash='dash', color=color_secondary, width=2),
+            name=f'CAGR Médio ({mean_cagr:.2f}%)'
+        ))
+
+        fig2.update_layout(
+            xaxis_title="Data",
+            yaxis_title="CAGR (% a.a)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+    with tab2:
+        st.subheader("📉 Drawdown Histórico")
+
+        fig3 = go.Figure(data=go.Scatter(
+            x=df['DT_COMPTC'],
+            y=df['Drawdown'],
+            mode='lines',
+            name='Drawdown',
+            line=dict(color=color_danger, width=2.5),
+            fill='tozeroy',
+            fillcolor='rgba(220, 53, 69, 0.1)',
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
+        ))
+
+        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+
+        fig3.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Drawdown (%)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig3, use_container_width=True)
+
+        st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
+
+        fig4 = go.Figure([
+            go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['Volatilidade'],
+                mode='lines',
+                name=f'Volatilidade {vol_window} dias',
+                line=dict(color=color_primary, width=2.5),
+                hovertemplate='Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
+            ),
+            go.Scatter(
+                x=df['DT_COMPTC'],
+                y=[vol_hist] * len(df),
+                mode='lines',
+                line=dict(dash='dash', color=color_secondary, width=2),
+                name=f'Vol. Histórica ({vol_hist:.2f}%)'
+            )
+        ])
+
+        fig4.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Volatilidade (% a.a.)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig4, use_container_width=True)
+
+        st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
+
+        fig5 = go.Figure()
+        fig5.add_trace(go.Scatter(
+            x=df_plot['DT_COMPTC'],
+            y=df_plot['Retorno_21d'] * 100,
+            mode='lines',
+            name='Rentabilidade móvel (1m)',
+            line=dict(color=color_primary, width=2),
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[VaR_95 * 100, VaR_95 * 100],
+            mode='lines',
+            name='VaR 95%',
+            line=dict(dash='dot', color='orange', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[VaR_99 * 100, VaR_99 * 100],
+            mode='lines',
+            name='VaR 99%',
+            line=dict(dash='dot', color='red', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[ES_95 * 100, ES_95 * 100],
+            mode='lines',
+            name='ES 95%',
+            line=dict(dash='dash', color='orange', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[ES_99 * 100, ES_99 * 100],
+            mode='lines',
+            name='ES 99%',
+            line=dict(dash='dash', color='red', width=2)
+        ))
+
+        fig5.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Rentabilidade (%)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=600,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig5, use_container_width=True)
+
+        st.info(f"""
+        **Este gráfico mostra que, em um período de 1 mês:**
+
+        • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**, 
+        e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
+
+        • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**, 
+        e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
+        """)
+
+    with tab3:
+        st.subheader("💰 Patrimônio e Captação Líquida")
+
+        fig6 = go.Figure([
+            go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['Soma_Acumulada'],
+                mode='lines',
+                name='Captação Líquida',
+                line=dict(color=color_primary, width=2.5),
+                hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
+                customdata=[format_brl(v) for v in df['Soma_Acumulada']]
+            ),
+            go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['VL_PATRIM_LIQ'],
+                mode='lines',
+                name='Patrimônio Líquido',
+                line=dict(color=color_secondary, width=2.5),
+                hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
+                customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
+            )
+        ])
+
+        fig6.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Valor (R$)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig6, use_container_width=True)
+
+        st.subheader("📊 Captação Líquida Mensal")
+
+        df_monthly = df.groupby(pd.Grouper(key='DT_COMPTC', freq='M'))[['CAPTC_DIA', 'RESG_DIA']].sum()
+        df_monthly['Captacao_Liquida'] = df_monthly['CAPTC_DIA'] - df_monthly['RESG_DIA']
+
+        colors = [color_primary if x >= 0 else color_danger for x in df_monthly['Captacao_Liquida']]
+
+        fig7 = go.Figure([
+            go.Bar(
+                x=df_monthly.index,
+                y=df_monthly['Captacao_Liquida'],
+                name='Captação Líquida Mensal',
+                marker_color=colors,
+                hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
+                customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']]
+            )
+        ])
+
+        fig7.update_layout(
+            xaxis_title="Mês",
+            yaxis_title="Valor (R$)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig7, use_container_width=True)
+
+    with tab4:
+        st.subheader("👥 Patrimônio Médio e Nº de Cotistas")
+
+        fig8 = go.Figure()
+        fig8.add_trace(go.Scatter(
+            x=df['DT_COMPTC'],
+            y=df['Patrimonio_Liq_Medio'],
+            mode='lines',
+            name='Patrimônio Médio por Cotista',
+            line=dict(color=color_primary, width=2.5),
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
+            customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
+        ))
+        fig8.add_trace(go.Scatter(
+            x=df['DT_COMPTC'],
+            y=df['NR_COTST'],
+            mode='lines',
+            name='Número de Cotistas',
+            line=dict(color=color_secondary, width=2.5),
+            yaxis='y2',
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
+        ))
+
+        fig8.update_layout(
+            xaxis_title="Data",
+            yaxis=dict(title="Patrimônio Médio por Cotista (R$)"),
+            yaxis2=dict(title="Número de Cotistas", overlaying="y", side="right"),
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+
+        st.plotly_chart(fig8, use_container_width=True)
+
+    with tab5:
+        st.subheader("🎯 Retornos em Janelas Móveis")
+
+        janelas = {
+            "12 meses (252 dias)": 252,
+            "24 meses (504 dias)": 504,
+            "36 meses (756 dias)": 756,
+            "48 meses (1008 dias)": 1008,
+            "60 meses (1260 dias)": 1260
+        }
+
+        df_returns = df.copy()
+        for nome, dias in janelas.items():
+            df_returns[nome] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
+
+        janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
+
+        if not df_returns[janela_selecionada].dropna().empty:
+            fig9 = go.Figure()
+            fig9.add_trace(go.Scatter(
+                x=df_returns['DT_COMPTC'],
+                y=df_returns[janela_selecionada],
+                mode='lines',
+                name=f"Retorno — {janela_selecionada}",
+                line=dict(width=2.5, color=color_primary),
+                fill='tozeroy',
+                fillcolor=f'rgba(26, 95, 63, 0.1)',
+                hovertemplate="Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
+            ))
+
+            fig9.update_layout(
+                xaxis_title="Data",
+                yaxis_title="Retorno (%)",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                yaxis=dict(tickformat=".2%"),
+                font=dict(family="Inter, sans-serif")
+            )
+
+            st.plotly_chart(fig9, use_container_width=True)
+        else:
+            st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
+
+except Exception as e:
+    st.error(f"❌ Erro ao carregar os dados: {str(e)}")
+    st.info("💡 Verifique se o CNPJ está correto e se há dados disponíveis para o período selecionado.")
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
+    <p style='margin: 0; font-size: 0.9rem;'>
+        <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
+    </p>
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem;'>
+        Análise de Fundos de Investimentos • 2025
+    </p>
+</div>
+""", unsafe_allow_html=True)
