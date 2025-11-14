@@ -7,6 +7,8 @@ import pandas as pd
 from io import BytesIO
 import plotly.graph_objects as go
 import numpy as np
+import re
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -15,14 +17,95 @@ st.set_page_config(
     layout="wide"
 )
 
+# Função para limpar CNPJ (remove tudo que não é número)
+def limpar_cnpj(cnpj):
+    return re.sub(r'\D', '', cnpj)
+
+# Função para formatar data para o padrão da API (YYYYMMDD)
+def formatar_data_api(data):
+    if isinstance(data, str):
+        # Remove caracteres não numéricos
+        data_limpa = re.sub(r'\D', '', data)
+        
+        # Tenta interpretar diferentes formatos
+        if len(data_limpa) == 8:
+            # Assume DDMMYYYY ou YYYYMMDD
+            try:
+                # Tenta DD/MM/YYYY
+                dt = datetime.strptime(data_limpa, '%d%m%Y')
+                return dt.strftime('%Y%m%d')
+            except:
+                # Já está em YYYYMMDD
+                return data_limpa
+        else:
+            return None
+    elif isinstance(data, datetime):
+        return data.strftime('%Y%m%d')
+    elif hasattr(data, 'strftime'):  # Para date objects
+        return data.strftime('%Y%m%d')
+    return None
+
+# Sidebar com inputs do usuário
+st.sidebar.header("⚙️ Configurações")
+st.sidebar.markdown("---")
+
+# Input de CNPJ
+cnpj_input = st.sidebar.text_input(
+    "CNPJ do Fundo",
+    value="10.500.884/0001-05",
+    help="Digite o CNPJ com ou sem formatação (ex: 10.500.884/0001-05 ou 10500884000105)"
+)
+
+# Inputs de data
+col1_sidebar, col2_sidebar = st.sidebar.columns(2)
+
+with col1_sidebar:
+    data_inicial = st.date_input(
+        "Data Inicial",
+        value=datetime(1900, 1, 1),
+        help="Selecione a data inicial para análise"
+    )
+
+with col2_sidebar:
+    data_final = st.date_input(
+        "Data Final",
+        value=datetime(2099, 1, 1),
+        help="Selecione a data final para análise"
+    )
+
+st.sidebar.markdown("---")
+
+# Processar inputs
+cnpj_limpo = limpar_cnpj(cnpj_input)
+data_inicial_formatada = formatar_data_api(data_inicial)
+data_final_formatada = formatar_data_api(data_final)
+
+# Validação
+if len(cnpj_limpo) != 14:
+    st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+    cnpj_valido = False
+else:
+    st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
+    cnpj_valido = True
+
+if not data_inicial_formatada or not data_final_formatada:
+    st.sidebar.error("❌ Datas inválidas")
+    datas_validas = False
+else:
+    st.sidebar.success(f"✅ Período: {data_inicial.strftime('%d/%m/%Y')} a {data_final.strftime('%d/%m/%Y')}")
+    datas_validas = True
+
+# Botão para carregar dados
+carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", use_container_width=True)
+
 # Título principal
 st.title("📊 Dashboard de Fundos de Investimentos")
 st.markdown("---")
 
 # Função para carregar dados
 @st.cache_data
-def carregar_dados():
-    url = "https://www.okanebox.com.br/api/fundoinvestimento/hist/10500884000105/19000101/20990101/"
+def carregar_dados(cnpj, data_ini, data_fim):
+    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini}/{data_fim}/"
     
     req = urllib.request.Request(url)
     req.add_header('Accept-Encoding', 'gzip')
@@ -53,10 +136,24 @@ def format_brl(valor):
 def fmt_pct_port(x):
     return f"{x*100:.2f}%".replace('.', ',')
 
-# Carregar dados
+    # Carregar dados
+# Verificar se deve carregar os dados
+if 'dados_carregados' not in st.session_state:
+    st.session_state.dados_carregados = False
+
+if carregar_button and cnpj_valido and datas_validas:
+    st.session_state.dados_carregados = True
+    st.session_state.cnpj = cnpj_limpo
+    st.session_state.data_ini = data_inicial_formatada
+    st.session_state.data_fim = data_final_formatada
+
+if not st.session_state.dados_carregados:
+    st.info("👈 Configure os parâmetros na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+    st.stop()
+
 try:
     with st.spinner('Carregando dados...'):
-        df = carregar_dados()
+        df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
     
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC')
@@ -115,7 +212,7 @@ try:
         "📉 Risco", 
         "💰 Patrimônio", 
         "👥 Cotistas",
-        "🎯 Retornos Móveis"
+        "🎯 Janelas Móveis"
     ])
     
     with tab1:
