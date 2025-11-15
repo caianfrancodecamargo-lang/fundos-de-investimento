@@ -8,7 +8,7 @@ from io import BytesIO
 import plotly.graph_objects as go
 import numpy as np
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Configuração da página
 st.set_page_config(
@@ -221,6 +221,57 @@ def formatar_data_api(data_str):
 
     return None
 
+# Função para buscar data anterior disponível
+def buscar_data_anterior(df, data_alvo):
+    """
+    Busca a data mais próxima anterior à data alvo no DataFrame
+    Retorna o índice da linha encontrada ou None se não houver
+    """
+    datas_disponiveis = df['DT_COMPTC']
+    datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
+    
+    if len(datas_anteriores) > 0:
+        return datas_anteriores.idxmax()
+    return None
+
+# Função para ajustar período de análise
+def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
+    """
+    Ajusta as datas inicial e final para as datas disponíveis mais próximas
+    Retorna um DataFrame filtrado e informações sobre os ajustes
+    """
+    # Converter strings de data para datetime
+    data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
+    data_final = datetime.strptime(data_final_str, '%Y%m%d')
+    
+    # Buscar datas disponíveis
+    idx_inicial = buscar_data_anterior(df, data_inicial)
+    idx_final = buscar_data_anterior(df, data_final)
+    
+    ajustes = {
+        'data_inicial_original': data_inicial,
+        'data_final_original': data_final,
+        'data_inicial_usada': None,
+        'data_final_usada': None,
+        'houve_ajuste_inicial': False,
+        'houve_ajuste_final': False
+    }
+    
+    if idx_inicial is not None:
+        ajustes['data_inicial_usada'] = df.loc[idx_inicial, 'DT_COMPTC']
+        ajustes['houve_ajuste_inicial'] = ajustes['data_inicial_usada'].date() != data_inicial.date()
+    
+    if idx_final is not None:
+        ajustes['data_final_usada'] = df.loc[idx_final, 'DT_COMPTC']
+        ajustes['houve_ajuste_final'] = ajustes['data_final_usada'].date() != data_final.date()
+    
+    # Filtrar DataFrame
+    if idx_inicial is not None and idx_final is not None:
+        df_filtrado = df.loc[idx_inicial:idx_final].copy()
+        return df_filtrado, ajustes
+    
+    return df, ajustes
+
 # Sidebar com inputs do usuário
 st.sidebar.markdown("### ⚙️ Configurações")
 st.sidebar.markdown("---")
@@ -299,8 +350,16 @@ st.markdown("---")
 
 # Função para carregar dados
 @st.cache_data
-def carregar_dados(cnpj, data_ini, data_fim):
-    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini}/{data_fim}/"
+def carregar_dados_api(cnpj, data_ini, data_fim):
+    """
+    Carrega dados da API com uma janela ampliada para garantir dados suficientes
+    """
+    # Amplia a janela de busca em 60 dias antes da data inicial
+    dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
+    dt_ampliada = dt_inicial - timedelta(days=60)
+    data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
+    
+    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada}/{data_fim}/"
     req = urllib.request.Request(url)
     req.add_header('Accept-Encoding', 'gzip')
     req.add_header('Authorization', 'Bearer caianfrancodecamargo@gmail.com')
@@ -360,55 +419,36 @@ if not st.session_state.dados_carregados:
     - Evolução patrimonial e captação
     - Perfil de cotistas
     - Retornos em janelas móveis
+    
+    ---
+    
+    ### ℹ️ Sobre datas:
+    Se você informar uma data em que não há cota disponível (ex: finais de semana, feriados), 
+    o sistema automaticamente utilizará a última cota disponível anterior à data informada.
     """)
 
     st.stop()
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-        # Carregar dados da API
-        df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
-    
-        # Validação rápida: DataFrame vazio
-        if df.empty:
-            st.error("❌ Não há dados de cota disponíveis no período selecionado.")
-            st.stop()
-    
-        # Garantir datetime e ordenar (não mudamos índice)
-        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
-        df = df.sort_values('DT_COMPTC').reset_index(drop=True)
-    
-        # --- Preparo para busca rápida da última cota anterior a uma data ---
-        # Array numpy de datas (em np.datetime64) e Series de cota correspondente
-        df_dates = df['DT_COMPTC'].values  # numpy datetime64 array, ordenado
-        df_quota = df['VL_QUOTA'].reset_index(drop=True)  # Series alinhada
-    
-        # Função robusta para buscar a última cota disponível antes ou igual a uma data
-        def get_last_available(date_like):
-            """
-            date_like: pd.Timestamp, str ou datetime.date.
-            Retorna (pd.Timestamp_data_usada, valor_quota) ou (None, None) se não existir.
-            """
-            # converter para numpy datetime64 em dia (compatível com df_dates)
-            try:
-                ts = pd.to_datetime(date_like)
-            except Exception:
-                return None, None
-    
-            # busca a posição onde ts entraria para manter ordenação e pega anterior
-            # side='right' faz com que, se existir exatamente igual, retorne a posição após ele
-            pos = df_dates.searchsorted(np.datetime64(ts.to_pydatetime()), side='right') - 1
-    
-            if pos >= 0:
-                return pd.Timestamp(df_dates[pos]), df_quota.iloc[int(pos)]
-            else:
-                return None, None
-    
-        # Exemplo de uso (teste rápido) - REMOVA depois se quiser
-        # st.write("Teste get_last_available 2025-04-30:", get_last_available("2025-04-30"))
-    
-        # OBS: não alteramos df; apenas preparamos utilitário que você pode usar em cálculos
+        df_completo = carregar_dados_api(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
         
+        # Ajustar período para usar datas disponíveis
+        df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
+        
+        # Mostrar avisos se houve ajuste de datas
+        if ajustes['houve_ajuste_inicial'] or ajustes['houve_ajuste_final']:
+            avisos = []
+            if ajustes['houve_ajuste_inicial']:
+                avisos.append(f"**Data inicial ajustada:** {ajustes['data_inicial_original'].strftime('%d/%m/%Y')} → {ajustes['data_inicial_usada'].strftime('%d/%m/%Y')}")
+            if ajustes['houve_ajuste_final']:
+                avisos.append(f"**Data final ajustada:** {ajustes['data_final_original'].strftime('%d/%m/%Y')} → {ajustes['data_final_usada'].strftime('%d/%m/%Y')}")
+            
+            st.info("ℹ️ **Ajuste de período:**\n\n" + "\n\n".join(avisos) + "\n\n*As datas foram ajustadas para as cotas disponíveis mais próximas.*")
+
+    # Preparação dos dados
+    df = df.sort_values('DT_COMPTC')
+
     # Calcular métricas principais
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
     df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
