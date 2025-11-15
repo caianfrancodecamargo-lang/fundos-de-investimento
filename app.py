@@ -489,7 +489,7 @@ try:
     # ============================================================
     # TABELA DE RENTABILIDADE MENSAL (estilo MaisRetorno)
     # ============================================================
-    st.subheader("📋 Tabela de Rentabilidade Mensal (Estilo Mais Retorno)")
+    st.subheader("📋 Rentabilidade Mensal")
 
     # 1) Garantir índice de data e série mensal (usa último e primeiro pregão do mês)
     df_indexed = df.set_index('DT_COMPTC').sort_index()
