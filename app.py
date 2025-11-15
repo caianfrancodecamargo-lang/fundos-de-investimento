@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 import numpy as np
 import re
 from datetime import datetime, timedelta
+import base64
+from pathlib import Path
 
 # Configuração da página
 st.set_page_config(
@@ -18,37 +20,66 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Função para converter imagem local em base64 (para usar como marca d'água)
+def get_image_base64(image_path):
+    """
+    Converte uma imagem local para base64 para uso no Plotly
+    """
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    except:
+        return None
+
+# Caminho da logo (ajuste conforme necessário)
+LOGO_PATH = "copaiba_logo.png"  # Coloque a imagem na mesma pasta do script
+logo_base64 = get_image_base64(LOGO_PATH)
+
 # CSS customizado inspirado no site Copaíba Invest
 st.markdown("""
 <style>
     /* Importar fonte similar */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Variáveis de cores inspiradas no Copaíba */
+    /* Paleta de cores Copaíba Invest */
     :root {
-        --primary-color: #1a5f3f;
-        --secondary-color: #2d8659;
-        --accent-color: #f0b429;
-        --dark-bg: #0f1419;
-        --light-bg: #f8f9fa;
-        --text-dark: #1a1a1a;
+        --primary-green: #2d5f3f;
+        --secondary-green: #6b9b7f;
+        --accent-gold: #d4af37;
+        --dark-green: #1a3d2e;
+        --light-cream: #f8f6f1;
+        --text-dark: #2c2c2c;
         --text-light: #ffffff;
+        --border-light: #e0ddd5;
     }
 
     /* Fundo geral */
     .stApp {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #f8f6f1 0%, #ebe8df 100%);
         font-family: 'Inter', sans-serif;
     }
 
     /* Sidebar */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a5f3f 0%, #0f3d28 100%);
-        padding: 2rem 1rem;
+        background: linear-gradient(180deg, #2d5f3f 0%, #1a3d2e 100%);
+        padding: 1.5rem 1rem;
     }
 
     [data-testid="stSidebar"] * {
         color: #ffffff !important;
+    }
+
+    /* Logo na sidebar */
+    [data-testid="stSidebar"] .sidebar-logo {
+        text-align: center;
+        padding: 1rem 0 2rem 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+    }
+
+    [data-testid="stSidebar"] .sidebar-logo img {
+        max-width: 180px;
+        height: auto;
     }
 
     [data-testid="stSidebar"] .stTextInput label,
@@ -57,16 +88,19 @@ st.markdown("""
         font-weight: 600;
         font-size: 0.9rem;
         margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     /* INPUTS COM FONTE PRETA */
     [data-testid="stSidebar"] input {
         background-color: #ffffff !important;
-        border: 2px solid rgba(255, 255, 255, 0.5) !important;
+        border: 2px solid rgba(212, 175, 55, 0.3) !important;
         color: #000000 !important;
         border-radius: 8px;
-        padding: 0.5rem !important;
+        padding: 0.6rem !important;
         font-weight: 500 !important;
+        transition: all 0.3s ease;
     }
 
     [data-testid="stSidebar"] input::placeholder {
@@ -74,116 +108,232 @@ st.markdown("""
         opacity: 0.7 !important;
     }
 
-    /* Garantir que o texto digitado seja preto */
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
-        border-color: var(--accent-color) !important;
-        box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.2) !important;
+        border-color: #d4af37 !important;
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2) !important;
     }
 
     /* Botão principal */
     .stButton > button {
-        background: linear-gradient(135deg, #f0b429 0%, #d99b1f 100%);
-        color: #1a1a1a;
+        background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
+        color: #1a3d2e;
         font-weight: 700;
         border: none;
-        border-radius: 8px;
-        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        padding: 0.85rem 2rem;
         font-size: 1rem;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(240, 180, 41, 0.3);
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
         width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(240, 180, 41, 0.4);
-        background: linear-gradient(135deg, #d99b1f 0%, #f0b429 100%);
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+        background: linear-gradient(135deg, #b8941f 0%, #d4af37 100%);
     }
 
     /* Título principal */
     h1 {
-        color: #1a5f3f;
+        color: #2d5f3f;
         font-weight: 700;
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
+        font-size: 2.8rem;
+        margin-bottom: 1.5rem;
         text-align: center;
+        letter-spacing: -0.5px;
     }
 
     /* Cards de métricas */
     [data-testid="stMetricValue"] {
-        font-size: 1.8rem;
+        font-size: 2rem;
         font-weight: 700;
-        color: #1a5f3f;
+        color: #2d5f3f;
     }
 
     [data-testid="stMetricLabel"] {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: #6c757d;
+        color: #6b9b7f;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
     }
 
     div[data-testid="metric-container"] {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border-left: 4px solid #1a5f3f;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
+        padding: 1.8rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(45, 95, 63, 0.1);
+        border-left: 5px solid #d4af37;
+        transition: all 0.3s ease;
+    }
+
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(45, 95, 63, 0.15);
     }
 
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: white;
-        padding: 0.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        gap: 10px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
+        padding: 0.8rem;
+        border-radius: 16px;
+        box-shadow: 0 2px 10px rgba(45, 95, 63, 0.08);
     }
 
     .stTabs [data-baseweb="tab"] {
         background-color: transparent;
-        border-radius: 8px;
-        color: #6c757d;
+        border-radius: 10px;
+        color: #6b9b7f;
         font-weight: 600;
-        padding: 0.75rem 1.5rem;
+        padding: 0.85rem 1.8rem;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: rgba(212, 175, 55, 0.1);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #1a5f3f 0%, #2d8659 100%);
+        background: linear-gradient(135deg, #2d5f3f 0%, #1a3d2e 100%);
         color: white !important;
+        box-shadow: 0 4px 12px rgba(45, 95, 63, 0.3);
     }
 
     /* Subtítulos */
     h2, h3 {
-        color: #1a5f3f;
+        color: #2d5f3f;
         font-weight: 600;
+        letter-spacing: -0.3px;
     }
 
     /* Info boxes */
     .stAlert {
         border-radius: 12px;
-        border-left: 4px solid #1a5f3f;
+        border-left: 4px solid #d4af37;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
     }
 
     /* Divisor */
     hr {
-        margin: 2rem 0;
+        margin: 2.5rem 0;
         border: none;
         height: 2px;
-        background: linear-gradient(90deg, transparent, #1a5f3f, transparent);
+        background: linear-gradient(90deg, transparent, #d4af37, transparent);
     }
 
     /* Mensagens de sucesso/erro na sidebar */
     [data-testid="stSidebar"] .stAlert {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 0.75rem;
+        background-color: rgba(212, 175, 55, 0.15);
+        border-radius: 10px;
+        padding: 0.85rem;
         margin: 0.5rem 0;
+        border-left: 3px solid #d4af37;
+    }
+
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f8f6f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #6b9b7f;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #2d5f3f;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Função para adicionar marca d'água e estilizar gráficos
+def add_watermark_and_style(fig, logo_base64=None):
+    """
+    Adiciona marca d'água, cantos arredondados e estilização elegante aos gráficos
+    """
+    # Adicionar marca d'água se a imagem estiver disponível
+    if logo_base64:
+        fig.add_layout_image(
+            dict(
+                source=f"data:image/png;base64,{logo_base64}",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                sizex=0.5,
+                sizey=0.5,
+                xanchor="center",
+                yanchor="middle",
+                opacity=0.08,
+                layer="below"
+            )
+        )
+
+    # Estilização com cantos arredondados e sombra
+    fig.update_layout(
+        plot_bgcolor='rgba(248, 246, 241, 0.5)',
+        paper_bgcolor='white',
+        font=dict(
+            family="Inter, sans-serif",
+            size=12,
+            color="#2c2c2c"
+        ),
+        margin=dict(l=60, r=60, t=80, b=60),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=13,
+            font_family="Inter, sans-serif",
+            bordercolor="#d4af37"
+        ),
+        # Simular cantos arredondados com bordas
+        shapes=[
+            dict(
+                type="rect",
+                xref="paper",
+                yref="paper",
+                x0=0,
+                y0=0,
+                x1=1,
+                y1=1,
+                line=dict(color="#e0ddd5", width=2),
+                fillcolor="rgba(0,0,0,0)"
+            )
+        ]
+    )
+
+    # Estilizar eixos
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(224, 221, 213, 0.5)',
+        showline=True,
+        linewidth=2,
+        linecolor='#e0ddd5',
+        title_font=dict(size=13, color="#2d5f3f", family="Inter"),
+        tickfont=dict(size=11, color="#6b9b7f")
+    )
+
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(224, 221, 213, 0.5)',
+        showline=True,
+        linewidth=2,
+        linecolor='#e0ddd5',
+        title_font=dict(size=13, color="#2d5f3f", family="Inter"),
+        tickfont=dict(size=11, color="#6b9b7f")
+    )
+
+    return fig
 
 # Função para limpar CNPJ (remove tudo que não é número)
 def limpar_cnpj(cnpj):
@@ -229,7 +379,7 @@ def buscar_data_anterior(df, data_alvo):
     """
     datas_disponiveis = df['DT_COMPTC']
     datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
-    
+
     if len(datas_anteriores) > 0:
         return datas_anteriores.idxmax()
     return None
@@ -243,11 +393,11 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     # Converter strings de data para datetime
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
-    
+
     # Buscar datas disponíveis
     idx_inicial = buscar_data_anterior(df, data_inicial)
     idx_final = buscar_data_anterior(df, data_final)
-    
+
     ajustes = {
         'data_inicial_original': data_inicial,
         'data_final_original': data_final,
@@ -256,23 +406,29 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
         'houve_ajuste_inicial': False,
         'houve_ajuste_final': False
     }
-    
+
     if idx_inicial is not None:
         ajustes['data_inicial_usada'] = df.loc[idx_inicial, 'DT_COMPTC']
         ajustes['houve_ajuste_inicial'] = ajustes['data_inicial_usada'].date() != data_inicial.date()
-    
+
     if idx_final is not None:
         ajustes['data_final_usada'] = df.loc[idx_final, 'DT_COMPTC']
         ajustes['houve_ajuste_final'] = ajustes['data_final_usada'].date() != data_final.date()
-    
+
     # Filtrar DataFrame
     if idx_inicial is not None and idx_final is not None:
         df_filtrado = df.loc[idx_inicial:idx_final].copy()
         return df_filtrado, ajustes
-    
+
     return df, ajustes
 
-# Sidebar com inputs do usuário
+# Sidebar com logo e inputs do usuário
+if logo_base64:
+    st.sidebar.markdown(
+        f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
+        unsafe_allow_html=True
+    )
+
 st.sidebar.markdown("### ⚙️ Configurações")
 st.sidebar.markdown("---")
 
@@ -358,7 +514,7 @@ def carregar_dados_api(cnpj, data_ini, data_fim):
     dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
     dt_ampliada = dt_inicial - timedelta(days=60)
     data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
-    
+
     url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada}/{data_fim}/"
     req = urllib.request.Request(url)
     req.add_header('Accept-Encoding', 'gzip')
@@ -419,11 +575,11 @@ if not st.session_state.dados_carregados:
     - Evolução patrimonial e captação
     - Perfil de cotistas
     - Retornos em janelas móveis
-    
+
     ---
-    
+
     ### ℹ️ Sobre datas:
-    Se você informar uma data em que não há cota disponível (ex: finais de semana, feriados), 
+    Se você informar uma data em que não há cota disponível (ex: finais de semana, feriados),
     o sistema automaticamente utilizará a última cota disponível anterior à data informada.
     """)
 
@@ -432,10 +588,10 @@ if not st.session_state.dados_carregados:
 try:
     with st.spinner('🔄 Carregando dados...'):
         df_completo = carregar_dados_api(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
-        
+
         # Ajustar período para usar datas disponíveis
         df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
-        
+
         # Mostrar avisos se houve ajuste de datas
         if ajustes['houve_ajuste_inicial'] or ajustes['houve_ajuste_final']:
             avisos = []
@@ -443,7 +599,7 @@ try:
                 avisos.append(f"**Data inicial ajustada:** {ajustes['data_inicial_original'].strftime('%d/%m/%Y')} → {ajustes['data_inicial_usada'].strftime('%d/%m/%Y')}")
             if ajustes['houve_ajuste_final']:
                 avisos.append(f"**Data final ajustada:** {ajustes['data_final_original'].strftime('%d/%m/%Y')} → {ajustes['data_final_usada'].strftime('%d/%m/%Y')}")
-            
+
             st.info("ℹ️ **Ajuste de período:**\n\n" + "\n\n".join(avisos) + "\n\n*As datas foram ajustadas para as cotas disponíveis mais próximas.*")
 
     # Preparação dos dados
@@ -484,6 +640,12 @@ try:
     ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
     ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
 
+    # Paleta de cores Copaíba
+    color_primary = '#2d5f3f'
+    color_secondary = '#d4af37'
+    color_tertiary = '#6b9b7f'
+    color_danger = '#c9302c'
+
     # Cards com métricas principais
     col1, col2, col3, col4 = st.columns(4)
 
@@ -503,17 +665,12 @@ try:
 
     # Tabs para organizar os gráficos
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📈 Rentabilidade", 
-        "📉 Risco", 
-        "💰 Patrimônio", 
+        "📈 Rentabilidade",
+        "📉 Risco",
+        "💰 Patrimônio",
         "👥 Cotistas",
         "🎯 Janelas Móveis"
     ])
-
-    # Configuração de cores para os gráficos
-    color_primary = '#1a5f3f'
-    color_secondary = '#f0b429'
-    color_danger = '#dc3545'
 
     with tab1:
         st.subheader("📈 Rentabilidade Histórica")
@@ -523,9 +680,9 @@ try:
             x=df['DT_COMPTC'],
             y=df['VL_QUOTA_NORM'],
             mode='lines',
-            line=dict(color=color_primary, width=2.5),
+            line=dict(color=color_primary, width=3),
             fill='tozeroy',
-            fillcolor=f'rgba(26, 95, 63, 0.1)',
+            fillcolor=f'rgba(45, 95, 63, 0.15)',
             hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
         ))
 
@@ -534,10 +691,10 @@ try:
             yaxis_title="Rentabilidade (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig1 = add_watermark_and_style(fig1, logo_base64)
         st.plotly_chart(fig1, use_container_width=True)
 
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
@@ -548,14 +705,14 @@ try:
             y=df_cagr['CAGR'],
             mode='lines',
             name='CAGR',
-            line=dict(color=color_primary, width=2.5),
+            line=dict(color=color_primary, width=3),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
         ))
         fig2.add_trace(go.Scatter(
             x=df_cagr['DT_COMPTC'],
             y=[mean_cagr] * len(df_cagr),
             mode='lines',
-            line=dict(dash='dash', color=color_secondary, width=2),
+            line=dict(dash='dash', color=color_secondary, width=2.5),
             name=f'CAGR Médio ({mean_cagr:.2f}%)'
         ))
 
@@ -564,10 +721,10 @@ try:
             yaxis_title="CAGR (% a.a)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig2 = add_watermark_and_style(fig2, logo_base64)
         st.plotly_chart(fig2, use_container_width=True)
 
     with tab2:
@@ -578,23 +735,23 @@ try:
             y=df['Drawdown'],
             mode='lines',
             name='Drawdown',
-            line=dict(color=color_danger, width=2.5),
+            line=dict(color=color_danger, width=3),
             fill='tozeroy',
-            fillcolor='rgba(220, 53, 69, 0.1)',
+            fillcolor='rgba(201, 48, 44, 0.15)',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1.5)
 
         fig3.update_layout(
             xaxis_title="Data",
             yaxis_title="Drawdown (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig3 = add_watermark_and_style(fig3, logo_base64)
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
@@ -605,14 +762,14 @@ try:
                 y=df['Volatilidade'],
                 mode='lines',
                 name=f'Volatilidade {vol_window} dias',
-                line=dict(color=color_primary, width=2.5),
+                line=dict(color=color_primary, width=3),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
             ),
             go.Scatter(
                 x=df['DT_COMPTC'],
                 y=[vol_hist] * len(df),
                 mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2),
+                line=dict(dash='dash', color=color_secondary, width=2.5),
                 name=f'Vol. Histórica ({vol_hist:.2f}%)'
             )
         ])
@@ -622,10 +779,10 @@ try:
             yaxis_title="Volatilidade (% a.a.)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig4 = add_watermark_and_style(fig4, logo_base64)
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
@@ -636,7 +793,7 @@ try:
             y=df_plot['Retorno_21d'] * 100,
             mode='lines',
             name='Rentabilidade móvel (1m)',
-            line=dict(color=color_primary, width=2),
+            line=dict(color=color_primary, width=2.5),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
         ))
         fig5.add_trace(go.Scatter(
@@ -644,28 +801,28 @@ try:
             y=[VaR_95 * 100, VaR_95 * 100],
             mode='lines',
             name='VaR 95%',
-            line=dict(dash='dot', color='orange', width=2)
+            line=dict(dash='dot', color='#ff9800', width=2.5)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[VaR_99 * 100, VaR_99 * 100],
             mode='lines',
             name='VaR 99%',
-            line=dict(dash='dot', color='red', width=2)
+            line=dict(dash='dot', color=color_danger, width=2.5)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[ES_95 * 100, ES_95 * 100],
             mode='lines',
             name='ES 95%',
-            line=dict(dash='dash', color='orange', width=2)
+            line=dict(dash='dash', color='#ff9800', width=2.5)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[ES_99 * 100, ES_99 * 100],
             mode='lines',
             name='ES 99%',
-            line=dict(dash='dash', color='red', width=2)
+            line=dict(dash='dash', color=color_danger, width=2.5)
         ))
 
         fig5.update_layout(
@@ -673,19 +830,19 @@ try:
             yaxis_title="Rentabilidade (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=600,
-            font=dict(family="Inter, sans-serif")
+            height=600
         )
 
+        fig5 = add_watermark_and_style(fig5, logo_base64)
         st.plotly_chart(fig5, use_container_width=True)
 
         st.info(f"""
         **Este gráfico mostra que, em um período de 1 mês:**
 
-        • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**, 
+        • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
         e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
 
-        • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**, 
+        • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
         e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
         """)
 
@@ -698,7 +855,7 @@ try:
                 y=df['Soma_Acumulada'],
                 mode='lines',
                 name='Captação Líquida',
-                line=dict(color=color_primary, width=2.5),
+                line=dict(color=color_primary, width=3),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['Soma_Acumulada']]
             ),
@@ -707,7 +864,7 @@ try:
                 y=df['VL_PATRIM_LIQ'],
                 mode='lines',
                 name='Patrimônio Líquido',
-                line=dict(color=color_secondary, width=2.5),
+                line=dict(color=color_secondary, width=3),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
@@ -718,10 +875,10 @@ try:
             yaxis_title="Valor (R$)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig6 = add_watermark_and_style(fig6, logo_base64)
         st.plotly_chart(fig6, use_container_width=True)
 
         st.subheader("📊 Captação Líquida Mensal")
@@ -747,10 +904,10 @@ try:
             yaxis_title="Valor (R$)",
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig7 = add_watermark_and_style(fig7, logo_base64)
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -762,7 +919,7 @@ try:
             y=df['Patrimonio_Liq_Medio'],
             mode='lines',
             name='Patrimônio Médio por Cotista',
-            line=dict(color=color_primary, width=2.5),
+            line=dict(color=color_primary, width=3),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
         ))
@@ -771,7 +928,7 @@ try:
             y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
-            line=dict(color=color_secondary, width=2.5),
+            line=dict(color=color_secondary, width=3),
             yaxis='y2',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
@@ -782,10 +939,10 @@ try:
             yaxis2=dict(title="Número de Cotistas", overlaying="y", side="right"),
             template="plotly_white",
             hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
+            height=500
         )
 
+        fig8 = add_watermark_and_style(fig8, logo_base64)
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
@@ -812,9 +969,9 @@ try:
                 y=df_returns[janela_selecionada],
                 mode='lines',
                 name=f"Retorno — {janela_selecionada}",
-                line=dict(width=2.5, color=color_primary),
+                line=dict(width=3, color=color_primary),
                 fill='tozeroy',
-                fillcolor=f'rgba(26, 95, 63, 0.1)',
+                fillcolor=f'rgba(45, 95, 63, 0.15)',
                 hovertemplate="Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
@@ -824,10 +981,10 @@ try:
                 template="plotly_white",
                 hovermode="x unified",
                 height=500,
-                yaxis=dict(tickformat=".2%"),
-                font=dict(family="Inter, sans-serif")
+                yaxis=dict(tickformat=".2%")
             )
 
+            fig9 = add_watermark_and_style(fig9, logo_base64)
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
@@ -839,12 +996,12 @@ except Exception as e:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
-    <p style='margin: 0; font-size: 0.9rem;'>
+<div style='text-align: center; color: #6b9b7f; padding: 2rem 0;'>
+    <p style='margin: 0; font-size: 0.95rem; font-weight: 600;'>
         <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
     </p>
-    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem;'>
-        Análise de Fundos de Investimentos • 2025
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #2d5f3f;'>
+        Análise de Fundos de Investimentos • Copaíba Invest • 2025
     </p>
 </div>
 """, unsafe_allow_html=True)
