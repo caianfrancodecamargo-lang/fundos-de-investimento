@@ -366,10 +366,34 @@ if not st.session_state.dados_carregados:
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-        df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
-        
-    # Preparação dos dados
-    df = df.sort_values('DT_COMPTC')
+        # 🔄 Carregar dados
+df = carregar_dados(
+    st.session_state.cnpj,
+    st.session_state.data_ini,
+    st.session_state.data_fim
+)
+
+# --------------------------------------------------------
+# 🔧 AJUSTE: USAR A ÚLTIMA COTA DISPONÍVEL ANTES DA DATA
+# --------------------------------------------------------
+
+# Garantir datas e ordenar
+df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+df = df.sort_values('DT_COMPTC').set_index('DT_COMPTC')
+
+# Função para buscar última cota disponível antes ou igual à data
+def get_last_available(date, series):
+    """
+    Retorna a última cota disponível antes ou igual à data.
+    Se não houver dados antes da data, retorna None.
+    """
+    try:
+        return series.asof(date)
+    except Exception:
+        return None
+
+# Reiniciar índice para manter compatibilidade com o restante do código
+df = df.reset_index()
 
     # Calcular métricas principais
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
