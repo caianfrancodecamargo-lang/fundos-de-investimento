@@ -368,29 +368,29 @@ try:
     with st.spinner('🔄 Carregando dados...'):
         df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
         
+                # --------------------------------------------------------
+        # 🔧 AJUSTE: USAR A ÚLTIMA COTA DISPONÍVEL ANTES DA DATA
         # --------------------------------------------------------
-# 🔧 AJUSTE: USAR A ÚLTIMA COTA DISPONÍVEL ANTES DA DATA
-# --------------------------------------------------------
-
-# Garantir índice por data
-df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
-df = df.sort_values('DT_COMPTC').set_index('DT_COMPTC')
-
-# Função para pegar última cota disponível antes ou igual à data
-def get_last_available(date, series):
-    """Retorna a última cota disponível antes ou igual à data."""
-    try:
-        return series.asof(date)
-    except:
-        return None
-
-# Exemplo de uso depois:  
-# valor = get_last_available(pd.Timestamp("2025-04-30"), df['VL_QUOTA'])
-# (não remova nem edite o exemplo)
-
-# --------------------------------------------------------
-
-df = df.reset_index()
+        
+        # Garantir índice por data
+        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+        df = df.sort_values('DT_COMPTC').set_index('DT_COMPTC')
+        
+        # Função para pegar última cota disponível antes ou igual à data
+        def get_last_available(date, series):
+            """Retorna a última cota disponível antes ou igual à data."""
+            try:
+                return series.asof(date)
+            except:
+                return None
+        
+        # Exemplo de uso depois:  
+        # valor = get_last_available(pd.Timestamp("2025-04-30"), df['VL_QUOTA'])
+        # (não remova nem edite o exemplo)
+        
+        # --------------------------------------------------------
+        
+        df = df.reset_index()
 
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC')
