@@ -488,6 +488,51 @@ try:
 
         st.plotly_chart(fig2, use_container_width=True)
 
+            # ================================================
+    #   📋 TABELA DE RENTABILIDADE MENSAL (PADRÃO MAIS RETORNO)
+    # ================================================
+
+        st.subheader("📋 Tabela de Rentabilidade Mensal")
+
+    df_indexed = df.set_index("DT_COMPTC").sort_index()
+
+    last_of_month = df_indexed["VL_QUOTA"].resample("M").last()
+    last_prev_month = last_of_month.shift(1)
+
+    monthly_ret = (last_of_month / last_prev_month) - 1
+    monthly_ret.name = "Retorno"
+
+    df_monthly = monthly_ret.reset_index().rename(columns={"DT_COMPTC": "Data"})
+    df_monthly["Ano"] = df_monthly["Data"].dt.year
+    df_monthly["Mes"] = df_monthly["Data"].dt.month
+
+    df_pivot = df_monthly.pivot(index="Ano", columns="Mes", values="Retorno")
+
+    df_year_end = df_indexed["VL_QUOTA"].resample("Y").last()
+    df_year_end.index = df_year_end.index.year
+
+    df_ytd = df_year_end / df_year_end.shift(1) - 1
+    df_pivot["No ano"] = df_ytd
+
+    first_value = df_indexed["VL_QUOTA"].iloc[0]
+    df_pivot["Acumulado"] = df_year_end / first_value - 1
+
+    meses = {
+        1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
+        7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
+    }
+
+    df_pivot = df_pivot.rename(columns=meses)
+
+    ordem_colunas = [meses[m] for m in range(1, 13) if meses[m] in df_pivot.columns] + ["No ano", "Acumulado"]
+    df_pivot = df_pivot.reindex(columns=ordem_colunas)
+
+    df_show = df_pivot.sort_index(ascending=False).applymap(
+        lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-"
+    )
+
+    st.dataframe(df_show, use_container_width=True)
+
     with tab2:
         st.subheader("📉 Drawdown Histórico")
 
