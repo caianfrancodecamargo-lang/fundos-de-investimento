@@ -491,64 +491,56 @@ try:
     # ============================
     st.subheader("📋 Tabela de Rentabilidade Mensal (1º pregão → 1º pregão do mês seguinte)")
 
-    # 1) Preparar e ordenar o índice de datas
+    # Garantir índice de datas
     df_indexed = df.set_index('DT_COMPTC').sort_index()
 
-    # 2) Encontrar o primeiro pregão de cada mês de forma robusta:
-    #    agrupa por (ano, mês) e pega o primeiro registro do grupo
-    grouped_first = df_indexed['VL_QUOTA'].groupby([df_indexed.index.year, df_indexed.index.month]).first()
+    # 1) Último pregão de cada mês
+    last_of_month = df_indexed['VL_QUOTA'].resample('M').last()  # last business day in month
 
-    # 3) Converter o índice (ano, mês) para uma data "YYYY-MM-01" (representa o mês)
-    #    Isso facilita o shift por mês e a apresentação
-    months_dt = pd.to_datetime([f"{y}-{m:02d}-01" for (y, m) in grouped_first.index])
-    first_of_month = pd.Series(grouped_first.values, index=months_dt)
-    first_of_month.index.name = 'MesInicio'
+    # 2) Último pregão do mês anterior (shift +1 porque índice está por mês)
+    last_prev_month = last_of_month.shift(1)
 
-    # 4) Primeiro pregão do mês seguinte (shift -1)
-    first_next_month = first_of_month.shift(-1)
+    # 3) Rentabilidade mensal = (final / inicial) - 1
+    monthly_ret = last_of_month / last_prev_month - 1
+    monthly_ret.name = "Retorno"
 
-    # 5) Retorno do mês X = (1º pregão mês seguinte / 1º pregão mês X) - 1
-    monthly_ret = first_next_month / first_of_month - 1
-    monthly_ret.name = 'Retorno'
-
-    # 6) Montar DataFrame com Ano e Mês numérico para pivot
-    df_monthly = monthly_ret.reset_index().rename(columns={'MesInicio': 'Data'})
-    # pode haver NaN no último mês (pois não existe 1º pregão do mês seguinte) - manteremos esse '-'
+    # 4) DataFrame organizado
+    df_monthly = monthly_ret.reset_index().rename(columns={'DT_COMPTC': 'Data'})
     df_monthly['Ano'] = df_monthly['Data'].dt.year
     df_monthly['Mes'] = df_monthly['Data'].dt.month
 
-    # 7) Pivot para ter anos nas linhas e meses nas colunas
+    # 5) Pivot: anos vs meses
     df_pivot = df_monthly.pivot(index='Ano', columns='Mes', values='Retorno')
 
-    # 8) Cálculo "No ano" (YTD) e "Acumulado" — mantidos/compatíveis:
-    #    YTD: último preço do ano / primeiro preço do ano - 1 (opção comum)
+    # 6) Cálculo "No ano" (YTD)
     df_year = df_indexed['VL_QUOTA'].groupby(df_indexed.index.year).agg(['first', 'last'])
     df_ytd = df_year['last'] / df_year['first'] - 1
 
-    #    Acumulado desde o início do histórico: last_of_year / first_overall - 1
+    # 7) Cálculo "Acumulado" (desde o início)
     first_overall = df_indexed['VL_QUOTA'].iloc[0]
     df_acum = df_year['last'] / first_overall - 1
 
-    # 9) Incluir 'No ano' e 'Acumulado' no pivot alinhando índices (anos)
     df_pivot['No ano'] = df_ytd
     df_pivot['Acumulado'] = df_acum
 
-    # 10) Renomear colunas de mês para abreviações e ordenar colunas
+    # 8) Renomear meses
     meses_map = {
         1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
         7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
     }
     df_pivot = df_pivot.rename(columns=meses_map)
-    cols_ord = [meses_map[m] for m in range(1, 13) if meses_map[m] in df_pivot.columns] + ['No ano', 'Acumulado']
-    df_pivot = df_pivot.reindex(columns=cols_ord)
 
-    # 11) Formatação final: percentual com 2 casas e '-' para NaN
+    # Ordenar colunas
+    ordered_cols = [meses_map[m] for m in range(1, 12 + 1) if meses_map[m] in df_pivot.columns] + ['No ano', 'Acumulado']
+    df_pivot = df_pivot.reindex(columns=ordered_cols)
+
+    # 9) Formatacao: percentuais
     df_show = df_pivot.copy()
-    df_show = df_show.sort_index(ascending=False)  # ano mais recente primeiro
+    df_show = df_show.sort_index(ascending=False)
     df_show = df_show.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-")
 
-    # 12) Exibir tabela
-    st.dataframe(df_show, use_container_width=True, height=420)    
+    # 10) Exibir
+    st.dataframe(df_show, use_container_width=True, height=420)   
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
