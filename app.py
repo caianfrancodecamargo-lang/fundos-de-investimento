@@ -447,7 +447,11 @@ try:
             st.info("ℹ️ **Ajuste de período:**\n\n" + "\n\n".join(avisos) + "\n\n*As datas foram ajustadas para as cotas disponíveis mais próximas.*")
 
     # Preparação dos dados
-    df = df.sort_values('DT_COMPTC')
+    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
+
+    # NORMALIZAR RENTABILIDADE A PARTIR DA PRIMEIRA COTA DO PERÍODO
+    primeira_cota = df['VL_QUOTA'].iloc[0]
+    df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
 
     # Calcular métricas principais
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
