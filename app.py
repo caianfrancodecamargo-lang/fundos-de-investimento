@@ -291,7 +291,7 @@ def add_watermark_and_style(fig, logo_base64=None):
                 sizey=1.2,  # AUMENTADO para 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.06,  # Levemente reduzida para não interferir na leitura
+                opacity=0.08,  # Levemente reduzida para não interferir na leitura
                 layer="below"
             )
         )
