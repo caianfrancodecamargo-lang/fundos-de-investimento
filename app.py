@@ -366,7 +366,7 @@ if not st.session_state.dados_carregados:
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-    df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
+        df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
         
         # --------------------------------------------------------
         # 🔧 AJUSTE: USAR A ÚLTIMA COTA DISPONÍVEL ANTES DA DATA
