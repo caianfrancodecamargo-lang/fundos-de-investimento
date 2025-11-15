@@ -444,7 +444,7 @@ try:
         mode='lines',
         line=dict(color=color_primary, width=2.5),
         fill='tozeroy',
-        fillcolor=f'rgba(26, 95, 63, 0.1)',
+        fillcolor='rgba(26, 95, 63, 0.1)',
         hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
     ))
     fig1.update_layout(
@@ -486,58 +486,62 @@ try:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-    # ============================================================
-    # TABELA DE RENTABILIDADE MENSAL (estilo MaisRetorno)
-    # ============================================================
-    st.subheader("📋 Rentabilidade Mensal")
+    # ============================
+    #  TABELA MENSAL (primeiro pregão do mês → primeiro pregão do mês seguinte)
+    # ============================
+    st.subheader("📋 Tabela de Rentabilidade Mensal (primeiro pregão → primeiro pregão do mês seguinte)")
 
-    # 1) Garantir índice de data e série mensal (usa último e primeiro pregão do mês)
+    # 1) Garantir índice datetime ordenado
     df_indexed = df.set_index('DT_COMPTC').sort_index()
 
-    # preços do primeiro e último pregão de cada mês
-    month_first = df_indexed['VL_QUOTA'].resample('M').first()
-    month_last = df_indexed['VL_QUOTA'].resample('M').last()
+    # 2) Primeiro pregão do mês (resample 'MS' retorna início do mês; .first() pega o primeiro registro dentro do mês)
+    first_of_month = df_indexed['VL_QUOTA'].resample('MS').first()
 
-    # retorno mensal
-    monthly_ret = month_last / month_first - 1
+    # 3) Primeiro pregão do mês seguinte (shift -1)
+    first_next_month = first_of_month.shift(-1)
+
+    # 4) Retorno do mês = (primeiro pregão do mês seguinte / primeiro pregão do mês) - 1
+    monthly_ret = first_next_month / first_of_month - 1
     monthly_ret.name = 'Retorno'
 
-    # DataFrame com ano e mês
+    # 5) Preparar DataFrame com Ano e Mês
     df_monthly = monthly_ret.reset_index().rename(columns={'DT_COMPTC': 'Data'})
+    # Alguns índices podem ter NaN (último mês sem mês seguinte) — mantemos para exibir '-'
     df_monthly['Ano'] = df_monthly['Data'].dt.year
     df_monthly['Mes'] = df_monthly['Data'].dt.month
 
-    # Pivot para ter anos nas linhas e meses nas colunas
+    # 6) Pivot: anos nas linhas, meses nas colunas
     df_pivot = df_monthly.pivot(index='Ano', columns='Mes', values='Retorno')
 
-    # 2) Cálculo "No ano" (YTD) por ano: último preço do ano / primeiro preço do ano - 1
+    # 7) Cálculo "No ano" (YTD) — mantemos: último preço do ano / primeiro preço do ano - 1
     df_year = df_indexed['VL_QUOTA'].groupby(df_indexed.index.year).agg(['first', 'last'])
     df_ytd = df_year['last'] / df_year['first'] - 1
 
-    # 3) Cálculo acumulado desde o início (Acumulado): last_of_year / first_overall - 1
+    # 8) Cálculo acumulado desde o início (Acumulado): last_of_year / first_overall - 1
     first_overall = df_indexed['VL_QUOTA'].iloc[0]
     df_acum = df_year['last'] / first_overall - 1
 
-    # 4) Colocar 'No ano' e 'Acumulado' no pivot
+    # 9) Incluir 'No ano' e 'Acumulado' no pivot (alinhando índices)
     df_pivot['No ano'] = df_ytd
     df_pivot['Acumulado'] = df_acum
 
-    # 5) Renomear colunas de mês para abreviações e ordenar colunas
+    # 10) Renomear colunas de mês para abreviações e ordenar colunas
     meses_map = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
                  7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
-    # Remap meses numéricos para nomes (somente nas colunas presentes)
+    # renomeia somente colunas presentes
     df_pivot = df_pivot.rename(columns=meses_map)
-    # Reordenar colunas: Jan..Dez, No ano, Acumulado (mantendo só colunas que existem)
+
+    # Reordenar colunas: Jan..Dez (somente os existentes), No ano, Acumulado
     cols_ord = [meses_map[m] for m in range(1, 13) if meses_map[m] in df_pivot.columns] + ['No ano', 'Acumulado']
     df_pivot = df_pivot.reindex(columns=cols_ord)
 
-    # 6) Formatação: percentual com 2 casas e '-' para NaN
+    # 11) Formatacao: percentual com 2 casas e '-' para NaN
     df_show = df_pivot.copy()
     df_show = df_show.sort_index(ascending=False)  # ano mais recente primeiro
     df_show = df_show.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-")
 
-    # 7) Exibir com st.dataframe (use_container_width=True)
-    st.dataframe(df_show, use_container_width=True, height=400)
+    # 12) Exibir
+    st.dataframe(df_show, use_container_width=True, height=420)
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
