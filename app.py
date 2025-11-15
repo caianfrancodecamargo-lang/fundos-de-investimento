@@ -434,7 +434,7 @@ try:
     color_danger = '#dc3545'
 
     with tab1:
-    st.subheader("📈 Rentabilidade Histórica")
+        st.subheader("📈 Rentabilidade Histórica")
 
     # --- Gráfico de rentabilidade histórica ---
     fig1 = go.Figure()
