@@ -75,7 +75,7 @@ st.markdown("""
     }
 
     [data-testid="stSidebar"] .sidebar-logo img {
-        max-width: 180px;
+        max-width: 300px;
         height: auto;
         filter: brightness(1.1);
     }
