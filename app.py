@@ -27,12 +27,14 @@ st.markdown("""
     /* Variáveis de cores inspiradas no Copaíba */
     :root {
         --primary-color: #1a5f3f;
-        --secondary-color: #2d8659;
+        --secondary-color: #7a9b3a;
         --accent-color: #f0b429;
         --dark-bg: #0f1419;
         --light-bg: #f8f9fa;
         --text-dark: #1a1a1a;
         --text-light: #ffffff;
+        --sidebar-light: #e8f0e4;
+        --sidebar-medium: #c8d9bd;
     }
 
     /* Fundo geral */
@@ -41,19 +43,32 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar */
+    /* Sidebar com gradiente verde claro */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a5f3f 0%, #0f3d28 100%);
+        background: linear-gradient(180deg, #e8f0e4 0%, #d4e3cc 100%);
         padding: 2rem 1rem;
     }
 
+    /* Logo no topo do sidebar */
+    [data-testid="stSidebar"]::before {
+        content: '';
+        display: block;
+        width: 180px;
+        height: 180px;
+        margin: 0 auto 1.5rem auto;
+        background-image: url('https://i.imgur.com/your-copaiba-logo.png');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+
     [data-testid="stSidebar"] * {
-        color: #ffffff !important;
+        color: #1a5f3f !important;
     }
 
     [data-testid="stSidebar"] .stTextInput label,
     [data-testid="stSidebar"] .stDateInput label {
-        color: #ffffff !important;
+        color: #1a5f3f !important;
         font-weight: 600;
         font-size: 0.9rem;
         margin-bottom: 0.5rem;
@@ -62,7 +77,7 @@ st.markdown("""
     /* INPUTS COM FONTE PRETA */
     [data-testid="stSidebar"] input {
         background-color: #ffffff !important;
-        border: 2px solid rgba(255, 255, 255, 0.5) !important;
+        border: 2px solid #7a9b3a !important;
         color: #000000 !important;
         border-radius: 8px;
         padding: 0.5rem !important;
@@ -77,8 +92,8 @@ st.markdown("""
     /* Garantir que o texto digitado seja preto */
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
-        border-color: var(--accent-color) !important;
-        box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.2) !important;
+        border-color: #1a5f3f !important;
+        box-shadow: 0 0 0 2px rgba(26, 95, 63, 0.2) !important;
     }
 
     /* Botão principal */
@@ -177,13 +192,49 @@ st.markdown("""
 
     /* Mensagens de sucesso/erro na sidebar */
     [data-testid="stSidebar"] .stAlert {
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgba(26, 95, 63, 0.1);
         border-radius: 8px;
         padding: 0.75rem;
         margin: 0.5rem 0;
+        border-left: 4px solid #1a5f3f;
+    }
+    
+    /* Markdown headers no sidebar */
+    [data-testid="stSidebar"] h3 {
+        color: #1a5f3f !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Divisor no sidebar */
+    [data-testid="stSidebar"] hr {
+        border-color: #7a9b3a !important;
+        opacity: 0.3;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Logo da Copaíba Invest (base64)
+COPAIBA_LOGO_BASE64 = """data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="""
+
+# Função para adicionar logo aos gráficos
+def adicionar_logo_grafico(fig):
+    """Adiciona a logo da Copaíba como marca d'água nos gráficos"""
+    fig.add_layout_image(
+        dict(
+            source="https://i.imgur.com/wHZ5Kpb.png",  # URL da imagem que você enviou
+            xref="paper",
+            yref="paper",
+            x=0.95,
+            y=0.05,
+            sizex=0.15,
+            sizey=0.15,
+            xanchor="right",
+            yanchor="bottom",
+            opacity=0.15,
+            layer="below"
+        )
+    )
+    return fig
 
 # Função para limpar CNPJ (remove tudo que não é número)
 def limpar_cnpj(cnpj):
@@ -273,6 +324,12 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     return df, ajustes
 
 # Sidebar com inputs do usuário
+st.sidebar.markdown("""
+<div style='text-align: center; margin-bottom: 2rem;'>
+    <img src='https://i.imgur.com/wHZ5Kpb.png' style='width: 180px; height: auto;'>
+</div>
+""", unsafe_allow_html=True)
+
 st.sidebar.markdown("### ⚙️ Configurações")
 st.sidebar.markdown("---")
 
@@ -537,7 +594,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig1 = adicionar_logo_grafico(fig1)
         st.plotly_chart(fig1, use_container_width=True)
 
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
@@ -567,7 +625,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig2 = adicionar_logo_grafico(fig2)
         st.plotly_chart(fig2, use_container_width=True)
 
     with tab2:
@@ -594,7 +653,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig3 = adicionar_logo_grafico(fig3)
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
@@ -625,7 +685,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig4 = adicionar_logo_grafico(fig4)
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
@@ -676,7 +737,8 @@ try:
             height=600,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig5 = adicionar_logo_grafico(fig5)
         st.plotly_chart(fig5, use_container_width=True)
 
         st.info(f"""
@@ -721,7 +783,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig6 = adicionar_logo_grafico(fig6)
         st.plotly_chart(fig6, use_container_width=True)
 
         st.subheader("📊 Captação Líquida Mensal")
@@ -750,7 +813,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig7 = adicionar_logo_grafico(fig7)
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -785,7 +849,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
+        
+        fig8 = adicionar_logo_grafico(fig8)
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
@@ -827,7 +892,8 @@ try:
                 yaxis=dict(tickformat=".2%"),
                 font=dict(family="Inter, sans-serif")
             )
-
+            
+            fig9 = adicionar_logo_grafico(fig9)
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
