@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Função para converter imagem local em base64 (para usar como marca d'água)
+# Função para converter imagem local em base64
 def get_image_base64(image_path):
     """
     Converte uma imagem local para base64 para uso no Plotly
@@ -31,26 +31,28 @@ def get_image_base64(image_path):
     except:
         return None
 
-# Caminho da logo (ajuste conforme necessário)
-LOGO_PATH = "copaiba_logo.png"  # Coloque a imagem na mesma pasta do script
+# Caminho da logo
+LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado inspirado no site Copaíba Invest
+# CSS customizado com sidebar mais clara e bordas arredondadas nos gráficos
 st.markdown("""
 <style>
     /* Importar fonte similar */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Paleta de cores Copaíba Invest */
+    /* Paleta de cores inspirada na logo Copaíba */
     :root {
-        --primary-green: #2d5f3f;
-        --secondary-green: #6b9b7f;
+        --primary-green: #1a5f3f;
+        --secondary-green: #7ba05b;
+        --light-green: #a8c686;
         --accent-gold: #d4af37;
-        --dark-green: #1a3d2e;
+        --dark-green: #0f3d28;
         --light-cream: #f8f6f1;
         --text-dark: #2c2c2c;
         --text-light: #ffffff;
         --border-light: #e0ddd5;
+        --sidebar-light: #e8f4e8;
     }
 
     /* Fundo geral */
@@ -59,9 +61,9 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar */
+    /* Sidebar com tom mais claro inspirado na logo */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2d5f3f 0%, #1a3d2e 100%);
+        background: linear-gradient(180deg, #7ba05b 0%, #5a8a47 100%);
         padding: 1.5rem 1rem;
     }
 
@@ -74,12 +76,13 @@ st.markdown("""
         text-align: center;
         padding: 1rem 0 2rem 0;
         margin-bottom: 1.5rem;
-        border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
     }
 
     [data-testid="stSidebar"] .sidebar-logo img {
         max-width: 180px;
         height: auto;
+        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
     }
 
     [data-testid="stSidebar"] .stTextInput label,
@@ -90,17 +93,19 @@ st.markdown("""
         margin-bottom: 0.5rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* INPUTS COM FONTE PRETA */
+    /* INPUTS COM FONTE PRETA e fundo branco */
     [data-testid="stSidebar"] input {
         background-color: #ffffff !important;
-        border: 2px solid rgba(212, 175, 55, 0.3) !important;
+        border: 2px solid rgba(255, 255, 255, 0.6) !important;
         color: #000000 !important;
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 0.6rem !important;
         font-weight: 500 !important;
         transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     [data-testid="stSidebar"] input::placeholder {
@@ -111,20 +116,41 @@ st.markdown("""
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
         border-color: #d4af37 !important;
-        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2) !important;
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25) !important;
+    }
+
+    /* Campos de validação com verde mais marcante */
+    [data-testid="stSidebar"] .stAlert {
+        background: linear-gradient(135deg, rgba(26, 95, 63, 0.95) 0%, rgba(90, 138, 71, 0.95) 100%) !important;
+        border-radius: 10px;
+        padding: 0.85rem;
+        margin: 0.5rem 0;
+        border-left: 4px solid #d4af37;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        font-weight: 600;
+    }
+
+    [data-testid="stSidebar"] .stAlert * {
+        color: #ffffff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* Ícone de check mais visível */
+    [data-testid="stSidebar"] .stAlert svg {
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
     }
 
     /* Botão principal */
     .stButton > button {
         background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
-        color: #1a3d2e;
+        color: #1a5f3f;
         font-weight: 700;
         border: none;
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 0.85rem 2rem;
         font-size: 1rem;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
         width: 100%;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -132,13 +158,13 @@ st.markdown("""
 
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
         background: linear-gradient(135deg, #b8941f 0%, #d4af37 100%);
     }
 
     /* Título principal */
     h1 {
-        color: #2d5f3f;
+        color: #1a5f3f;
         font-weight: 700;
         font-size: 2.8rem;
         margin-bottom: 1.5rem;
@@ -150,13 +176,13 @@ st.markdown("""
     [data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 700;
-        color: #2d5f3f;
+        color: #1a5f3f;
     }
 
     [data-testid="stMetricLabel"] {
         font-size: 0.85rem;
         font-weight: 600;
-        color: #6b9b7f;
+        color: #7ba05b;
         text-transform: uppercase;
         letter-spacing: 0.8px;
     }
@@ -166,13 +192,32 @@ st.markdown("""
         padding: 1.8rem;
         border-radius: 16px;
         box-shadow: 0 4px 12px rgba(45, 95, 63, 0.1);
-        border-left: 5px solid #d4af37;
+        border-left: 5px solid #7ba05b;
         transition: all 0.3s ease;
     }
 
     div[data-testid="metric-container"]:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 18px rgba(45, 95, 63, 0.15);
+    }
+
+    /* BORDAS ARREDONDADAS NOS GRÁFICOS */
+    .js-plotly-plot, .plotly, .plot-container {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+    }
+
+    div[data-testid="stPlotlyChart"] > div {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        background: white !important;
+    }
+
+    /* Container dos gráficos com bordas arredondadas */
+    .stPlotlyChart {
+        border-radius: 16px !important;
+        overflow: hidden !important;
     }
 
     /* Tabs */
@@ -187,25 +232,25 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         background-color: transparent;
         border-radius: 10px;
-        color: #6b9b7f;
+        color: #7ba05b;
         font-weight: 600;
         padding: 0.85rem 1.8rem;
         transition: all 0.3s ease;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(212, 175, 55, 0.1);
+        background-color: rgba(123, 160, 91, 0.1);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #2d5f3f 0%, #1a3d2e 100%);
+        background: linear-gradient(135deg, #7ba05b 0%, #5a8a47 100%);
         color: white !important;
-        box-shadow: 0 4px 12px rgba(45, 95, 63, 0.3);
+        box-shadow: 0 4px 12px rgba(123, 160, 91, 0.3);
     }
 
     /* Subtítulos */
     h2, h3 {
-        color: #2d5f3f;
+        color: #1a5f3f;
         font-weight: 600;
         letter-spacing: -0.3px;
     }
@@ -213,7 +258,7 @@ st.markdown("""
     /* Info boxes */
     .stAlert {
         border-radius: 12px;
-        border-left: 4px solid #d4af37;
+        border-left: 4px solid #7ba05b;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
     }
 
@@ -222,16 +267,7 @@ st.markdown("""
         margin: 2.5rem 0;
         border: none;
         height: 2px;
-        background: linear-gradient(90deg, transparent, #d4af37, transparent);
-    }
-
-    /* Mensagens de sucesso/erro na sidebar */
-    [data-testid="stSidebar"] .stAlert {
-        background-color: rgba(212, 175, 55, 0.15);
-        border-radius: 10px;
-        padding: 0.85rem;
-        margin: 0.5rem 0;
-        border-left: 3px solid #d4af37;
+        background: linear-gradient(90deg, transparent, #7ba05b, transparent);
     }
 
     /* Scrollbar personalizada */
@@ -245,22 +281,23 @@ st.markdown("""
     }
 
     ::-webkit-scrollbar-thumb {
-        background: #6b9b7f;
+        background: #7ba05b;
         border-radius: 5px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: #2d5f3f;
+        background: #5a8a47;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água e estilizar gráficos
+# Função para adicionar marca d'água GRANDE e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
     """
-    Adiciona marca d'água, cantos arredondados e estilização elegante aos gráficos
+    Adiciona marca d'água GRANDE (cobrindo ~90% do gráfico), 
+    cantos arredondados e estilização elegante
     """
-    # Adicionar marca d'água se a imagem estiver disponível
+    # Adicionar marca d'água GRANDE se a imagem estiver disponível
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -269,16 +306,16 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=0.5,
-                sizey=0.5,
+                sizex=0.9,  # 90% da largura
+                sizey=0.9,  # 90% da altura
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,
+                opacity=0.06,  # Opacidade reduzida para não comprometer legibilidade
                 layer="below"
             )
         )
 
-    # Estilização com cantos arredondados e sombra
+    # Estilização com cantos arredondados
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
@@ -292,22 +329,8 @@ def add_watermark_and_style(fig, logo_base64=None):
             bgcolor="white",
             font_size=13,
             font_family="Inter, sans-serif",
-            bordercolor="#d4af37"
-        ),
-        # Simular cantos arredondados com bordas
-        shapes=[
-            dict(
-                type="rect",
-                xref="paper",
-                yref="paper",
-                x0=0,
-                y0=0,
-                x1=1,
-                y1=1,
-                line=dict(color="#e0ddd5", width=2),
-                fillcolor="rgba(0,0,0,0)"
-            )
-        ]
+            bordercolor="#7ba05b"
+        )
     )
 
     # Estilizar eixos
@@ -318,8 +341,8 @@ def add_watermark_and_style(fig, logo_base64=None):
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#2d5f3f", family="Inter"),
-        tickfont=dict(size=11, color="#6b9b7f")
+        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        tickfont=dict(size=11, color="#7ba05b")
     )
 
     fig.update_yaxes(
@@ -329,42 +352,36 @@ def add_watermark_and_style(fig, logo_base64=None):
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#2d5f3f", family="Inter"),
-        tickfont=dict(size=11, color="#6b9b7f")
+        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        tickfont=dict(size=11, color="#7ba05b")
     )
 
     return fig
 
-# Função para limpar CNPJ (remove tudo que não é número)
+# Função para limpar CNPJ
 def limpar_cnpj(cnpj):
     if not cnpj:
         return ""
     return re.sub(r'\D', '', cnpj)
 
-# Função para converter data brasileira (DD/MM/AAAA) para formato API (AAAAMMDD)
+# Função para converter data brasileira para formato API
 def formatar_data_api(data_str):
     """
     Converte data do formato brasileiro DD/MM/AAAA para AAAAMMDD
-    Aceita formatos: DD/MM/AAAA, DD-MM-AAAA, DD.MM.AAAA ou DDMMAAAA
     """
     if not data_str:
         return None
 
-    # Remove caracteres não numéricos
     data_limpa = re.sub(r'\D', '', data_str)
 
-    # Verifica se tem 8 dígitos
     if len(data_limpa) == 8:
         try:
-            # Assume formato brasileiro DDMMAAAA
             dia = data_limpa[:2]
             mes = data_limpa[2:4]
             ano = data_limpa[4:]
 
-            # Valida a data
             datetime.strptime(f"{dia}/{mes}/{ano}", '%d/%m/%Y')
 
-            # Retorna no formato AAAAMMDD
             return f"{ano}{mes}{dia}"
         except ValueError:
             return None
@@ -375,7 +392,6 @@ def formatar_data_api(data_str):
 def buscar_data_anterior(df, data_alvo):
     """
     Busca a data mais próxima anterior à data alvo no DataFrame
-    Retorna o índice da linha encontrada ou None se não houver
     """
     datas_disponiveis = df['DT_COMPTC']
     datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
@@ -388,13 +404,10 @@ def buscar_data_anterior(df, data_alvo):
 def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     """
     Ajusta as datas inicial e final para as datas disponíveis mais próximas
-    Retorna um DataFrame filtrado e informações sobre os ajustes
     """
-    # Converter strings de data para datetime
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
 
-    # Buscar datas disponíveis
     idx_inicial = buscar_data_anterior(df, data_inicial)
     idx_final = buscar_data_anterior(df, data_final)
 
@@ -415,14 +428,13 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
         ajustes['data_final_usada'] = df.loc[idx_final, 'DT_COMPTC']
         ajustes['houve_ajuste_final'] = ajustes['data_final_usada'].date() != data_final.date()
 
-    # Filtrar DataFrame
     if idx_inicial is not None and idx_final is not None:
         df_filtrado = df.loc[idx_inicial:idx_final].copy()
         return df_filtrado, ajustes
 
     return df, ajustes
 
-# Sidebar com logo e inputs do usuário
+# Sidebar com logo e inputs
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
@@ -432,7 +444,7 @@ if logo_base64:
 st.sidebar.markdown("### ⚙️ Configurações")
 st.sidebar.markdown("---")
 
-# Input de CNPJ (vazio por padrão)
+# Input de CNPJ
 cnpj_input = st.sidebar.text_input(
     "CNPJ do Fundo",
     value="",
@@ -440,7 +452,7 @@ cnpj_input = st.sidebar.text_input(
     help="Digite o CNPJ com ou sem formatação"
 )
 
-# Inputs de data (vazios por padrão)
+# Inputs de data
 st.sidebar.markdown("#### 📅 Período de Análise")
 col1_sidebar, col2_sidebar = st.sidebar.columns(2)
 
@@ -484,7 +496,6 @@ if data_inicial_input and data_final_input:
     if not data_inicial_formatada or not data_final_formatada:
         st.sidebar.error("❌ Formato de data inválido. Use DD/MM/AAAA")
     else:
-        # Converte para exibição
         try:
             dt_ini = datetime.strptime(data_inicial_formatada, '%Y%m%d')
             dt_fim = datetime.strptime(data_final_formatada, '%Y%m%d')
@@ -508,9 +519,8 @@ st.markdown("---")
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini, data_fim):
     """
-    Carrega dados da API com uma janela ampliada para garantir dados suficientes
+    Carrega dados da API
     """
-    # Amplia a janela de busca em 60 dias antes da data inicial
     dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
     dt_ampliada = dt_inicial - timedelta(days=60)
     data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
@@ -558,13 +568,12 @@ if carregar_button and cnpj_valido and datas_validas:
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
 
-    # Instruções de uso
     st.markdown("""
     ### 📋 Como usar:
 
-    1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar (com ou sem formatação)
-    2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA (ex: 01/01/2020)
-    3. **Data Final**: Digite a data final no formato DD/MM/AAAA (ex: 31/12/2024)
+    1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
+    2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
+    3. **Data Final**: Digite a data final no formato DD/MM/AAAA
     4. Clique em **Carregar Dados** para visualizar as análises
 
     ---
@@ -575,12 +584,6 @@ if not st.session_state.dados_carregados:
     - Evolução patrimonial e captação
     - Perfil de cotistas
     - Retornos em janelas móveis
-
-    ---
-
-    ### ℹ️ Sobre datas:
-    Se você informar uma data em que não há cota disponível (ex: finais de semana, feriados),
-    o sistema automaticamente utilizará a última cota disponível anterior à data informada.
     """)
 
     st.stop()
@@ -588,11 +591,8 @@ if not st.session_state.dados_carregados:
 try:
     with st.spinner('🔄 Carregando dados...'):
         df_completo = carregar_dados_api(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
-
-        # Ajustar período para usar datas disponíveis
         df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
 
-        # Mostrar avisos se houve ajuste de datas
         if ajustes['houve_ajuste_inicial'] or ajustes['houve_ajuste_final']:
             avisos = []
             if ajustes['houve_ajuste_inicial']:
@@ -605,25 +605,21 @@ try:
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC').reset_index(drop=True)
 
-    # NORMALIZAR RENTABILIDADE A PARTIR DA PRIMEIRA COTA DO PERÍODO
     primeira_cota = df['VL_QUOTA'].iloc[0]
     df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
 
-    # Calcular métricas principais
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
     df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
     df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
     df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
     df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
 
-    # Volatilidade
     vol_window = 21
     trading_days = 252
     df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
     df['Volatilidade'] = df['VL_QUOTA'].pct_change().rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # CAGR
     df_cagr = df.copy()
     end_value = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
@@ -632,7 +628,6 @@ try:
     df_cagr['CAGR'] = df_cagr['CAGR'] * 100
     mean_cagr = df_cagr['CAGR'].mean()
 
-    # Retorno 21 dias para VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
     df_plot = df.dropna(subset=['Retorno_21d']).copy()
     VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
@@ -640,13 +635,13 @@ try:
     ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
     ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
 
-    # Paleta de cores Copaíba
-    color_primary = '#2d5f3f'
-    color_secondary = '#d4af37'
-    color_tertiary = '#6b9b7f'
+    # Paleta de cores
+    color_primary = '#1a5f3f'
+    color_secondary = '#7ba05b'
+    color_tertiary = '#d4af37'
     color_danger = '#c9302c'
 
-    # Cards com métricas principais
+    # Cards com métricas
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -663,7 +658,7 @@ try:
 
     st.markdown("---")
 
-    # Tabs para organizar os gráficos
+    # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📈 Rentabilidade",
         "📉 Risco",
@@ -682,7 +677,7 @@ try:
             mode='lines',
             line=dict(color=color_primary, width=3),
             fill='tozeroy',
-            fillcolor=f'rgba(45, 95, 63, 0.15)',
+            fillcolor=f'rgba(26, 95, 63, 0.15)',
             hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
         ))
 
@@ -712,7 +707,7 @@ try:
             x=df_cagr['DT_COMPTC'],
             y=[mean_cagr] * len(df_cagr),
             mode='lines',
-            line=dict(dash='dash', color=color_secondary, width=2.5),
+            line=dict(dash='dash', color=color_tertiary, width=2.5),
             name=f'CAGR Médio ({mean_cagr:.2f}%)'
         ))
 
@@ -769,7 +764,7 @@ try:
                 x=df['DT_COMPTC'],
                 y=[vol_hist] * len(df),
                 mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2.5),
+                line=dict(dash='dash', color=color_tertiary, width=2.5),
                 name=f'Vol. Histórica ({vol_hist:.2f}%)'
             )
         ])
@@ -864,7 +859,7 @@ try:
                 y=df['VL_PATRIM_LIQ'],
                 mode='lines',
                 name='Patrimônio Líquido',
-                line=dict(color=color_secondary, width=3),
+                line=dict(color=color_tertiary, width=3),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
@@ -928,7 +923,7 @@ try:
             y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
-            line=dict(color=color_secondary, width=3),
+            line=dict(color=color_tertiary, width=3),
             yaxis='y2',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
@@ -971,7 +966,7 @@ try:
                 name=f"Retorno — {janela_selecionada}",
                 line=dict(width=3, color=color_primary),
                 fill='tozeroy',
-                fillcolor=f'rgba(45, 95, 63, 0.15)',
+                fillcolor=f'rgba(26, 95, 63, 0.15)',
                 hovertemplate="Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
@@ -996,11 +991,11 @@ except Exception as e:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #6b9b7f; padding: 2rem 0;'>
+<div style='text-align: center; color: #7ba05b; padding: 2rem 0;'>
     <p style='margin: 0; font-size: 0.95rem; font-weight: 600;'>
         <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
     </p>
-    <p style='margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #2d5f3f;'>
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #1a5f3f;'>
         Análise de Fundos de Investimentos • Copaíba Invest • 2025
     </p>
 </div>
