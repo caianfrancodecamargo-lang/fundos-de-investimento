@@ -1,7 +1,4 @@
-""", unsafe_allow_html=True)
-
-# Logo da Copaíba Invest em base64
-COPAIBA_LOGO = "data:image/png;base64,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# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import streamlit as st
 import urllib.request
 import gzip
@@ -30,14 +27,12 @@ st.markdown("""
     /* Variáveis de cores inspiradas no Copaíba */
     :root {
         --primary-color: #1a5f3f;
-        --secondary-color: #7a9b3a;
+        --secondary-color: #2d8659;
         --accent-color: #f0b429;
         --dark-bg: #0f1419;
         --light-bg: #f8f9fa;
         --text-dark: #1a1a1a;
         --text-light: #ffffff;
-        --sidebar-light: #e8f0e4;
-        --sidebar-medium: #c8d9bd;
     }
 
     /* Fundo geral */
@@ -46,19 +41,19 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar com gradiente verde claro */
+    /* Sidebar */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #e8f0e4 0%, #d4e3cc 100%);
+        background: linear-gradient(180deg, #1a5f3f 0%, #0f3d28 100%);
         padding: 2rem 1rem;
     }
 
     [data-testid="stSidebar"] * {
-        color: #1a5f3f !important;
+        color: #ffffff !important;
     }
 
     [data-testid="stSidebar"] .stTextInput label,
     [data-testid="stSidebar"] .stDateInput label {
-        color: #1a5f3f !important;
+        color: #ffffff !important;
         font-weight: 600;
         font-size: 0.9rem;
         margin-bottom: 0.5rem;
@@ -67,7 +62,7 @@ st.markdown("""
     /* INPUTS COM FONTE PRETA */
     [data-testid="stSidebar"] input {
         background-color: #ffffff !important;
-        border: 2px solid #7a9b3a !important;
+        border: 2px solid rgba(255, 255, 255, 0.5) !important;
         color: #000000 !important;
         border-radius: 8px;
         padding: 0.5rem !important;
@@ -82,8 +77,8 @@ st.markdown("""
     /* Garantir que o texto digitado seja preto */
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
-        border-color: #1a5f3f !important;
-        box-shadow: 0 0 0 2px rgba(26, 95, 63, 0.2) !important;
+        border-color: var(--accent-color) !important;
+        box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.2) !important;
     }
 
     /* Botão principal */
@@ -182,49 +177,13 @@ st.markdown("""
 
     /* Mensagens de sucesso/erro na sidebar */
     [data-testid="stSidebar"] .stAlert {
-        background-color: rgba(26, 95, 63, 0.1);
+        background-color: rgba(255, 255, 255, 0.1);
         border-radius: 8px;
         padding: 0.75rem;
         margin: 0.5rem 0;
-        border-left: 4px solid #1a5f3f;
-    }
-    
-    /* Markdown headers no sidebar */
-    [data-testid="stSidebar"] h3 {
-        color: #1a5f3f !important;
-        font-weight: 700 !important;
-    }
-    
-    /* Divisor no sidebar */
-    [data-testid="stSidebar"] hr {
-        border-color: #7a9b3a !important;
-        opacity: 0.3;
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Logo da Copaíba Invest (base64)
-COPAIBA_LOGO_BASE64 = """data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="""
-
-# Função para adicionar logo aos gráficos
-def adicionar_logo_grafico(fig):
-    """Adiciona a logo da Copaíba como marca d'água nos gráficos"""
-    fig.add_layout_image(
-        dict(
-            source="https://i.imgur.com/wHZ5Kpb.png",  # URL da imagem que você enviou
-            xref="paper",
-            yref="paper",
-            x=0.95,
-            y=0.05,
-            sizex=0.15,
-            sizey=0.15,
-            xanchor="right",
-            yanchor="bottom",
-            opacity=0.15,
-            layer="below"
-        )
-    )
-    return fig
 
 # Função para limpar CNPJ (remove tudo que não é número)
 def limpar_cnpj(cnpj):
@@ -314,12 +273,6 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     return df, ajustes
 
 # Sidebar com inputs do usuário
-st.sidebar.markdown("""
-<div style='text-align: center; margin-bottom: 2rem;'>
-    <img src='https://i.imgur.com/wHZ5Kpb.png' style='width: 180px; height: auto;'>
-</div>
-""", unsafe_allow_html=True)
-
 st.sidebar.markdown("### ⚙️ Configurações")
 st.sidebar.markdown("---")
 
@@ -584,8 +537,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig1 = adicionar_logo_grafico(fig1)
+
         st.plotly_chart(fig1, use_container_width=True)
 
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
@@ -615,8 +567,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig2 = adicionar_logo_grafico(fig2)
+
         st.plotly_chart(fig2, use_container_width=True)
 
     with tab2:
@@ -643,8 +594,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig3 = adicionar_logo_grafico(fig3)
+
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
@@ -675,8 +625,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig4 = adicionar_logo_grafico(fig4)
+
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
@@ -727,8 +676,7 @@ try:
             height=600,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig5 = adicionar_logo_grafico(fig5)
+
         st.plotly_chart(fig5, use_container_width=True)
 
         st.info(f"""
@@ -773,8 +721,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig6 = adicionar_logo_grafico(fig6)
+
         st.plotly_chart(fig6, use_container_width=True)
 
         st.subheader("📊 Captação Líquida Mensal")
@@ -803,8 +750,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig7 = adicionar_logo_grafico(fig7)
+
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -839,8 +785,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        
-        fig8 = adicionar_logo_grafico(fig8)
+
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
@@ -882,8 +827,7 @@ try:
                 yaxis=dict(tickformat=".2%"),
                 font=dict(family="Inter, sans-serif")
             )
-            
-            fig9 = adicionar_logo_grafico(fig9)
+
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
