@@ -22,9 +22,7 @@ st.set_page_config(
 
 # Função para converter imagem local em base64
 def get_image_base64(image_path):
-    """
-    Converte uma imagem local para base64 para uso no Plotly
-    """
+    """Converte uma imagem local para base64 para uso no Plotly"""
     try:
         with open(image_path, "rb") as img_file:
             return base64.b64encode(img_file.read()).decode()
@@ -35,24 +33,21 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com sidebar mais clara e bordas arredondadas nos gráficos
+# CSS customizado com todas as melhorias
 st.markdown("""
 <style>
-    /* Importar fonte similar */
+    /* Importar fonte */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Paleta de cores inspirada na logo Copaíba */
+    /* Paleta de cores Copaíba Invest */
     :root {
-        --primary-green: #1a5f3f;
-        --secondary-green: #7ba05b;
-        --light-green: #a8c686;
-        --accent-gold: #d4af37;
-        --dark-green: #0f3d28;
+        --primary-green: #6b9b7f;
+        --dark-green: #1a5f3f;
+        --accent-gold: #8ba888;
         --light-cream: #f8f6f1;
         --text-dark: #2c2c2c;
-        --text-light: #ffffff;
-        --border-light: #e0ddd5;
-        --sidebar-light: #e8f4e8;
+        --success-green: #28a745;
+        --border-elegant: #d4d9d4;
     }
 
     /* Fundo geral */
@@ -61,9 +56,9 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar com tom mais claro inspirado na logo */
+    /* Sidebar com tom mais claro */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #7ba05b 0%, #5a8a47 100%);
+        background: linear-gradient(180deg, #6b9b7f 0%, #8ba888 100%);
         padding: 1.5rem 1rem;
     }
 
@@ -82,9 +77,10 @@ st.markdown("""
     [data-testid="stSidebar"] .sidebar-logo img {
         max-width: 180px;
         height: auto;
-        filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+        filter: brightness(1.1);
     }
 
+    /* Labels dos inputs */
     [data-testid="stSidebar"] .stTextInput label,
     [data-testid="stSidebar"] .stDateInput label {
         color: #ffffff !important;
@@ -93,73 +89,78 @@ st.markdown("""
         margin-bottom: 0.5rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* INPUTS COM FONTE PRETA e fundo branco */
+    /* INPUTS COM BORDA ELEGANTE E EFEITO */
     [data-testid="stSidebar"] input {
-        background-color: #ffffff !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
         color: #000000 !important;
-        border-radius: 10px;
-        padding: 0.6rem !important;
-        font-weight: 500 !important;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-radius: 12px !important;
+        padding: 0.75rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        transition: all 0.3s ease !important;
     }
 
     [data-testid="stSidebar"] input::placeholder {
         color: #666666 !important;
         opacity: 0.7 !important;
+        font-weight: 500 !important;
     }
 
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
-        border-color: #d4af37 !important;
-        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25) !important;
+        border-color: #8ba888 !important;
+        box-shadow: 0 6px 20px rgba(139, 168, 136, 0.3) !important;
+        transform: translateY(-1px) !important;
     }
 
-    /* Campos de validação com verde mais marcante */
-    [data-testid="stSidebar"] .stAlert {
-        background: linear-gradient(135deg, rgba(26, 95, 63, 0.95) 0%, rgba(90, 138, 71, 0.95) 100%) !important;
-        border-radius: 10px;
-        padding: 0.85rem;
-        margin: 0.5rem 0;
-        border-left: 4px solid #d4af37;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-        font-weight: 600;
+    [data-testid="stSidebar"] input:hover {
+        border-color: rgba(139, 168, 136, 0.5) !important;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12) !important;
     }
 
-    [data-testid="stSidebar"] .stAlert * {
-        color: #ffffff !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-
-    /* Ícone de check mais visível */
-    [data-testid="stSidebar"] .stAlert svg {
-        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-    }
-
-    /* Botão principal */
+    /* BOTÃO COM DEGRADÊ HARMONIZADO */
     .stButton > button {
-        background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
-        color: #1a5f3f;
-        font-weight: 700;
-        border: none;
-        border-radius: 12px;
-        padding: 0.85rem 2rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
-        width: 100%;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.85rem 2rem !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(107, 155, 127, 0.3) !important;
+        width: 100% !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
-        background: linear-gradient(135deg, #b8941f 0%, #d4af37 100%);
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(107, 155, 127, 0.5) !important;
+        background: linear-gradient(135deg, #8ba888 0%, #6b9b7f 100%) !important;
+    }
+
+    .stButton > button:active {
+        transform: translateY(0px) !important;
+    }
+
+    /* MENSAGENS DE VALIDAÇÃO COM DEGRADÊ */
+    [data-testid="stSidebar"] .stAlert {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.95) 100%) !important;
+        border-radius: 12px !important;
+        padding: 0.85rem !important;
+        margin: 0.75rem 0 !important;
+        border-left: 4px solid #28a745 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        backdrop-filter: blur(10px) !important;
+    }
+
+    [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"] {
+        color: #1a5f3f !important;
+        font-weight: 600 !important;
     }
 
     /* Título principal */
@@ -182,7 +183,7 @@ st.markdown("""
     [data-testid="stMetricLabel"] {
         font-size: 0.85rem;
         font-weight: 600;
-        color: #7ba05b;
+        color: #6b9b7f;
         text-transform: uppercase;
         letter-spacing: 0.8px;
     }
@@ -192,32 +193,13 @@ st.markdown("""
         padding: 1.8rem;
         border-radius: 16px;
         box-shadow: 0 4px 12px rgba(45, 95, 63, 0.1);
-        border-left: 5px solid #7ba05b;
+        border-left: 5px solid #6b9b7f;
         transition: all 0.3s ease;
     }
 
     div[data-testid="metric-container"]:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 18px rgba(45, 95, 63, 0.15);
-    }
-
-    /* BORDAS ARREDONDADAS NOS GRÁFICOS */
-    .js-plotly-plot, .plotly, .plot-container {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-    }
-
-    div[data-testid="stPlotlyChart"] > div {
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-        background: white !important;
-    }
-
-    /* Container dos gráficos com bordas arredondadas */
-    .stPlotlyChart {
-        border-radius: 16px !important;
-        overflow: hidden !important;
     }
 
     /* Tabs */
@@ -232,20 +214,20 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         background-color: transparent;
         border-radius: 10px;
-        color: #7ba05b;
+        color: #6b9b7f;
         font-weight: 600;
         padding: 0.85rem 1.8rem;
         transition: all 0.3s ease;
     }
 
     .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(123, 160, 91, 0.1);
+        background-color: rgba(107, 155, 127, 0.1);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #7ba05b 0%, #5a8a47 100%);
+        background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%);
         color: white !important;
-        box-shadow: 0 4px 12px rgba(123, 160, 91, 0.3);
+        box-shadow: 0 4px 12px rgba(107, 155, 127, 0.3);
     }
 
     /* Subtítulos */
@@ -258,7 +240,7 @@ st.markdown("""
     /* Info boxes */
     .stAlert {
         border-radius: 12px;
-        border-left: 4px solid #7ba05b;
+        border-left: 4px solid #6b9b7f;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
     }
 
@@ -267,7 +249,7 @@ st.markdown("""
         margin: 2.5rem 0;
         border: none;
         height: 2px;
-        background: linear-gradient(90deg, transparent, #7ba05b, transparent);
+        background: linear-gradient(90deg, transparent, #6b9b7f, transparent);
     }
 
     /* Scrollbar personalizada */
@@ -281,23 +263,22 @@ st.markdown("""
     }
 
     ::-webkit-scrollbar-thumb {
-        background: #7ba05b;
+        background: #6b9b7f;
         border-radius: 5px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: #5a8a47;
+        background: #1a5f3f;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água GRANDE e estilizar gráficos
+# Função para adicionar marca d'água GIGANTE e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
     """
-    Adiciona marca d'água GRANDE (cobrindo ~90% do gráfico), 
-    cantos arredondados e estilização elegante
+    Adiciona marca d'água MUITO GRANDE, cantos arredondados e estilização elegante
     """
-    # Adicionar marca d'água GRANDE se a imagem estiver disponível
+    # Adicionar marca d'água GIGANTE se a imagem estiver disponível
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -306,11 +287,11 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=0.9,  # 90% da largura
-                sizey=0.9,  # 90% da altura
+                sizex=1.2,  # AUMENTADO para 120% do tamanho do gráfico
+                sizey=1.2,  # AUMENTADO para 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.06,  # Opacidade reduzida para não comprometer legibilidade
+                opacity=0.06,  # Levemente reduzida para não interferir na leitura
                 layer="below"
             )
         )
@@ -329,8 +310,21 @@ def add_watermark_and_style(fig, logo_base64=None):
             bgcolor="white",
             font_size=13,
             font_family="Inter, sans-serif",
-            bordercolor="#7ba05b"
-        )
+            bordercolor="#6b9b7f"
+        ),
+        shapes=[
+            dict(
+                type="rect",
+                xref="paper",
+                yref="paper",
+                x0=0,
+                y0=0,
+                x1=1,
+                y1=1,
+                line=dict(color="#e0ddd5", width=2),
+                fillcolor="rgba(0,0,0,0)"
+            )
+        ]
     )
 
     # Estilizar eixos
@@ -342,7 +336,7 @@ def add_watermark_and_style(fig, logo_base64=None):
         linewidth=2,
         linecolor='#e0ddd5',
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
-        tickfont=dict(size=11, color="#7ba05b")
+        tickfont=dict(size=11, color="#6b9b7f")
     )
 
     fig.update_yaxes(
@@ -353,7 +347,7 @@ def add_watermark_and_style(fig, logo_base64=None):
         linewidth=2,
         linecolor='#e0ddd5',
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
-        tickfont=dict(size=11, color="#7ba05b")
+        tickfont=dict(size=11, color="#6b9b7f")
     )
 
     return fig
@@ -366,48 +360,32 @@ def limpar_cnpj(cnpj):
 
 # Função para converter data brasileira para formato API
 def formatar_data_api(data_str):
-    """
-    Converte data do formato brasileiro DD/MM/AAAA para AAAAMMDD
-    """
     if not data_str:
         return None
-
     data_limpa = re.sub(r'\D', '', data_str)
-
     if len(data_limpa) == 8:
         try:
             dia = data_limpa[:2]
             mes = data_limpa[2:4]
             ano = data_limpa[4:]
-
             datetime.strptime(f"{dia}/{mes}/{ano}", '%d/%m/%Y')
-
             return f"{ano}{mes}{dia}"
         except ValueError:
             return None
-
     return None
 
 # Função para buscar data anterior disponível
 def buscar_data_anterior(df, data_alvo):
-    """
-    Busca a data mais próxima anterior à data alvo no DataFrame
-    """
     datas_disponiveis = df['DT_COMPTC']
     datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
-
     if len(datas_anteriores) > 0:
         return datas_anteriores.idxmax()
     return None
 
 # Função para ajustar período de análise
 def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
-    """
-    Ajusta as datas inicial e final para as datas disponíveis mais próximas
-    """
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
-
     idx_inicial = buscar_data_anterior(df, data_inicial)
     idx_final = buscar_data_anterior(df, data_final)
 
@@ -434,15 +412,12 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# Sidebar com logo e inputs
+# Sidebar com logo (SEM o título "Configurações")
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
         unsafe_allow_html=True
     )
-
-st.sidebar.markdown("### ⚙️ Configurações")
-st.sidebar.markdown("---")
 
 # Input de CNPJ
 cnpj_input = st.sidebar.text_input(
@@ -499,7 +474,6 @@ if data_inicial_input and data_final_input:
         try:
             dt_ini = datetime.strptime(data_inicial_formatada, '%Y%m%d')
             dt_fim = datetime.strptime(data_final_formatada, '%Y%m%d')
-
             if dt_ini > dt_fim:
                 st.sidebar.error("❌ Data inicial deve ser anterior à data final")
             else:
@@ -518,9 +492,6 @@ st.markdown("---")
 # Função para carregar dados
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini, data_fim):
-    """
-    Carrega dados da API
-    """
     dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
     dt_ampliada = dt_inicial - timedelta(days=60)
     data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
@@ -541,17 +512,15 @@ def carregar_dados_api(cnpj, data_ini, data_fim):
         content_json = json.loads(content)
 
     df = pd.DataFrame(content_json)
-
     if 'DT_COMPTC' in df.columns:
         df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
 
     return df
 
-# Função para formatar valores em BRL
+# Funções de formatação
 def format_brl(valor):
     return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
-# Função para formatar percentual
 def fmt_pct_port(x):
     return f"{x*100:.2f}%".replace('.', ',')
 
@@ -599,15 +568,14 @@ try:
                 avisos.append(f"**Data inicial ajustada:** {ajustes['data_inicial_original'].strftime('%d/%m/%Y')} → {ajustes['data_inicial_usada'].strftime('%d/%m/%Y')}")
             if ajustes['houve_ajuste_final']:
                 avisos.append(f"**Data final ajustada:** {ajustes['data_final_original'].strftime('%d/%m/%Y')} → {ajustes['data_final_usada'].strftime('%d/%m/%Y')}")
-
             st.info("ℹ️ **Ajuste de período:**\n\n" + "\n\n".join(avisos) + "\n\n*As datas foram ajustadas para as cotas disponíveis mais próximas.*")
 
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC').reset_index(drop=True)
-
     primeira_cota = df['VL_QUOTA'].iloc[0]
     df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
 
+    # Calcular métricas
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
     df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
     df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
@@ -620,6 +588,7 @@ try:
     df['Volatilidade'] = df['VL_QUOTA'].pct_change().rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
+    # CAGR
     df_cagr = df.copy()
     end_value = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
@@ -628,6 +597,7 @@ try:
     df_cagr['CAGR'] = df_cagr['CAGR'] * 100
     mean_cagr = df_cagr['CAGR'].mean()
 
+    # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
     df_plot = df.dropna(subset=['Retorno_21d']).copy()
     VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
@@ -635,13 +605,12 @@ try:
     ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
     ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
 
-    # Paleta de cores
+    # Cores
     color_primary = '#1a5f3f'
-    color_secondary = '#7ba05b'
-    color_tertiary = '#d4af37'
-    color_danger = '#c9302c'
+    color_secondary = '#6b9b7f'
+    color_danger = '#dc3545'
 
-    # Cards com métricas
+    # Cards de métricas
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -707,7 +676,7 @@ try:
             x=df_cagr['DT_COMPTC'],
             y=[mean_cagr] * len(df_cagr),
             mode='lines',
-            line=dict(dash='dash', color=color_tertiary, width=2.5),
+            line=dict(dash='dash', color=color_secondary, width=2.5),
             name=f'CAGR Médio ({mean_cagr:.2f}%)'
         ))
 
@@ -732,7 +701,7 @@ try:
             name='Drawdown',
             line=dict(color=color_danger, width=3),
             fill='tozeroy',
-            fillcolor='rgba(201, 48, 44, 0.15)',
+            fillcolor='rgba(220, 53, 69, 0.15)',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
@@ -764,7 +733,7 @@ try:
                 x=df['DT_COMPTC'],
                 y=[vol_hist] * len(df),
                 mode='lines',
-                line=dict(dash='dash', color=color_tertiary, width=2.5),
+                line=dict(dash='dash', color=color_secondary, width=2.5),
                 name=f'Vol. Histórica ({vol_hist:.2f}%)'
             )
         ])
@@ -859,7 +828,7 @@ try:
                 y=df['VL_PATRIM_LIQ'],
                 mode='lines',
                 name='Patrimônio Líquido',
-                line=dict(color=color_tertiary, width=3),
+                line=dict(color=color_secondary, width=3),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
@@ -923,7 +892,7 @@ try:
             y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
-            line=dict(color=color_tertiary, width=3),
+            line=dict(color=color_secondary, width=3),
             yaxis='y2',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
@@ -991,7 +960,7 @@ except Exception as e:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #7ba05b; padding: 2rem 0;'>
+<div style='text-align: center; color: #6b9b7f; padding: 2rem 0;'>
     <p style='margin: 0; font-size: 0.95rem; font-weight: 600;'>
         <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
     </p>
