@@ -368,6 +368,59 @@ try:
     with st.spinner('🔄 Carregando dados...'):
         df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
 
+        # ----------------------------
+    # Normalizar série para todos os dias
+    # ----------------------------
+    # Se não houver dados (API retornou vazio)
+    if df.empty:
+        st.error("❌ Não há dados de cota disponíveis no período selecionado. Tente ampliar o intervalo.")
+        st.stop()
+
+    # Garantir coluna de data em datetime
+    if 'DT_COMPTC' in df.columns:
+        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+    else:
+        st.error("❌ Coluna 'DT_COMPTC' não encontrada nos dados retornados pela API.")
+        st.stop()
+
+    # Determinar intervalo de datas a partir das datas escolhidas pelo usuário (session_state)
+    # Usamos st.session_state.data_ini e data_fim (formato 'YYYYMMDD')
+    try:
+        data_inicio_periodo = datetime.strptime(st.session_state.data_ini, "%Y%m%d")
+        data_fim_periodo = datetime.strptime(st.session_state.data_fim, "%Y%m%d")
+    except Exception:
+        # fallback para usar min/max do DF caso session_state não exista
+        data_inicio_periodo = df['DT_COMPTC'].min()
+        data_fim_periodo = df['DT_COMPTC'].max()
+
+    # Criar índice diário completo (inclui finais de semana/feriados)
+    idx_diario = pd.date_range(start=data_inicio_periodo.date(), end=data_fim_periodo.date(), freq='D')
+
+    # Reindexar o DF para o índice diário
+    # Primeiro, garantir que DT_COMPTC seja index e ordenado
+    df = df.set_index('DT_COMPTC').sort_index()
+
+    # Reindexa usando o índice diário (cria linhas com NaN onde não havia cota)
+    df = df.reindex(idx_diario)
+
+    # Após reindex, o índice é o DatetimeIndex dos dias; renomear índice para 'DT_COMPTC' para consistência
+    df.index.name = 'DT_COMPTC'
+
+    # Preencher valores ausentes com o último valor conhecido (forward-fill)
+    df = df.ffill()
+
+    # Caso o primeiro(s) dia(s) do período não tenham valor (antes do 1º registro), back-fill
+    df = df.bfill()
+
+    # Resetar o índice para recuperar a coluna DT_COMPTC (algumas partes do código esperam coluna)
+    df = df.reset_index()
+
+    # Garantir tipos numéricos (se a API retornar strings)
+    numeric_cols = ['VL_QUOTA', 'VL_QUOTA_NORM', 'VL_PATRIM_LIQ', 'CAPTC_DIA', 'RESG_DIA', 'NR_COTST']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC')
 
