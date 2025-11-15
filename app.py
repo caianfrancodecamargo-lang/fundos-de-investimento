@@ -488,6 +488,57 @@ try:
 
         st.plotly_chart(fig2, use_container_width=True)
 
+            st.subheader("📋 Tabela de Rentabilidade Mensal (Estilo Mais Retorno)")
+
+        # ------------------------------
+        # 1) Preparação dos dados
+        # ------------------------------
+        df_rent = df[['DT_COMPTC', 'VL_QUOTA']].copy()
+        df_rent['Ano'] = df_rent['DT_COMPTC'].dt.year
+        df_rent['Mes'] = df_rent['DT_COMPTC'].dt.month
+
+        # Retorno diário
+        df_rent['Ret_Diario'] = df_rent['VL_QUOTA'].pct_change()
+
+        # Retorno mensal
+        df_mensal = df_rent.groupby(['Ano','Mes'])['VL_QUOTA'].last() / \
+                    df_rent.groupby(['Ano','Mes'])['VL_QUOTA'].first() - 1
+        df_mensal = df_mensal.reset_index().pivot(index="Ano", columns="Mes", values="VL_QUOTA")
+
+        # Nomes dos meses na ordem correta
+        meses = {
+            1:'Jan', 2:'Fev', 3:'Mar', 4:'Abr', 5:'Mai', 6:'Jun',
+            7:'Jul', 8:'Ago', 9:'Set', 10:'Out', 11:'Nov', 12:'Dez'
+        }
+        df_mensal = df_mensal.rename(columns=meses)
+
+        # ------------------------------
+        # 2) Retorno no ano (YTD)
+        # ------------------------------
+        df_ytd = df_rent.groupby('Ano')['VL_QUOTA'].apply(lambda x: x.iloc[-1] / x.iloc[0] - 1)
+        df_mensal['No ano'] = df_ytd
+
+        # ------------------------------
+        # 3) Retorno acumulado desde o início
+        # ------------------------------
+        df_acum = (df_rent.groupby('Ano')['VL_QUOTA'].last() / df_rent['VL_QUOTA'].iloc[0]) - 1
+        df_mensal['Acumulado'] = df_acum
+
+        # ------------------------------
+        # 4) Formatação visual – estilo Mais Retorno
+        # ------------------------------
+        df_show = df_mensal.copy().sort_index(ascending=False)
+        df_show = df_show.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-")
+
+        # ------------------------------
+        # 5) Exibir tabela estilizada
+        # ------------------------------
+        st.dataframe(
+            df_show,
+            use_container_width=True,
+            hide_index=False
+        )
+
     with tab2:
         st.subheader("📉 Drawdown Histórico")
 
