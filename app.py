@@ -10,7 +10,6 @@ import numpy as np
 import re
 from datetime import datetime, timedelta
 import base64
-from pathlib import Path
 
 # Configuração da página
 st.set_page_config(
@@ -33,74 +32,91 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com todas as melhorias
+# CSS customizado com espaçamentos reduzidos na sidebar
 st.markdown("""
 <style>
-    /* Importar fonte */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Paleta de cores Copaíba Invest */
+    /* Variáveis de cores inspiradas no Copaíba */
     :root {
-        --primary-green: #6b9b7f;
-        --dark-green: #1a5f3f;
-        --accent-gold: #8ba888;
-        --light-cream: #f8f6f1;
-        --text-dark: #2c2c2c;
-        --success-green: #28a745;
-        --border-elegant: #d4d9d4;
+        --primary-color: #1a5f3f;
+        --secondary-color: #2d8659;
+        --accent-color: #f0b429;
+        --dark-bg: #0f1419;
+        --light-bg: #f8f9fa;
+        --text-dark: #1a1a1a;
+        --text-light: #ffffff;
     }
 
     /* Fundo geral */
     .stApp {
-        background: linear-gradient(135deg, #f8f6f1 0%, #ebe8df 100%);
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar com tom mais claro */
+    /* Sidebar com padding reduzido */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #6b9b7f 0%, #8ba888 100%);
-        padding: 1.5rem 1rem;
+        padding: 1rem 0.8rem !important;
     }
 
     [data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
 
-    /* Logo na sidebar */
+    /* Logo na sidebar - espaçamento reduzido */
     [data-testid="stSidebar"] .sidebar-logo {
         text-align: center;
-        padding: 1rem 0 2rem 0;
-        margin-bottom: 1.5rem;
+        padding: 0.5rem 0 0.8rem 0 !important;
+        margin-bottom: 0.8rem !important;
         border-bottom: 2px solid rgba(255, 255, 255, 0.2);
     }
 
     [data-testid="stSidebar"] .sidebar-logo img {
-        max-width: 240px;
+        max-width: 240px !important;
         height: auto;
         filter: brightness(1.1);
     }
 
-    /* Labels dos inputs */
+    /* Labels dos inputs - espaçamento reduzido */
     [data-testid="stSidebar"] .stTextInput label,
     [data-testid="stSidebar"] .stDateInput label {
         color: #ffffff !important;
         font-weight: 600;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 0.8rem !important;
+        margin-bottom: 0.2rem !important;
+        margin-top: 0 !important;
     }
 
-    /* INPUTS COM BORDA ELEGANTE E EFEITO */
+    /* Reduzir espaçamento entre elementos */
+    [data-testid="stSidebar"] .stTextInput,
+    [data-testid="stSidebar"] .stMarkdown {
+        margin-bottom: 0.4rem !important;
+    }
+
+    /* Título "Período de Análise" com menos espaço */
+    [data-testid="stSidebar"] h4 {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.3rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Divisores com menos espaço */
+    [data-testid="stSidebar"] hr {
+        margin: 0.5rem 0 !important;
+    }
+
+    /* INPUTS COM BORDA ELEGANTE */
     [data-testid="stSidebar"] input {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
         color: #000000 !important;
-        border-radius: 12px !important;
-        padding: 0.75rem !important;
+        border-radius: 10px !important;
+        padding: 0.5rem !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
         transition: all 0.3s ease !important;
+        font-size: 0.85rem !important;
     }
 
     [data-testid="stSidebar"] input::placeholder {
@@ -112,34 +128,35 @@ st.markdown("""
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
         border-color: #8ba888 !important;
-        box-shadow: 0 6px 20px rgba(139, 168, 136, 0.3) !important;
+        box-shadow: 0 4px 12px rgba(139, 168, 136, 0.3) !important;
         transform: translateY(-1px) !important;
     }
 
     [data-testid="stSidebar"] input:hover {
         border-color: rgba(139, 168, 136, 0.5) !important;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12) !important;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
     }
 
-    /* BOTÃO COM DEGRADÊ HARMONIZADO */
+    /* BOTÃO COM DEGRADÊ - espaçamento reduzido */
     .stButton > button {
         background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%) !important;
         color: #ffffff !important;
         font-weight: 700 !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 0.85rem 2rem !important;
-        font-size: 1rem !important;
+        border-radius: 10px !important;
+        padding: 0.6rem 1.5rem !important;
+        font-size: 0.9rem !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(107, 155, 127, 0.3) !important;
+        box-shadow: 0 3px 12px rgba(107, 155, 127, 0.3) !important;
         width: 100% !important;
         text-transform: uppercase !important;
-        letter-spacing: 1px !important;
+        letter-spacing: 0.8px !important;
+        margin-top: 0.5rem !important;
     }
 
     .stButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(107, 155, 127, 0.5) !important;
+        box-shadow: 0 5px 16px rgba(107, 155, 127, 0.5) !important;
         background: linear-gradient(135deg, #8ba888 0%, #6b9b7f 100%) !important;
     }
 
@@ -147,15 +164,16 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* MENSAGENS DE VALIDAÇÃO COM DEGRADÊ */
+    /* Mensagens de validação - espaçamento reduzido */
     [data-testid="stSidebar"] .stAlert {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.95) 100%) !important;
-        border-radius: 12px !important;
-        padding: 0.85rem !important;
-        margin: 0.75rem 0 !important;
-        border-left: 4px solid #28a745 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        border-radius: 10px !important;
+        padding: 0.5rem 0.7rem !important;
+        margin: 0.3rem 0 !important;
+        border-left: 3px solid #28a745 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
         backdrop-filter: blur(10px) !important;
+        font-size: 0.8rem !important;
     }
 
     [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"] {
@@ -167,56 +185,55 @@ st.markdown("""
     h1 {
         color: #1a5f3f;
         font-weight: 700;
-        font-size: 2.8rem;
-        margin-bottom: 1.5rem;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
         text-align: center;
-        letter-spacing: -0.5px;
     }
 
     /* Cards de métricas */
     [data-testid="stMetricValue"] {
-        font-size: 2rem;
+        font-size: 1.8rem;
         font-weight: 700;
         color: #1a5f3f;
     }
 
     [data-testid="stMetricLabel"] {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-weight: 600;
-        color: #6b9b7f;
+        color: #6c757d;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.5px;
     }
 
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
-        padding: 1.8rem;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(45, 95, 63, 0.1);
-        border-left: 5px solid #6b9b7f;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 4px solid #6b9b7f;
         transition: all 0.3s ease;
     }
 
     div[data-testid="metric-container"]:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 18px rgba(45, 95, 63, 0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
 
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 8px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
-        padding: 0.8rem;
-        border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(45, 95, 63, 0.08);
+        padding: 0.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
     .stTabs [data-baseweb="tab"] {
         background-color: transparent;
-        border-radius: 10px;
-        color: #6b9b7f;
+        border-radius: 8px;
+        color: #6c757d;
         font-weight: 600;
-        padding: 0.85rem 1.8rem;
+        padding: 0.75rem 1.5rem;
         transition: all 0.3s ease;
     }
 
@@ -227,44 +244,42 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%);
         color: white !important;
-        box-shadow: 0 4px 12px rgba(107, 155, 127, 0.3);
+        box-shadow: 0 3px 10px rgba(107, 155, 127, 0.3);
     }
 
     /* Subtítulos */
     h2, h3 {
         color: #1a5f3f;
         font-weight: 600;
-        letter-spacing: -0.3px;
     }
 
     /* Info boxes */
     .stAlert {
         border-radius: 12px;
-        border-left: 4px solid #6b9b7f;
-        background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
+        border-left: 4px solid #1a5f3f;
     }
 
     /* Divisor */
     hr {
-        margin: 2.5rem 0;
+        margin: 2rem 0;
         border: none;
         height: 2px;
-        background: linear-gradient(90deg, transparent, #6b9b7f, transparent);
+        background: linear-gradient(90deg, transparent, #1a5f3f, transparent);
     }
 
     /* Scrollbar personalizada */
     ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
     }
 
     ::-webkit-scrollbar-track {
-        background: #f8f6f1;
+        background: #f8f9fa;
     }
 
     ::-webkit-scrollbar-thumb {
         background: #6b9b7f;
-        border-radius: 5px;
+        border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
@@ -276,9 +291,8 @@ st.markdown("""
 # Função para adicionar marca d'água GIGANTE e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
     """
-    Adiciona marca d'água MUITO GRANDE, cantos arredondados e estilização elegante
+    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
     """
-    # Adicionar marca d'água GIGANTE se a imagem estiver disponível
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -287,16 +301,16 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,  # AUMENTADO para 120% do tamanho do gráfico
-                sizey=1.75,  # AUMENTADO para 120% do tamanho do gráfico
+                sizex=1.2,  # 120% do tamanho do gráfico
+                sizey=1.2,  # 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # Levemente reduzida para não interferir na leitura
+                opacity=0.06,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
                 layer="below"
             )
         )
 
-    # Estilização com cantos arredondados
+    # Estilização elegante
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
@@ -382,7 +396,7 @@ def buscar_data_anterior(df, data_alvo):
         return datas_anteriores.idxmax()
     return None
 
-# Função para ajustar período de análise
+# Função para ajustar período de análise (SEM MOSTRAR NOTIFICAÇÃO)
 def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
@@ -412,7 +426,7 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# Sidebar com logo (SEM o título "Configurações")
+# Sidebar com logo (SEM título "Configurações")
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
@@ -560,15 +574,11 @@ if not st.session_state.dados_carregados:
 try:
     with st.spinner('🔄 Carregando dados...'):
         df_completo = carregar_dados_api(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
+
+        # Ajustar período SEM MOSTRAR A NOTIFICAÇÃO
         df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
 
-        if ajustes['houve_ajuste_inicial'] or ajustes['houve_ajuste_final']:
-            avisos = []
-            if ajustes['houve_ajuste_inicial']:
-                avisos.append(f"**Data inicial ajustada:** {ajustes['data_inicial_original'].strftime('%d/%m/%Y')} → {ajustes['data_inicial_usada'].strftime('%d/%m/%Y')}")
-            if ajustes['houve_ajuste_final']:
-                avisos.append(f"**Data final ajustada:** {ajustes['data_final_original'].strftime('%d/%m/%Y')} → {ajustes['data_final_usada'].strftime('%d/%m/%Y')}")
-            st.info("ℹ️ **Ajuste de período:**\n\n" + "\n\n".join(avisos) + "\n\n*As datas foram ajustadas para as cotas disponíveis mais próximas.*")
+        # NOTIFICAÇÃO REMOVIDA - não mostra mais o aviso de ajuste de datas
 
     # Preparação dos dados
     df = df.sort_values('DT_COMPTC').reset_index(drop=True)
@@ -644,9 +654,9 @@ try:
             x=df['DT_COMPTC'],
             y=df['VL_QUOTA_NORM'],
             mode='lines',
-            line=dict(color=color_primary, width=3),
+            line=dict(color=color_primary, width=2.5),
             fill='tozeroy',
-            fillcolor=f'rgba(26, 95, 63, 0.15)',
+            fillcolor=f'rgba(26, 95, 63, 0.1)',
             hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
         ))
 
@@ -655,7 +665,8 @@ try:
             yaxis_title="Rentabilidade (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig1 = add_watermark_and_style(fig1, logo_base64)
@@ -669,14 +680,14 @@ try:
             y=df_cagr['CAGR'],
             mode='lines',
             name='CAGR',
-            line=dict(color=color_primary, width=3),
+            line=dict(color=color_primary, width=2.5),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
         ))
         fig2.add_trace(go.Scatter(
             x=df_cagr['DT_COMPTC'],
             y=[mean_cagr] * len(df_cagr),
             mode='lines',
-            line=dict(dash='dash', color=color_secondary, width=2.5),
+            line=dict(dash='dash', color=color_secondary, width=2),
             name=f'CAGR Médio ({mean_cagr:.2f}%)'
         ))
 
@@ -685,7 +696,8 @@ try:
             yaxis_title="CAGR (% a.a)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig2 = add_watermark_and_style(fig2, logo_base64)
@@ -699,20 +711,21 @@ try:
             y=df['Drawdown'],
             mode='lines',
             name='Drawdown',
-            line=dict(color=color_danger, width=3),
+            line=dict(color=color_danger, width=2.5),
             fill='tozeroy',
-            fillcolor='rgba(220, 53, 69, 0.15)',
+            fillcolor='rgba(220, 53, 69, 0.1)',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1.5)
+        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
 
         fig3.update_layout(
             xaxis_title="Data",
             yaxis_title="Drawdown (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig3 = add_watermark_and_style(fig3, logo_base64)
@@ -726,14 +739,14 @@ try:
                 y=df['Volatilidade'],
                 mode='lines',
                 name=f'Volatilidade {vol_window} dias',
-                line=dict(color=color_primary, width=3),
+                line=dict(color=color_primary, width=2.5),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
             ),
             go.Scatter(
                 x=df['DT_COMPTC'],
                 y=[vol_hist] * len(df),
                 mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2.5),
+                line=dict(dash='dash', color=color_secondary, width=2),
                 name=f'Vol. Histórica ({vol_hist:.2f}%)'
             )
         ])
@@ -743,7 +756,8 @@ try:
             yaxis_title="Volatilidade (% a.a.)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig4 = add_watermark_and_style(fig4, logo_base64)
@@ -757,7 +771,7 @@ try:
             y=df_plot['Retorno_21d'] * 100,
             mode='lines',
             name='Rentabilidade móvel (1m)',
-            line=dict(color=color_primary, width=2.5),
+            line=dict(color=color_primary, width=2),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
         ))
         fig5.add_trace(go.Scatter(
@@ -765,28 +779,28 @@ try:
             y=[VaR_95 * 100, VaR_95 * 100],
             mode='lines',
             name='VaR 95%',
-            line=dict(dash='dot', color='#ff9800', width=2.5)
+            line=dict(dash='dot', color='orange', width=2)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[VaR_99 * 100, VaR_99 * 100],
             mode='lines',
             name='VaR 99%',
-            line=dict(dash='dot', color=color_danger, width=2.5)
+            line=dict(dash='dot', color='red', width=2)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[ES_95 * 100, ES_95 * 100],
             mode='lines',
             name='ES 95%',
-            line=dict(dash='dash', color='#ff9800', width=2.5)
+            line=dict(dash='dash', color='orange', width=2)
         ))
         fig5.add_trace(go.Scatter(
             x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
             y=[ES_99 * 100, ES_99 * 100],
             mode='lines',
             name='ES 99%',
-            line=dict(dash='dash', color=color_danger, width=2.5)
+            line=dict(dash='dash', color='red', width=2)
         ))
 
         fig5.update_layout(
@@ -794,7 +808,8 @@ try:
             yaxis_title="Rentabilidade (%)",
             template="plotly_white",
             hovermode="x unified",
-            height=600
+            height=600,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig5 = add_watermark_and_style(fig5, logo_base64)
@@ -819,7 +834,7 @@ try:
                 y=df['Soma_Acumulada'],
                 mode='lines',
                 name='Captação Líquida',
-                line=dict(color=color_primary, width=3),
+                line=dict(color=color_primary, width=2.5),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['Soma_Acumulada']]
             ),
@@ -828,7 +843,7 @@ try:
                 y=df['VL_PATRIM_LIQ'],
                 mode='lines',
                 name='Patrimônio Líquido',
-                line=dict(color=color_secondary, width=3),
+                line=dict(color=color_secondary, width=2.5),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
@@ -839,7 +854,8 @@ try:
             yaxis_title="Valor (R$)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig6 = add_watermark_and_style(fig6, logo_base64)
@@ -868,7 +884,8 @@ try:
             yaxis_title="Valor (R$)",
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig7 = add_watermark_and_style(fig7, logo_base64)
@@ -883,7 +900,7 @@ try:
             y=df['Patrimonio_Liq_Medio'],
             mode='lines',
             name='Patrimônio Médio por Cotista',
-            line=dict(color=color_primary, width=3),
+            line=dict(color=color_primary, width=2.5),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
         ))
@@ -892,7 +909,7 @@ try:
             y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
-            line=dict(color=color_secondary, width=3),
+            line=dict(color=color_secondary, width=2.5),
             yaxis='y2',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
@@ -903,7 +920,8 @@ try:
             yaxis2=dict(title="Número de Cotistas", overlaying="y", side="right"),
             template="plotly_white",
             hovermode="x unified",
-            height=500
+            height=500,
+            font=dict(family="Inter, sans-serif")
         )
 
         fig8 = add_watermark_and_style(fig8, logo_base64)
@@ -933,9 +951,9 @@ try:
                 y=df_returns[janela_selecionada],
                 mode='lines',
                 name=f"Retorno — {janela_selecionada}",
-                line=dict(width=3, color=color_primary),
+                line=dict(width=2.5, color=color_primary),
                 fill='tozeroy',
-                fillcolor=f'rgba(26, 95, 63, 0.15)',
+                fillcolor=f'rgba(26, 95, 63, 0.1)',
                 hovertemplate="Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
@@ -945,7 +963,8 @@ try:
                 template="plotly_white",
                 hovermode="x unified",
                 height=500,
-                yaxis=dict(tickformat=".2%")
+                yaxis=dict(tickformat=".2%"),
+                font=dict(family="Inter, sans-serif")
             )
 
             fig9 = add_watermark_and_style(fig9, logo_base64)
@@ -960,11 +979,11 @@ except Exception as e:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #6b9b7f; padding: 2rem 0;'>
-    <p style='margin: 0; font-size: 0.95rem; font-weight: 600;'>
+<div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
+    <p style='margin: 0; font-size: 0.9rem;'>
         <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
     </p>
-    <p style='margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #1a5f3f;'>
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem;'>
         Análise de Fundos de Investimentos • Copaíba Invest • 2025
     </p>
 </div>
