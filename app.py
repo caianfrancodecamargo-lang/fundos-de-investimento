@@ -121,7 +121,7 @@ st.markdown("""
 
     [data-testid="stSidebar"] input::placeholder {
         color: #666666 !important;
-        opacity: 0.7 !important;
+        opacity: 0.8 !important;
         font-weight: 500 !important;
     }
 
@@ -301,11 +301,11 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.2,  # 120% do tamanho do gráfico
-                sizey=1.2,  # 120% do tamanho do gráfico
+                sizex=1.75,  # 120% do tamanho do gráfico
+                sizey=1.75,  # 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.06,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
                 layer="below"
             )
         )
