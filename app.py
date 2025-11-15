@@ -366,37 +366,49 @@ if not st.session_state.dados_carregados:
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-        df = carregar_dados(
-            st.session_state.cnpj,
-            st.session_state.data_ini,
-            st.session_state.data_fim
-        )
+        # Carregar dados da API
+        df = carregar_dados(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
     
-        # --------------------------------------------------------
-        # 🔧 AJUSTE: USAR A ÚLTIMA COTA DISPONÍVEL ANTES DA DATA
-        # --------------------------------------------------------
+        # Validação rápida: DataFrame vazio
+        if df.empty:
+            st.error("❌ Não há dados de cota disponíveis no período selecionado.")
+            st.stop()
     
-        # Garantir datetime
+        # Garantir datetime e ordenar (não mudamos índice)
         df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+        df = df.sort_values('DT_COMPTC').reset_index(drop=True)
     
-        # Ordenar corretamente
-        df = df.sort_values('DT_COMPTC').set_index('DT_COMPTC')
+        # --- Preparo para busca rápida da última cota anterior a uma data ---
+        # Array numpy de datas (em np.datetime64) e Series de cota correspondente
+        df_dates = df['DT_COMPTC'].values  # numpy datetime64 array, ordenado
+        df_quota = df['VL_QUOTA'].reset_index(drop=True)  # Series alinhada
     
-        # Função para buscar última cota disponível antes ou igual à data
-        def get_last_available(date, series):
+        # Função robusta para buscar a última cota disponível antes ou igual a uma data
+        def get_last_available(date_like):
             """
-            Retorna a última cota disponível antes ou igual à data.
+            date_like: pd.Timestamp, str ou datetime.date.
+            Retorna (pd.Timestamp_data_usada, valor_quota) ou (None, None) se não existir.
             """
+            # converter para numpy datetime64 em dia (compatível com df_dates)
             try:
-                return series.asof(date)
+                ts = pd.to_datetime(date_like)
             except Exception:
-                return None
+                return None, None
     
-        # (Opcional) Deixar índice como antes, porque o resto do código espera isso
-        df = df.reset_index()
+            # busca a posição onde ts entraria para manter ordenação e pega anterior
+            # side='right' faz com que, se existir exatamente igual, retorne a posição após ele
+            pos = df_dates.searchsorted(np.datetime64(ts.to_pydatetime()), side='right') - 1
     
-        df = df.sort_values('DT_COMPTC')
+            if pos >= 0:
+                return pd.Timestamp(df_dates[pos]), df_quota.iloc[int(pos)]
+            else:
+                return None, None
     
+        # Exemplo de uso (teste rápido) - REMOVA depois se quiser
+        # st.write("Teste get_last_available 2025-04-30:", get_last_available("2025-04-30"))
+    
+        # OBS: não alteramos df; apenas preparamos utilitário que você pode usar em cálculos
+        
     # Calcular métricas principais
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
     df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
