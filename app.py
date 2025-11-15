@@ -434,110 +434,110 @@ try:
     color_danger = '#dc3545'
 
     with tab1:
-        st.subheader("📈 Rentabilidade Histórica")
+    st.subheader("📈 Rentabilidade Histórica")
 
-        fig1 = go.Figure()
-        fig1.add_trace(go.Scatter(
-            x=df['DT_COMPTC'],
-            y=df['VL_QUOTA_NORM'],
-            mode='lines',
-            line=dict(color=color_primary, width=2.5),
-            fill='tozeroy',
-            fillcolor=f'rgba(26, 95, 63, 0.1)',
-            hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
-        ))
+    # --- Gráfico de rentabilidade histórica ---
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(
+        x=df['DT_COMPTC'],
+        y=df['VL_QUOTA_NORM'],
+        mode='lines',
+        line=dict(color=color_primary, width=2.5),
+        fill='tozeroy',
+        fillcolor=f'rgba(26, 95, 63, 0.1)',
+        hovertemplate='<b>Data:</b> %{x|%d/%m/%Y}<br><b>Rentabilidade:</b> %{y:.2f}%<extra></extra>'
+    ))
+    fig1.update_layout(
+        xaxis_title="Data",
+        yaxis_title="Rentabilidade (%)",
+        template="plotly_white",
+        hovermode="x unified",
+        height=500,
+        font=dict(family="Inter, sans-serif")
+    )
+    st.plotly_chart(fig1, use_container_width=True)
 
-        fig1.update_layout(
-            xaxis_title="Data",
-            yaxis_title="Rentabilidade (%)",
-            template="plotly_white",
-            hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
-        )
+    st.subheader("📊 CAGR Anual por Dia de Aplicação")
 
-        st.plotly_chart(fig1, use_container_width=True)
+    # --- Gráfico CAGR ---
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(
+        x=df_cagr['DT_COMPTC'],
+        y=df_cagr['CAGR'],
+        mode='lines',
+        name='CAGR',
+        line=dict(color=color_primary, width=2.5),
+        hovertemplate='Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
+    ))
+    fig2.add_trace(go.Scatter(
+        x=df_cagr['DT_COMPTC'],
+        y=[mean_cagr] * len(df_cagr),
+        mode='lines',
+        line=dict(dash='dash', color=color_secondary, width=2),
+        name=f'CAGR Médio ({mean_cagr:.2f}%)'
+    ))
+    fig2.update_layout(
+        xaxis_title="Data",
+        yaxis_title="CAGR (% a.a)",
+        template="plotly_white",
+        hovermode="x unified",
+        height=500,
+        font=dict(family="Inter, sans-serif")
+    )
+    st.plotly_chart(fig2, use_container_width=True)
 
-        st.subheader("📊 CAGR Anual por Dia de Aplicação")
+    # ============================================================
+    # TABELA DE RENTABILIDADE MENSAL (estilo MaisRetorno)
+    # ============================================================
+    st.subheader("📋 Tabela de Rentabilidade Mensal (Estilo Mais Retorno)")
 
-        fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(
-            x=df_cagr['DT_COMPTC'],
-            y=df_cagr['CAGR'],
-            mode='lines',
-            name='CAGR',
-            line=dict(color=color_primary, width=2.5),
-            hovertemplate='Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
-        ))
-        fig2.add_trace(go.Scatter(
-            x=df_cagr['DT_COMPTC'],
-            y=[mean_cagr] * len(df_cagr),
-            mode='lines',
-            line=dict(dash='dash', color=color_secondary, width=2),
-            name=f'CAGR Médio ({mean_cagr:.2f}%)'
-        ))
+    # 1) Garantir índice de data e série mensal (usa último e primeiro pregão do mês)
+    df_indexed = df.set_index('DT_COMPTC').sort_index()
 
-        fig2.update_layout(
-            xaxis_title="Data",
-            yaxis_title="CAGR (% a.a)",
-            template="plotly_white",
-            hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif")
-        )
+    # preços do primeiro e último pregão de cada mês
+    month_first = df_indexed['VL_QUOTA'].resample('M').first()
+    month_last = df_indexed['VL_QUOTA'].resample('M').last()
 
-        st.plotly_chart(fig2, use_container_width=True)
+    # retorno mensal
+    monthly_ret = month_last / month_first - 1
+    monthly_ret.name = 'Retorno'
 
-            st.subheader("📋 Tabela de Rentabilidade Mensal (Estilo Mais Retorno)")
+    # DataFrame com ano e mês
+    df_monthly = monthly_ret.reset_index().rename(columns={'DT_COMPTC': 'Data'})
+    df_monthly['Ano'] = df_monthly['Data'].dt.year
+    df_monthly['Mes'] = df_monthly['Data'].dt.month
 
-        # ------------------------------
-        # 1) Preparação dos dados
-        # ------------------------------
-        df_rent = df[['DT_COMPTC', 'VL_QUOTA']].copy()
-        df_rent['Ano'] = df_rent['DT_COMPTC'].dt.year
-        df_rent['Mes'] = df_rent['DT_COMPTC'].dt.month
+    # Pivot para ter anos nas linhas e meses nas colunas
+    df_pivot = df_monthly.pivot(index='Ano', columns='Mes', values='Retorno')
 
-        # Retorno diário
-        df_rent['Ret_Diario'] = df_rent['VL_QUOTA'].pct_change()
+    # 2) Cálculo "No ano" (YTD) por ano: último preço do ano / primeiro preço do ano - 1
+    df_year = df_indexed['VL_QUOTA'].groupby(df_indexed.index.year).agg(['first', 'last'])
+    df_ytd = df_year['last'] / df_year['first'] - 1
 
-        # Retorno mensal
-        df_mensal = df_rent.groupby(['Ano','Mes'])['VL_QUOTA'].last() / \
-                    df_rent.groupby(['Ano','Mes'])['VL_QUOTA'].first() - 1
-        df_mensal = df_mensal.reset_index().pivot(index="Ano", columns="Mes", values="VL_QUOTA")
+    # 3) Cálculo acumulado desde o início (Acumulado): last_of_year / first_overall - 1
+    first_overall = df_indexed['VL_QUOTA'].iloc[0]
+    df_acum = df_year['last'] / first_overall - 1
 
-        # Nomes dos meses na ordem correta
-        meses = {
-            1:'Jan', 2:'Fev', 3:'Mar', 4:'Abr', 5:'Mai', 6:'Jun',
-            7:'Jul', 8:'Ago', 9:'Set', 10:'Out', 11:'Nov', 12:'Dez'
-        }
-        df_mensal = df_mensal.rename(columns=meses)
+    # 4) Colocar 'No ano' e 'Acumulado' no pivot
+    df_pivot['No ano'] = df_ytd
+    df_pivot['Acumulado'] = df_acum
 
-        # ------------------------------
-        # 2) Retorno no ano (YTD)
-        # ------------------------------
-        df_ytd = df_rent.groupby('Ano')['VL_QUOTA'].apply(lambda x: x.iloc[-1] / x.iloc[0] - 1)
-        df_mensal['No ano'] = df_ytd
+    # 5) Renomear colunas de mês para abreviações e ordenar colunas
+    meses_map = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
+                 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
+    # Remap meses numéricos para nomes (somente nas colunas presentes)
+    df_pivot = df_pivot.rename(columns=meses_map)
+    # Reordenar colunas: Jan..Dez, No ano, Acumulado (mantendo só colunas que existem)
+    cols_ord = [meses_map[m] for m in range(1, 13) if meses_map[m] in df_pivot.columns] + ['No ano', 'Acumulado']
+    df_pivot = df_pivot.reindex(columns=cols_ord)
 
-        # ------------------------------
-        # 3) Retorno acumulado desde o início
-        # ------------------------------
-        df_acum = (df_rent.groupby('Ano')['VL_QUOTA'].last() / df_rent['VL_QUOTA'].iloc[0]) - 1
-        df_mensal['Acumulado'] = df_acum
+    # 6) Formatação: percentual com 2 casas e '-' para NaN
+    df_show = df_pivot.copy()
+    df_show = df_show.sort_index(ascending=False)  # ano mais recente primeiro
+    df_show = df_show.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-")
 
-        # ------------------------------
-        # 4) Formatação visual – estilo Mais Retorno
-        # ------------------------------
-        df_show = df_mensal.copy().sort_index(ascending=False)
-        df_show = df_show.applymap(lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "-")
-
-        # ------------------------------
-        # 5) Exibir tabela estilizada
-        # ------------------------------
-        st.dataframe(
-            df_show,
-            use_container_width=True,
-            hide_index=False
-        )
+    # 7) Exibir com st.dataframe (use_container_width=True)
+    st.dataframe(df_show, use_container_width=True, height=400)
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
