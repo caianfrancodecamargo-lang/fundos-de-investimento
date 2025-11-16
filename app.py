@@ -40,11 +40,12 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado
+# CSS customizado com espaçamentos reduzidos na sidebar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+    /* Variáveis de cores inspiradas no Copaíba */
     :root {
         --primary-color: #1a5f3f;
         --secondary-color: #2d8659;
@@ -55,11 +56,13 @@ st.markdown("""
         --text-light: #ffffff;
     }
 
+    /* Fundo geral */
     .stApp {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         font-family: 'Inter', sans-serif;
     }
 
+    /* Sidebar com padding reduzido */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #5a8a6f 0%, #4a7a5f 100%);
         padding: 1rem 0.8rem !important;
@@ -69,6 +72,7 @@ st.markdown("""
         color: #ffffff !important;
     }
 
+    /* Logo na sidebar - espaçamento reduzido */
     [data-testid="stSidebar"] .sidebar-logo {
         text-align: center;
         padding: 0.5rem 0 0.8rem 0 !important;
@@ -82,7 +86,9 @@ st.markdown("""
         filter: brightness(1.05);
     }
 
-    [data-testid="stSidebar"] .stTextInput label {
+    /* Labels dos inputs - espaçamento reduzido */
+    [data-testid="stSidebar"] .stTextInput label,
+    [data-testid="stSidebar"] .stDateInput label {
         color: #ffffff !important;
         font-weight: 600;
         font-size: 0.8rem !important;
@@ -90,21 +96,25 @@ st.markdown("""
         margin-top: 0 !important;
     }
 
+    /* Reduzir espaçamento entre elementos */
     [data-testid="stSidebar"] .stTextInput,
     [data-testid="stSidebar"] .stMarkdown {
         margin-bottom: 0.4rem !important;
     }
 
+    /* Título "Período de Análise" com menos espaço */
     [data-testid="stSidebar"] h4 {
         margin-top: 0.5rem !important;
         margin-bottom: 0.3rem !important;
         font-size: 0.85rem !important;
     }
 
+    /* Divisores com menos espaço */
     [data-testid="stSidebar"] hr {
         margin: 0.5rem 0 !important;
     }
 
+    /* INPUTS COM BORDA ELEGANTE */
     [data-testid="stSidebar"] input {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
@@ -135,6 +145,7 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
     }
 
+    /* BOTÃO COM DEGRADÊ - espaçamento reduzido */
     .stButton > button {
         background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%) !important;
         color: #ffffff !important;
@@ -161,6 +172,7 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
+    /* Mensagens de validação - espaçamento reduzido */
     [data-testid="stSidebar"] .stAlert {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
         border-radius: 10px !important;
@@ -188,6 +200,7 @@ st.markdown("""
         font-size: 0.9rem !important;
     }
 
+    /* Título principal */
     h1 {
         color: #1a5f3f;
         font-weight: 700;
@@ -196,6 +209,7 @@ st.markdown("""
         text-align: center;
     }
 
+    /* Cards de métricas */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 700;
@@ -224,6 +238,7 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
 
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
@@ -251,16 +266,19 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(107, 155, 127, 0.3);
     }
 
+    /* Subtítulos */
     h2, h3 {
         color: #1a5f3f;
         font-weight: 600;
     }
 
+    /* Info boxes */
     .stAlert {
         border-radius: 12px;
         border-left: 4px solid #1a5f3f;
     }
 
+    /* Divisor */
     hr {
         margin: 2rem 0;
         border: none;
@@ -268,6 +286,7 @@ st.markdown("""
         background: linear-gradient(90deg, transparent, #1a5f3f, transparent);
     }
 
+    /* Scrollbar personalizada */
     ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -288,9 +307,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água e estilizar gráficos
+# Função para adicionar marca d'água GIGANTE e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
-    """Adiciona marca d'água e estilização aos gráficos"""
+    """
+    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
+    """
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -308,10 +329,15 @@ def add_watermark_and_style(fig, logo_base64=None):
             )
         )
 
+    # Estilização elegante
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
-        font=dict(family="Inter, sans-serif", size=12, color="#2c2c2c"),
+        font=dict(
+            family="Inter, sans-serif",
+            size=12,
+            color="#2c2c2c"
+        ),
         margin=dict(l=60, r=60, t=80, b=60),
         hoverlabel=dict(
             bgcolor="white",
@@ -334,6 +360,7 @@ def add_watermark_and_style(fig, logo_base64=None):
         ]
     )
 
+    # Estilizar eixos
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
@@ -388,7 +415,7 @@ def buscar_data_anterior(df, data_alvo):
         return datas_anteriores.idxmax()
     return None
 
-# Função para ajustar período de análise
+# Função para ajustar período de análise (SEM MOSTRAR NOTIFICAÇÃO)
 def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
@@ -423,10 +450,8 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 def obter_dados_cdi_real(data_inicio, data_fim):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb
-    Exatamente como no código fornecido
     """
     if not BCB_DISPONIVEL:
-        st.error("❌ Biblioteca 'python-bcb' não está instalada. Instale com: pip install python-bcb")
         return pd.DataFrame()
 
     try:
@@ -452,13 +477,6 @@ def obter_dados_cdi_real(data_inicio, data_fim):
 def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
     """
     Processa os dados do fundo e opcionalmente adiciona o CDI REAL
-
-    Args:
-        df_fundo: DataFrame com dados do fundo
-        incluir_cdi: Se True, adiciona dados do CDI
-
-    Returns:
-        DataFrame processado com colunas normalizadas
     """
     df = df_fundo.copy()
 
@@ -491,7 +509,7 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
 
     return df
 
-# Sidebar
+# Sidebar com logo (SEM título "Configurações")
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
@@ -572,7 +590,7 @@ carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", disab
 st.markdown("<h1>📊 Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Função para carregar dados do fundo
+# Função para carregar dados
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini, data_fim):
     dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
@@ -620,14 +638,26 @@ if carregar_button and cnpj_valido and datas_validas:
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+
     st.markdown("""
     ### 📋 Como usar:
+
     1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
     3. **Data Final**: Digite a data final no formato DD/MM/AAAA
-    4. **Indicadores**: Selecione os indicadores para comparação
+    4. **Indicadores**: Marque a opção "Comparar com CDI" se desejar
     5. Clique em **Carregar Dados** para visualizar as análises
+
+    ---
+
+    ### 📊 Análises disponíveis:
+    - Rentabilidade histórica e CAGR (com comparação ao CDI)
+    - Análise de risco (Drawdown, Volatilidade, VaR)
+    - Evolução patrimonial e captação
+    - Perfil de cotistas
+    - Retornos em janelas móveis (com comparação ao CDI)
     """)
+
     st.stop()
 
 try:
@@ -663,31 +693,25 @@ try:
     df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # Métricas do CDI (se disponível)
+    # Verificar se tem CDI disponível
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns
-    if tem_cdi:
-        # Drawdown do CDI
-        df['CDI_Max'] = df['VL_CDI'].cummax()
-        df['CDI_Drawdown'] = (df['VL_CDI'] / df['CDI_Max'] - 1) * 100
-
-        # Volatilidade do CDI
-        df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
-        df['CDI_Volatilidade'] = df['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
-        cdi_vol_hist = round(df['CDI_Variacao'].std() * np.sqrt(trading_days) * 100, 2)
 
     # CAGR
     df_cagr = df.copy()
     end_value = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
     df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
+
     if not df_cagr.empty:
         df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
-        # CAGR do CDI (se disponível)
-        if tem_cdi:
+        # CAGR do CDI (se disponível) - CORRIGIDO
+        if tem_cdi and 'CDI_COTA' in df_cagr.columns:
             end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
+
+            # Calcular CAGR para cada ponto usando a cota final
             df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (252 / df_cagr['dias_uteis'])) - 1
             df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
     else:
@@ -839,7 +863,7 @@ try:
 
         fig3 = go.Figure()
 
-        # Drawdown do Fundo
+        # Drawdown do Fundo (APENAS - SEM CDI)
         fig3.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Drawdown'],
@@ -851,17 +875,6 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        # Drawdown do CDI (se disponível)
-        if tem_cdi:
-            fig3.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['CDI_Drawdown'],
-                mode='lines',
-                name='Drawdown do CDI',
-                line=dict(color=color_cdi, width=2.5),
-                hovertemplate='<b>Drawdown do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
-            ))
-
         fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
 
         fig3.update_layout(
@@ -870,14 +883,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig3 = add_watermark_and_style(fig3, logo_base64)
@@ -887,7 +893,7 @@ try:
 
         fig4 = go.Figure()
 
-        # Volatilidade do Fundo
+        # Volatilidade do Fundo (APENAS - SEM CDI)
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Volatilidade'],
@@ -905,39 +911,13 @@ try:
             name=f'Vol. Histórica ({vol_hist:.2f}%)'
         ))
 
-        # Volatilidade do CDI (se disponível)
-        if tem_cdi:
-            fig4.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['CDI_Volatilidade'],
-                mode='lines',
-                name=f'Volatilidade do CDI ({vol_window} dias)',
-                line=dict(color=color_cdi, width=2.5),
-                hovertemplate='<b>Volatilidade do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
-            ))
-
-            fig4.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=[cdi_vol_hist] * len(df),
-                mode='lines',
-                line=dict(dash='dot', color=color_cdi, width=1.5),
-                name=f'CDI Vol. Histórica ({cdi_vol_hist:.2f}%)'
-            ))
-
         fig4.update_layout(
             xaxis_title="Data",
             yaxis_title="Volatilidade (% a.a.)",
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig4 = add_watermark_and_style(fig4, logo_base64)
