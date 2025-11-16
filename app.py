@@ -308,9 +308,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Função para adicionar marca d'água GIGANTE e estilizar gráficos
-def add_watermark_and_style(fig, logo_base64=None):
+def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=True):
     """
-    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
+    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico e aplica estilo.
+    Permite definir o range do eixo X.
     """
     if logo_base64:
         fig.add_layout_image(
@@ -361,7 +362,7 @@ def add_watermark_and_style(fig, logo_base64=None):
     )
 
     # Estilizar eixos
-    fig.update_xaxes(
+    x_axes_update_params = dict(
         showgrid=True,
         gridwidth=1,
         gridcolor='rgba(224, 221, 213, 0.5)',
@@ -371,6 +372,14 @@ def add_watermark_and_style(fig, logo_base64=None):
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
         tickfont=dict(size=11, color="#6b9b7f")
     )
+
+    if x_range is not None:
+        x_axes_update_params['range'] = x_range
+        x_axes_update_params['autorange'] = False # Se o range é definido, desativa o autorange
+    else:
+        x_axes_update_params['autorange'] = x_autorange # Usa o autorange padrão ou passado
+
+    fig.update_xaxes(**x_axes_update_params)
 
     fig.update_yaxes(
         showgrid=True,
@@ -688,7 +697,6 @@ try:
     if tem_cdi:
         df['CAGR_CDI'] = np.nan
 
-    # Apenas calcula CAGR se houver dados suficientes para pelo menos 1 ano
     if not df.empty and len(df) > trading_days_in_year:
         end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
@@ -696,7 +704,7 @@ try:
 
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
         # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
-        # O range vai de 0 até (len(df) - trading_days_in_year - 1)
+        # O range vai de 0 até (len(df) - trading_days_in_year)
         for i in range(len(df) - trading_days_in_year):
             initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
@@ -717,6 +725,17 @@ try:
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
         mean_cagr = 0
+
+    # Excesso de Retorno Anualizado
+    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
+    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
+        # Apenas calcula onde ambos os CAGRs estão disponíveis
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
+            ) * 100 # Multiplica por 100 para exibir em porcentagem
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -805,8 +824,8 @@ try:
                 x=1
             )
         )
-
-        fig1 = add_watermark_and_style(fig1, logo_base64)
+        # Ajusta o range do eixo X para os dados de df
+        fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig1, use_container_width=True)
 
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
@@ -863,9 +882,59 @@ try:
                 x=1
             )
         )
-
-        fig2 = add_watermark_and_style(fig2, logo_base64)
+        # Ajusta o range do eixo X para os dados de df_plot_cagr
+        if not df_plot_cagr.empty:
+            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
+        else:
+            fig2 = add_watermark_and_style(fig2, logo_base64) # Sem range específico se não houver dados
         st.plotly_chart(fig2, use_container_width=True)
+
+        # NOVO GRÁFICO: Excesso de Retorno Anualizado
+        st.subheader("📈 Excesso de Retorno Anualizado")
+
+        if tem_cdi and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).empty:
+            fig_excesso_retorno = go.Figure()
+
+            # Linha do Excesso de Retorno
+            fig_excesso_retorno.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['EXCESSO_RETORNO_ANUALIZADO'],
+                mode='lines',
+                name='Excesso de Retorno Anualizado',
+                line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
+                hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
+            ))
+
+            # Adicionar linha de 0% para referência
+            fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+
+            fig_excesso_retorno.update_layout(
+                xaxis_title="Data",
+                yaxis_title="Excesso de Retorno (% a.a)",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                font=dict(family="Inter, sans-serif"),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+            # Ajusta o range do eixo X para os dados de df
+            df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
+            if not df_plot_excess.empty:
+                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
+            else:
+                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64) # Sem range específico se não houver dados
+            st.plotly_chart(fig_excesso_retorno, use_container_width=True)
+        elif st.session_state.mostrar_cdi:
+            st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
+        else:
+            st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
+
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
@@ -894,8 +963,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
-        fig3 = add_watermark_and_style(fig3, logo_base64)
+        # Ajusta o range do eixo X para os dados de df
+        fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
@@ -928,8 +997,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
-        fig4 = add_watermark_and_style(fig4, logo_base64)
+        # Ajusta o range do eixo X para os dados de df
+        fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
@@ -981,8 +1050,8 @@ try:
                 height=600,
                 font=dict(family="Inter, sans-serif")
             )
-
-            fig5 = add_watermark_and_style(fig5, logo_base64)
+            # Ajusta o range do eixo X para os dados de df_plot_var
+            fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig5, use_container_width=True)
 
             st.info(f"""
@@ -1029,8 +1098,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
-        fig6 = add_watermark_and_style(fig6, logo_base64)
+        # Ajusta o range do eixo X para os dados de df
+        fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig6, use_container_width=True)
 
         st.subheader("📊 Captação Líquida Mensal")
@@ -1059,8 +1128,11 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
-        fig7 = add_watermark_and_style(fig7, logo_base64)
+        # Ajusta o range do eixo X para os dados de df_monthly
+        if not df_monthly.empty:
+            fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
+        else:
+            fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -1095,8 +1167,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-
-        fig8 = add_watermark_and_style(fig8, logo_base64)
+        # Ajusta o range do eixo X para os dados de df
+        fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
@@ -1166,8 +1238,12 @@ try:
                     x=1
                 )
             )
-
-            fig9 = add_watermark_and_style(fig9, logo_base64)
+            # Ajusta o range do eixo X para os dados de df_returns
+            df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
+            if not df_plot_returns.empty:
+                fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
+            else:
+                fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
