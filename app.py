@@ -456,6 +456,35 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
+# Função para carregar dados da CVM (API Okanebox ou arquivos CVM)
+@st.cache_data
+def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
+    dt_inicial = datetime.strptime(data_ini_str, '%Y%m%d')
+    # Amplia o período inicial para garantir dados para ffill
+    dt_ampliada = dt_inicial - timedelta(days=60)
+    data_ini_ampliada_str = dt_ampliada.strftime('%Y%m%d')
+
+    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada_str}/{data_fim_str}/"
+    req = urllib.request.Request(url)
+    req.add_header('Accept-Encoding', 'gzip')
+    req.add_header('Authorization', 'Bearer caianfrancodecamargo@gmail.com')
+
+    response = urllib.request.urlopen(req)
+
+    if response.info().get('Content-Encoding') == 'gzip':
+        buf = BytesIO(response.read())
+        f = gzip.GzipFile(fileobj=buf)
+        content_json = json.loads(f.read().decode("utf-8"))
+    else:
+        content = response.read().decode("utf-8")
+        content_json = json.loads(content)
+
+    df = pd.DataFrame(content_json)
+    if 'DT_COMPTC' in df.columns:
+        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+
+    return df
+
 # Sidebar com logo (SEM título "Configurações")
 if logo_base64:
     st.sidebar.markdown(
@@ -572,7 +601,6 @@ if not st.session_state.dados_carregados:
     st.stop() # Interrompe a execução se os dados não foram carregados ou são inválidos
 
 # --- Bloco principal de execução após validação e carregamento ---
-# TODO: Este é o bloco que precisa ser cuidadosamente indentado sob o 'try'
 try:
     with st.spinner('🔄 Carregando dados...'):
         # Converte as datas de input do usuário para objetos datetime
@@ -959,7 +987,14 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
         # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1130,7 +1165,14 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
         # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1183,7 +1225,7 @@ try:
                     y=df_returns[f'CDI_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do CDI — {janela_selecionada}",
-                    line=dict(color=color_cdi, width=2.5),
+                    line=dict(width=2.5, color=color_cdi),
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
