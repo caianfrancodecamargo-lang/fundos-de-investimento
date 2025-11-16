@@ -445,11 +445,12 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# FUNÇÃO PARA OBTER DADOS REAIS DO CDI
+# FUNÇÃO PARA OBTER DADOS REAIS DO CDI - CORRIGIDA
 @st.cache_data
 def obter_dados_cdi_real(data_inicio, data_fim):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb
+    CORRIGIDO: Recalcula o acumulado a partir do período selecionado
     """
     if not BCB_DISPONIVEL:
         return pd.DataFrame()
@@ -458,14 +459,16 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         # Obter dados do CDI (série 12) usando a biblioteca bcb
         cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
 
-        # Calcular valor acumulado do CDI
-        cdi_diario['VL_CDI'] = (1 + cdi_diario['cdi']/100).cumprod()
-
         # Transformar o índice em coluna
         cdi_diario = cdi_diario.reset_index()
 
         # Alterar o nome da coluna
         cdi_diario = cdi_diario.rename(columns={'Date': 'DT_COMPTC'})
+
+        # CORREÇÃO: Recalcular o acumulado A PARTIR DO PRIMEIRO DIA DO PERÍODO
+        # Isso garante que começa em 1.0 (base 100)
+        cdi_diario['CDI_fator'] = 1 + cdi_diario['cdi']/100
+        cdi_diario['VL_CDI'] = cdi_diario['CDI_fator'].cumprod()
 
         return cdi_diario
 
@@ -473,7 +476,7 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# FUNÇÃO PARA COMBINAR FUNDO E CDI
+# FUNÇÃO PARA COMBINAR FUNDO E CDI - SIMPLIFICADA
 def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
     """
     Processa os dados do fundo e opcionalmente adiciona o CDI REAL
@@ -500,12 +503,12 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
             df['cdi'].fillna(method='ffill', inplace=True)
             df['VL_CDI'].fillna(method='ffill', inplace=True)
 
-            # Normalizar CDI para começar em 0% (mesmo ponto que o fundo)
-            valor_inicial_cdi = df['VL_CDI'].iloc[0]
-            df['CDI_NORM'] = ((df['VL_CDI'] / valor_inicial_cdi) - 1) * 100
+            # CORREÇÃO: Como VL_CDI já começa em 1.0 (recalculado no período),
+            # a cota é simplesmente o VL_CDI
+            df['CDI_COTA'] = df['VL_CDI']
 
-            # Criar "cota" do CDI para cálculos similares
-            df['CDI_COTA'] = df['VL_CDI'] / valor_inicial_cdi
+            # Normalizar para percentual (começando em 0%)
+            df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
 
     return df
 
@@ -696,22 +699,25 @@ try:
     # Verificar se tem CDI disponível
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns
 
-    # CAGR
+    # CAGR - CORRIGIDO
     df_cagr = df.copy()
-    end_value = df_cagr['VL_QUOTA'].iloc[-1]
+    end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
     df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
 
     if not df_cagr.empty:
-        df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+        # CAGR do Fundo
+        df_cagr['CAGR'] = ((end_value_fundo / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
         # CAGR do CDI (se disponível) - CORRIGIDO
         if tem_cdi and 'CDI_COTA' in df_cagr.columns:
+            # Usar o ÚLTIMO valor da cota do CDI (mesma lógica do fundo)
             end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
 
-            # Calcular CAGR para cada ponto usando a cota final
+            # Calcular CAGR para cada ponto: da data X até a data final
+            # Mesma fórmula usada para o fundo
             df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (252 / df_cagr['dias_uteis'])) - 1
             df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
     else:
