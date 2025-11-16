@@ -509,7 +509,7 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
         if not df_cdi_raw.empty:
             # Fazer merge com os dados do fundo
             # Usar a coluna 'VL_CDI_normalizado' que já começa em 1.0
-            df = df.merge(df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']], on='DT_COMPTC', how='left')
+            df = df.merge(df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']], on='DT_COMPTC', how='right')
 
             # Preencher valores ausentes com forward fill
             df['cdi'].fillna(method='ffill', inplace=True)
