@@ -625,11 +625,6 @@ try:
         # 2. OBTER DADOS DO CDI para o período EXATO solicitado pelo usuário
         df_cdi_raw = pd.DataFrame()
         if st.session_state.mostrar_cdi and BCB_DISPONIVEL:
-            # User memory: Prefere que a solicitação de dados do CDI seja feita em intervalos de 10 anos, não 5.
-            # This memory is about the *interval* for fetching, not the start/end dates.
-            # The current implementation fetches for the exact user-defined period, which is correct for the analysis.
-            # The memory might be referring to a different context or a previous version of the code.
-            # For this specific function, fetching between dt_ini_user and dt_fim_user is appropriate.
             df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
             if not df_cdi_raw.empty:
                 df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
@@ -1283,9 +1278,11 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>',
-                    text=[f'{val:.2f}%' for val in df_consistency['Consistencia']], # Adiciona os valores como texto
-                    textposition='outside' # Posição do texto: 'outside' para fora da barra
+                    # Adiciona o texto nas barras
+                    text=df_consistency['Consistencia'].apply(lambda x: f'{x:.2f}%'),
+                    textposition='outside', # Posição do texto fora da barra
+                    textfont=dict(color='black', size=12), # Cor e tamanho da fonte do texto
+                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
                 ))
 
                 fig_consistency.update_layout(
@@ -1295,9 +1292,7 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 100], ticksuffix="%"), # Y-axis from 0 to 100%
-                    uniformtext_minsize=8, # Garante que o texto não fique muito pequeno
-                    uniformtext_mode='hide' # Esconde o texto se não couber
+                    yaxis=dict(range=[0, 105], ticksuffix="%") # Aumenta o range superior para dar espaço ao texto
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency, use_container_width=True)
