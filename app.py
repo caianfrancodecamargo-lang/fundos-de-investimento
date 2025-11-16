@@ -299,11 +299,11 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,  # 120% do tamanho do gráfico
-                sizey=1.75,  # 120% do tamanho do gráfico
+                sizex=1.75,
+                sizey=1.75,
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.08,
                 layer="below"
             )
         )
@@ -709,13 +709,19 @@ try:
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns and not df['CDI_NORM'].isnull().all()
     if tem_cdi:
         # Drawdown do CDI
-        df['CDI_Max'] = df['VL_CDI_normalizado'].cummax() # Usar VL_CDI_normalizado
-        df['CDI_Drawdown'] = (df['VL_CDI_normalizado'] / df['CDI_Max'] - 1) * 100
+        df['CDI_Max'] = df['CDI_COTA'].cummax() # Usar CDI_COTA que já está normalizada
+        df['CDI_Drawdown'] = (df['CDI_COTA'] / df['CDI_Max'] - 1) * 100
 
         # Volatilidade do CDI
         df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
         df['CDI_Volatilidade'] = df['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
         cdi_vol_hist = round(df['CDI_Variacao'].std() * np.sqrt(trading_days) * 100, 2)
+    else:
+        # Garantir que as colunas existam, mesmo que vazias, para evitar KeyErrors nos gráficos
+        df['CDI_Drawdown'] = np.nan
+        df['CDI_Volatilidade'] = np.nan
+        cdi_vol_hist = 0
+
 
     # CAGR
     df_cagr = df.copy()
@@ -728,14 +734,17 @@ try:
     if first_valid_cagr_idx is not None:
         df_cagr = df_cagr.loc[first_valid_cagr_idx:].copy()
 
-    end_value = df_cagr['VL_QUOTA'].iloc[-1]
-    # Agora df_cagr.index é um DatetimeIndex, então .days funciona
-    df_cagr['dias_uteis'] = (df_cagr.index[-1] - df_cagr.index).map(lambda x: x.days) 
-    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy() # Filtrar para ter pelo menos 1 ano de dados
+    # CORREÇÃO: Calcular dias_uteis usando a coluna DT_COMPTC (agora índice)
+    end_date_cagr = df_cagr.index[-1]
+    df_cagr['dias_uteis'] = (end_date_cagr - df_cagr.index).map(lambda x: x.days)
+
+    # Filtrar para ter pelo menos 252 dias (aproximadamente 1 ano útil)
+    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
 
     if not df_cagr.empty:
         # CAGR do Fundo
-        df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+        end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
+        df_cagr['CAGR'] = ((end_value_fundo / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
@@ -754,7 +763,8 @@ try:
     df_plot = df.dropna(subset=['Retorno_21d']).copy()
     if not df_plot.empty:
         VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
-        VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
+        # CORREÇÃO: Typo 'Retorno_2ño_21d' para 'Retorno_21d'
+        VaR_99 = np.percentile(df_plot['Retorno_21d'], 1) 
         ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
         ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
     else:
