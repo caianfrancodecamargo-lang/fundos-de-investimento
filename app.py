@@ -33,7 +33,7 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com suporte para múltiplos fundos
+# CSS customizado com espaçamentos reduzidos na sidebar
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -182,7 +182,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* Lista de CNPJs selecionados */
+    /* Lista de fundos selecionados */
     .cnpj-list {
         margin: 0.5rem 0;
         background: rgba(255, 255, 255, 0.1);
@@ -337,7 +337,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água GIGANTE e estilizar gráficos
+# Função para adicionar marca d'água e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
     """
     Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
@@ -350,16 +350,16 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,  # 120% do tamanho do gráfico
-                sizey=1.75,  # 120% do tamanho do gráfico
+                sizex=1.75,
+                sizey=1.75,
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.08,
                 layer="below"
             )
         )
 
-    # Estilização elegante com fundo transparente (sem borda)
+    # Estilização elegante sem bordas
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='rgba(0,0,0,0)',  # Transparente para remover o retângulo branco
@@ -375,8 +375,7 @@ def add_watermark_and_style(fig, logo_base64=None):
             font_family="Inter, sans-serif",
             bordercolor="#6b9b7f"
         ),
-        # Sem shapes para remover a borda
-        shapes=[]
+        shapes=[]  # Sem shapes para remover a borda
     )
 
     # Estilizar eixos
@@ -442,7 +441,7 @@ def buscar_data_anterior(df, data_alvo):
         return datas_anteriores.idxmax()
     return None
 
-# Função para ajustar período de análise (SEM MOSTRAR NOTIFICAÇÃO)
+# Função para ajustar período de análise
 def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
     data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
     data_final = datetime.strptime(data_final_str, '%Y%m%d')
@@ -505,7 +504,7 @@ def get_fund_colors(num_funds):
 
 # Inicializar state para CNPJs
 if 'cnpjs' not in st.session_state:
-    st.session_state.cnpjs = []  # Lista de dicionários {id, cnpj, nome}
+    st.session_state.cnpjs = []  # Lista de CNPJs
 
 # Sidebar com logo
 if logo_base64:
@@ -514,43 +513,29 @@ if logo_base64:
         unsafe_allow_html=True
     )
 
-# Formulário para adicionar CNPJs
-with st.sidebar.form(key="add_cnpj_form"):
-    st.markdown("### Adicionar Fundo")
+# Input de CNPJ
+cnpj_input = st.sidebar.text_input(
+    "CNPJ do Fundo",
+    value="",
+    placeholder="00.000.000/0000-00",
+    help="Digite o CNPJ com ou sem formatação"
+)
 
-    cnpj_input = st.text_input(
-        "CNPJ do Fundo",
-        value="",
-        placeholder="00.000.000/0000-00",
-        help="Digite o CNPJ com ou sem formatação"
-    )
+# Botão para adicionar CNPJ
+add_cnpj = st.sidebar.button("➕ Adicionar Fundo")
 
-    nome_fundo_input = st.text_input(
-        "Nome do Fundo (opcional)",
-        value="",
-        placeholder="Ex: Fundo ABC"
-    )
-
-    submitted = st.form_submit_button("➕ Adicionar Fundo")
-
-    if submitted:
-        cnpj_limpo = limpar_cnpj(cnpj_input)
-        if len(cnpj_limpo) != 14:
-            st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+if add_cnpj:
+    cnpj_limpo = limpar_cnpj(cnpj_input)
+    if len(cnpj_limpo) != 14:
+        st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+    else:
+        # Verifica se o CNPJ já existe na lista
+        if cnpj_limpo in st.session_state.cnpjs:
+            st.sidebar.error("❌ Este CNPJ já foi adicionado")
         else:
-            # Verifica se o CNPJ já existe na lista
-            cnpj_exists = any(item['cnpj'] == cnpj_limpo for item in st.session_state.cnpjs)
-            if cnpj_exists:
-                st.sidebar.error("❌ Este CNPJ já foi adicionado")
-            else:
-                # Adiciona o novo CNPJ à lista
-                novo_fundo = {
-                    'id': str(uuid.uuid4()),
-                    'cnpj': cnpj_limpo,
-                    'nome': nome_fundo_input.strip() if nome_fundo_input.strip() else f"Fundo {len(st.session_state.cnpjs) + 1}"
-                }
-                st.session_state.cnpjs.append(novo_fundo)
-                st.sidebar.success(f"✅ Fundo adicionado: {novo_fundo['nome']}")
+            # Adiciona o novo CNPJ à lista
+            st.session_state.cnpjs.append(cnpj_limpo)
+            st.sidebar.success(f"✅ Fundo adicionado: {formatar_cnpj_display(cnpj_limpo)}")
 
 # Exibir lista de CNPJs adicionados
 if st.session_state.cnpjs:
@@ -562,17 +547,16 @@ if st.session_state.cnpjs:
     # Exibir cada CNPJ com opção de remover
     cnpj_html = '<div class="cnpj-list">'
 
-    for i, fundo in enumerate(st.session_state.cnpjs):
+    for i, cnpj in enumerate(st.session_state.cnpjs):
         color = colors[i]
-        cnpj_formatado = formatar_cnpj_display(fundo['cnpj'])
+        cnpj_formatado = formatar_cnpj_display(cnpj)
         cnpj_html += f"""
-        <div class="cnpj-item" id="{fundo['id']}">
+        <div class="cnpj-item" id="{cnpj}">
             <div class="cnpj-info">
                 <span class="color-indicator" style="background-color: {color};"></span>
-                <span class="cnpj-text">{fundo['nome']}</span>
-                <span class="cnpj-text" style="opacity: 0.7; font-size: 0.75rem; margin-left: 18px;">{cnpj_formatado}</span>
+                <span class="cnpj-text">{cnpj_formatado}</span>
             </div>
-            <span class="cnpj-remove" onclick="remove_cnpj('{fundo['id']}')">✕</span>
+            <span class="cnpj-remove" onclick="removeCnpj('{cnpj}')">✕</span>
         </div>
         """
 
@@ -581,23 +565,24 @@ if st.session_state.cnpjs:
     # JavaScript para remover CNPJ
     js_code = """
     <script>
-    function remove_cnpj(id) {
-        window.parent.postMessage({
-            type: 'remove_cnpj',
-            id: id
-        }, '*');
+    function removeCnpj(cnpj) {
+        const queryParams = new URLSearchParams(window.location.search);
+        queryParams.set('remove_cnpj', cnpj);
+        window.location.search = queryParams.toString();
     }
     </script>
     """
 
     st.sidebar.markdown(cnpj_html + js_code, unsafe_allow_html=True)
 
-    # Listener para mensagens JavaScript
-    if 'remove_cnpj_id' in st.query_params:
-        remove_id = st.query_params['remove_cnpj_id'][0]
-        st.session_state.cnpjs = [f for f in st.session_state.cnpjs if f['id'] != remove_id]
-        # Limpar query param
-        st.query_params.clear()
+    # Verificar se há um CNPJ para remover
+    params = st.experimental_get_query_params()
+    if 'remove_cnpj' in params:
+        cnpj_to_remove = params['remove_cnpj'][0]
+        if cnpj_to_remove in st.session_state.cnpjs:
+            st.session_state.cnpjs.remove(cnpj_to_remove)
+        # Limpar query params
+        st.experimental_set_query_params()
         st.rerun()
 
 # Inputs de data
@@ -654,7 +639,7 @@ carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", disab
 st.markdown("<h1>📊 Dashboard Comparativo de Fundos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Função para carregar dados de múltiplos fundos
+# Função para carregar dados
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini, data_fim):
     dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
@@ -708,7 +693,7 @@ if not st.session_state.dados_carregados:
     st.markdown("""
     ### 📋 Como usar:
 
-    1. **Adicione fundos**: Digite o CNPJ e um nome opcional para cada fundo que deseja analisar
+    1. **Adicione fundos**: Digite o CNPJ de cada fundo que deseja analisar e clique em "Adicionar Fundo"
     2. **Defina o período**: Informe as datas inicial e final para análise
     3. **Compare os fundos**: Visualize os resultados comparativos nos gráficos
 
@@ -720,65 +705,100 @@ if not st.session_state.dados_carregados:
 try:
     with st.spinner('🔄 Carregando dados dos fundos...'):
         # Carregar dados para cada fundo
-        for i, fundo in enumerate(st.session_state.cnpjs):
-            if fundo['cnpj'] not in st.session_state.dados_fundos:
-                df_completo = carregar_dados_api(fundo['cnpj'], st.session_state.data_ini, st.session_state.data_fim)
+        data_comum = None
+        for i, cnpj in enumerate(st.session_state.cnpjs):
+            if cnpj not in st.session_state.dados_fundos:
+                df_completo = carregar_dados_api(cnpj, st.session_state.data_ini, st.session_state.data_fim)
                 df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
 
                 # Preparação dos dados
                 df = df.sort_values('DT_COMPTC').reset_index(drop=True)
-                primeira_cota = df['VL_QUOTA'].iloc[0]
-                df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
 
-                # Calcular métricas
-                df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
-                df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
-                df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
-                df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
-                df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
-
-                vol_window = 21
-                trading_days = 252
-                df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
-                df['Volatilidade'] = df['VL_QUOTA'].pct_change().rolling(vol_window).std() * np.sqrt(trading_days) * 100
-                vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
-
-                # CAGR
-                df_cagr = df.copy()
-                end_value = df_cagr['VL_QUOTA'].iloc[-1]
-                df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
-                df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
-                if not df_cagr.empty:
-                    df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
-                    df_cagr['CAGR'] = df_cagr['CAGR'] * 100
-                    mean_cagr = df_cagr['CAGR'].mean()
-                else:
-                    mean_cagr = None
-
-                # VaR
-                df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
-                df_plot = df.dropna(subset=['Retorno_21d']).copy()
-                if not df_plot.empty:
-                    VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
-                    VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
-                    ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
-                    ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
-                else:
-                    VaR_95 = VaR_99 = ES_95 = ES_99 = None
-
-                # Armazenar dados processados
-                st.session_state.dados_fundos[fundo['cnpj']] = {
+                # Armazenar dados brutos para normalização posterior
+                st.session_state.dados_fundos[cnpj] = {
                     'df': df,
-                    'df_cagr': df_cagr,
-                    'vol_hist': vol_hist,
-                    'mean_cagr': mean_cagr,
-                    'VaR_95': VaR_95,
-                    'VaR_99': VaR_99,
-                    'ES_95': ES_95,
-                    'ES_99': ES_99,
-                    'nome': fundo['nome'],
                     'color': get_fund_colors(len(st.session_state.cnpjs))[i]
                 }
+
+                # Atualizar data comum (mais recente entre todos os fundos)
+                if data_comum is None:
+                    data_comum = df['DT_COMPTC'].min()
+                else:
+                    data_comum = max(data_comum, df['DT_COMPTC'].min())
+
+        # Normalizar todos os fundos a partir da data comum
+        for cnpj in st.session_state.dados_fundos:
+            df = st.session_state.dados_fundos[cnpj]['df']
+
+            # Filtrar a partir da data comum
+            df = df[df['DT_COMPTC'] >= data_comum].copy()
+
+            # Normalizar cota a partir do primeiro valor
+            primeira_cota = df['VL_QUOTA'].iloc[0]
+            df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
+
+            # Calcular métricas
+            df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
+            df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
+            df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
+            df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
+            df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
+
+            vol_window = 21
+            trading_days = 252
+            df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
+            df['Volatilidade'] = df['VL_QUOTA'].pct_change().rolling(vol_window).std() * np.sqrt(trading_days) * 100
+            vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
+
+            # CAGR
+            df_cagr = df.copy()
+            end_value = df_cagr['VL_QUOTA'].iloc[-1]
+            df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
+            df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
+            if not df_cagr.empty:
+                df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+                df_cagr['CAGR'] = df_cagr['CAGR'] * 100
+                mean_cagr = df_cagr['CAGR'].mean()
+            else:
+                mean_cagr = None
+
+            # VaR
+            df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
+            df_plot = df.dropna(subset=['Retorno_21d']).copy()
+            if not df_plot.empty:
+                VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
+                VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
+                ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
+                ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+            else:
+                VaR_95 = VaR_99 = ES_95 = ES_99 = None
+
+            # Janelas móveis
+            janelas = {
+                "12 meses (252 dias)": 252,
+                "24 meses (504 dias)": 504,
+                "36 meses (756 dias)": 756,
+                "48 meses (1008 dias)": 1008,
+                "60 meses (1260 dias)": 1260
+            }
+
+            df_returns = df.copy()
+            for nome, dias in janelas.items():
+                df_returns[nome] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
+
+            # Atualizar dados processados
+            st.session_state.dados_fundos[cnpj].update({
+                'df': df,
+                'df_cagr': df_cagr,
+                'df_returns': df_returns,
+                'vol_hist': vol_hist,
+                'mean_cagr': mean_cagr,
+                'VaR_95': VaR_95,
+                'VaR_99': VaR_99,
+                'ES_95': ES_95,
+                'ES_99': ES_99,
+                'df_plot': df_plot
+            })
 
     # Exibir métricas comparativas
     st.subheader("📊 Métricas Comparativas")
@@ -786,12 +806,12 @@ try:
     # Criar colunas para métricas principais
     cols = st.columns(len(st.session_state.cnpjs))
 
-    for i, fundo in enumerate(st.session_state.cnpjs):
-        dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+    for i, cnpj in enumerate(st.session_state.cnpjs):
+        dados_fundo = st.session_state.dados_fundos[cnpj]
         df = dados_fundo['df']
 
         with cols[i]:
-            st.markdown(f"<h4 style='color:{dados_fundo['color']}'>{dados_fundo['nome']}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='color:{dados_fundo['color']}'>{formatar_cnpj_display(cnpj)}</h4>", unsafe_allow_html=True)
             st.metric("💰 Patrimônio", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
             st.metric("👥 Cotistas", f"{int(df['NR_COTST'].iloc[-1]):,}".replace(',', '.'))
             if dados_fundo['mean_cagr'] is not None:
@@ -803,25 +823,27 @@ try:
     st.markdown("---")
 
     # Tabs para organizar os gráficos
-    tab1, tab2, tab3 = st.tabs([
-        "📈 Rentabilidade Comparativa",
-        "📉 Risco Comparativo",
-        "💰 Patrimônio Comparativo"
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 Rentabilidade",
+        "📉 Risco",
+        "💰 Patrimônio",
+        "👥 Cotistas",
+        "🎯 Janelas Móveis"
     ])
 
     with tab1:
         st.subheader("📈 Rentabilidade Histórica Comparativa")
 
         fig1 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             df = dados_fundo['df']
 
             fig1.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['VL_QUOTA_NORM'],
                 mode='lines',
-                name=dados_fundo['nome'],
+                name=formatar_cnpj_display(cnpj),
                 line=dict(color=dados_fundo['color'], width=2.5),
                 hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
@@ -848,14 +870,14 @@ try:
         st.subheader("📊 CAGR Anual Comparativo")
 
         fig2 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             if not dados_fundo['df_cagr'].empty and dados_fundo['mean_cagr'] is not None:
                 fig2.add_trace(go.Scatter(
                     x=dados_fundo['df_cagr']['DT_COMPTC'],
                     y=dados_fundo['df_cagr']['CAGR'],
                     mode='lines',
-                    name=f"{dados_fundo['nome']}",
+                    name=formatar_cnpj_display(cnpj),
                     line=dict(color=dados_fundo['color'], width=2.5),
                     hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
@@ -866,7 +888,7 @@ try:
                     y=[dados_fundo['mean_cagr']] * len(dados_fundo['df_cagr']),
                     mode='lines',
                     line=dict(dash='dash', color=dados_fundo['color'], width=1.5),
-                    name=f"{dados_fundo['nome']} - Média ({dados_fundo['mean_cagr']:.2f}%)",
+                    name=f"{formatar_cnpj_display(cnpj)} - Média ({dados_fundo['mean_cagr']:.2f}%)",
                     hoverinfo='skip'
                 ))
 
@@ -893,15 +915,15 @@ try:
         st.subheader("📉 Drawdown Histórico Comparativo")
 
         fig3 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             df = dados_fundo['df']
 
             fig3.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['Drawdown'],
                 mode='lines',
-                name=dados_fundo['nome'],
+                name=formatar_cnpj_display(cnpj),
                 line=dict(color=dados_fundo['color'], width=2.5),
                 hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
             ))
@@ -930,15 +952,15 @@ try:
         st.subheader(f"📊 Volatilidade Móvel Comparativa ({vol_window} dias úteis)")
 
         fig4 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             df = dados_fundo['df']
 
             fig4.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['Volatilidade'],
                 mode='lines',
-                name=dados_fundo['nome'],
+                name=formatar_cnpj_display(cnpj),
                 line=dict(color=dados_fundo['color'], width=2.5),
                 hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
             ))
@@ -962,19 +984,97 @@ try:
         fig4 = add_watermark_and_style(fig4, logo_base64)
         st.plotly_chart(fig4, use_container_width=True)
 
+        st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
+
+        fig5 = go.Figure()
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
+            df_plot = dados_fundo['df_plot']
+
+            if not df_plot.empty:
+                fig5.add_trace(go.Scatter(
+                    x=df_plot['DT_COMPTC'],
+                    y=df_plot['Retorno_21d'] * 100,
+                    mode='lines',
+                    name=formatar_cnpj_display(cnpj),
+                    line=dict(color=dados_fundo['color'], width=2),
+                    hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Retorno 21d: %{y:.2f}%<extra></extra>'
+                ))
+
+                if dados_fundo['VaR_95'] is not None:
+                    fig5.add_trace(go.Scatter(
+                        x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                        y=[dados_fundo['VaR_95'] * 100, dados_fundo['VaR_95'] * 100],
+                        mode='lines',
+                        name=f"{formatar_cnpj_display(cnpj)} - VaR 95%",
+                        line=dict(dash='dot', color=dados_fundo['color'], width=1.5),
+                        hovertemplate='<b>%{fullData.name}</b><br>VaR 95%: %{y:.2f}%<extra></extra>'
+                    ))
+
+                if dados_fundo['ES_95'] is not None:
+                    fig5.add_trace(go.Scatter(
+                        x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                        y=[dados_fundo['ES_95'] * 100, dados_fundo['ES_95'] * 100],
+                        mode='lines',
+                        name=f"{formatar_cnpj_display(cnpj)} - ES 95%",
+                        line=dict(dash='dash', color=dados_fundo['color'], width=1.5),
+                        hovertemplate='<b>%{fullData.name}</b><br>ES 95%: %{y:.2f}%<extra></extra>'
+                    ))
+
+        fig5.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Rentabilidade (%)",
+            template="plotly_white",
+            hovermode="closest",
+            height=600,
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+
+        fig5 = add_watermark_and_style(fig5, logo_base64)
+        st.plotly_chart(fig5, use_container_width=True)
+
+        # Tabela comparativa de VaR e ES
+        st.subheader("📋 Tabela Comparativa de Risco")
+
+        risk_data = []
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
+            if dados_fundo['VaR_95'] is not None:
+                risk_data.append({
+                    "CNPJ": formatar_cnpj_display(cnpj),
+                    "VaR 95%": f"{dados_fundo['VaR_95']*100:.2f}%",
+                    "ES 95%": f"{dados_fundo['ES_95']*100:.2f}%",
+                    "VaR 99%": f"{dados_fundo['VaR_99']*100:.2f}%",
+                    "ES 99%": f"{dados_fundo['ES_99']*100:.2f}%",
+                    "Volatilidade": f"{dados_fundo['vol_hist']:.2f}%"
+                })
+
+        if risk_data:
+            risk_df = pd.DataFrame(risk_data)
+            st.dataframe(risk_df, use_container_width=True)
+        else:
+            st.info("Dados insuficientes para calcular métricas de risco.")
+
     with tab3:
         st.subheader("💰 Patrimônio Líquido Comparativo")
 
         fig6 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             df = dados_fundo['df']
 
             fig6.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['VL_PATRIM_LIQ'],
                 mode='lines',
-                name=dados_fundo['nome'],
+                name=formatar_cnpj_display(cnpj),
                 line=dict(color=dados_fundo['color'], width=2.5),
                 hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Patrimônio: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
@@ -999,18 +1099,55 @@ try:
         fig6 = add_watermark_and_style(fig6, logo_base64)
         st.plotly_chart(fig6, use_container_width=True)
 
+        st.subheader("📊 Captação Líquida Acumulada")
+
+        fig7 = go.Figure()
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
+            df = dados_fundo['df']
+
+            fig7.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['Soma_Acumulada'],
+                mode='lines',
+                name=formatar_cnpj_display(cnpj),
+                line=dict(color=dados_fundo['color'], width=2.5),
+                hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Captação Acumulada: %{customdata}<extra></extra>',
+                customdata=[format_brl(v) for v in df['Soma_Acumulada']]
+            ))
+
+        fig7.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Captação Líquida Acumulada (R$)",
+            template="plotly_white",
+            hovermode="closest",
+            height=500,
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+
+        fig7 = add_watermark_and_style(fig7, logo_base64)
+        st.plotly_chart(fig7, use_container_width=True)
+
+    with tab4:
         st.subheader("👥 Número de Cotistas Comparativo")
 
         fig8 = go.Figure()
-        for fundo in st.session_state.cnpjs:
-            dados_fundo = st.session_state.dados_fundos[fundo['cnpj']]
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
             df = dados_fundo['df']
 
             fig8.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['NR_COTST'],
                 mode='lines',
-                name=dados_fundo['nome'],
+                name=formatar_cnpj_display(cnpj),
                 line=dict(color=dados_fundo['color'], width=2.5),
                 hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Cotistas: %{y}<extra></extra>'
             ))
@@ -1033,6 +1170,96 @@ try:
 
         fig8 = add_watermark_and_style(fig8, logo_base64)
         st.plotly_chart(fig8, use_container_width=True)
+
+        st.subheader("💰 Patrimônio Médio por Cotista")
+
+        fig9 = go.Figure()
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
+            df = dados_fundo['df']
+
+            fig9.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['Patrimonio_Liq_Medio'],
+                mode='lines',
+                name=formatar_cnpj_display(cnpj),
+                line=dict(color=dados_fundo['color'], width=2.5),
+                hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
+                customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
+            ))
+
+        fig9.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Patrimônio Médio por Cotista (R$)",
+            template="plotly_white",
+            hovermode="closest",
+            height=500,
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+
+        fig9 = add_watermark_and_style(fig9, logo_base64)
+        st.plotly_chart(fig9, use_container_width=True)
+
+    with tab5:
+        st.subheader("🎯 Retornos em Janelas Móveis")
+
+        janelas = {
+            "12 meses (252 dias)": 252,
+            "24 meses (504 dias)": 504,
+            "36 meses (756 dias)": 756,
+            "48 meses (1008 dias)": 1008,
+            "60 meses (1260 dias)": 1260
+        }
+
+        janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
+
+        fig10 = go.Figure()
+        has_data = False
+
+        for cnpj in st.session_state.cnpjs:
+            dados_fundo = st.session_state.dados_fundos[cnpj]
+            df_returns = dados_fundo['df_returns']
+
+            if not df_returns[janela_selecionada].dropna().empty:
+                has_data = True
+                fig10.add_trace(go.Scatter(
+                    x=df_returns['DT_COMPTC'],
+                    y=df_returns[janela_selecionada],
+                    mode='lines',
+                    name=formatar_cnpj_display(cnpj),
+                    line=dict(color=dados_fundo['color'], width=2.5),
+                    hovertemplate='<b>%{fullData.name}</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>'
+                ))
+
+        if has_data:
+            fig10.update_layout(
+                xaxis_title="Data",
+                yaxis_title=f"Retorno {janela_selecionada}",
+                template="plotly_white",
+                hovermode="closest",
+                height=500,
+                yaxis=dict(tickformat=".2%"),
+                font=dict(family="Inter, sans-serif"),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+
+            fig10 = add_watermark_and_style(fig10, logo_base64)
+            st.plotly_chart(fig10, use_container_width=True)
+        else:
+            st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
 except Exception as e:
     st.error(f"❌ Erro ao carregar os dados: {str(e)}")
