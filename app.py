@@ -412,8 +412,7 @@ def formatar_data_api(data_str):
 def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb
-    CORREÇÃO DEFINITIVA: Recalcula o acumulado APENAS com as taxas do período
-    e normaliza para começar em 1.0.
+    Recalcula o acumulado APENAS com as taxas do período e normaliza para começar em 1.0.
     """
     if not BCB_DISPONIVEL:
         return pd.DataFrame()
@@ -432,11 +431,9 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         cdi_diario['CDI_fator_diario'] = 1 + (cdi_diario['cdi'] / 100)
 
         # Calcular o produto acumulado a partir do primeiro dia do período
-        # Isso garante que o primeiro valor será 1 + (primeira taxa / 100)
         cdi_diario['VL_CDI_acum'] = cdi_diario['CDI_fator_diario'].cumprod()
 
         # NORMALIZAR para que o primeiro valor da série acumulada seja EXATAMENTE 1.0
-        # Isso faz com que a rentabilidade normalizada comece em 0.00%
         if not cdi_diario.empty:
             primeiro_valor_acum = cdi_diario['VL_CDI_acum'].iloc[0]
             cdi_diario['VL_CDI_normalizado'] = cdi_diario['VL_CDI_acum'] / primeiro_valor_acum
@@ -629,9 +626,11 @@ try:
             df_final = df_final.merge(df_fundo_completo, on='DT_COMPTC', how='left')
         else:
             # Se CDI não for solicitado ou não estiver disponível, usa os dados do fundo como base
+            # E filtra para o período do usuário
             df_final = df_fundo_completo.copy()
+            df_final = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)].copy()
             # Garante que colunas CDI não existam se não forem usadas
-            df_final.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
+            df_final.drop(columns=[col for col col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
 
         # Garante que o dataframe esteja ordenado por data
         df_final = df_final.sort_values('DT_COMPTC').reset_index(drop=True)
@@ -646,6 +645,7 @@ try:
         df_final.dropna(subset=['VL_QUOTA'], inplace=True)
 
         # 6. Filtrar o dataframe combinado para o período EXATO solicitado pelo usuário
+        # Esta etapa é redundante se df_final já foi filtrado no 'else' acima, mas garante consistência
         df = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)].copy()
 
         # Verifica se o dataframe final está vazio após todas as operações
@@ -685,31 +685,48 @@ try:
     df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # CAGR - AGORA COMO ROLLING CAGR DE 252 DIAS ÚTEIS
-    cagr_window_days = 252 # Janela de 1 ano em dias úteis para o CAGR móvel
+    # CAGR - AGORA COMO CAGR "DO INÍCIO AO FIM" (FIXED END DATE)
+    min_days_for_cagr = 252 # Mínimo de dias úteis para calcular um CAGR anualizado
 
-    # Calcular rolling CAGR para o Fundo
+    # Valores finais fixos para o cálculo do CAGR
+    end_value_fundo = df['VL_QUOTA'].iloc[-1]
+    end_value_cdi = df['CDI_COTA'].iloc[-1] if tem_cdi else None
+
+    # Calcular o número de dias úteis (linhas) de cada ponto até o final
+    # df.index[-1] é o índice da última linha
+    # df.index é a série de índices de todas as linhas
+    df['dias_uteis_cagr'] = df.index[-1] - df.index
+
+    # Inicializar colunas CAGR com NaN
     df['CAGR_Fundo'] = np.nan
-    if len(df) > cagr_window_days:
-        # Calcula o retorno sobre a janela
-        return_over_window_fundo = df['VL_QUOTA'] / df['VL_QUOTA'].shift(cagr_window_days)
-        # Anualiza o retorno (para uma janela de 252 dias, o expoente é 1, então é o próprio retorno)
-        df['CAGR_Fundo'] = (return_over_window_fundo ** (trading_days / cagr_window_days) - 1) * 100
+    df['CAGR_CDI'] = np.nan
 
-    # Calcular rolling CAGR para o CDI (se disponível)
-    if tem_cdi and 'CDI_COTA' in df.columns and len(df) > cagr_window_days:
-        df['CAGR_CDI'] = np.nan
-        return_over_window_cdi = df['CDI_COTA'] / df['CDI_COTA'].shift(cagr_window_days)
-        df['CAGR_CDI'] = (return_over_window_cdi ** (trading_days / cagr_window_days) - 1) * 100
+    # Calcular CAGR apenas para pontos com pelo menos min_days_for_cagr dias úteis até o final
+    # O filtro é aplicado diretamente no df para calcular as colunas
+    valid_cagr_indices = df[df['dias_uteis_cagr'] >= min_days_for_cagr].index
 
-    # Calcular CAGR médio para o card de métricas (baseado no rolling CAGR)
-    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
+    if not valid_cagr_indices.empty:
+        # CAGR do Fundo
+        df.loc[valid_cagr_indices, 'CAGR_Fundo'] = (
+            (end_value_fundo / df.loc[valid_cagr_indices, 'VL_QUOTA']) **
+            (trading_days / df.loc[valid_cagr_indices, 'dias_uteis_cagr']) - 1
+        ) * 100
+
+        # CAGR do CDI (se disponível)
+        if tem_cdi:
+            df.loc[valid_cagr_indices, 'CAGR_CDI'] = (
+                (end_value_cdi / df.loc[valid_cagr_indices, 'CDI_COTA']) **
+                (trading_days / df.loc[valid_cagr_indices, 'dias_uteis_cagr']) - 1
+            ) * 100
+
+    # Calcular CAGR médio para o card de métricas (baseado nos valores calculados)
+    mean_cagr = df['CAGR_Fundo'].mean()
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
         mean_cagr = 0
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
-    df_plot_var = df.dropna(subset=['Retorno_21d']).copy() # Renomeado para evitar conflito com df_plot_cagr
+    df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
     VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
     if not df_plot_var.empty:
         VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
@@ -803,14 +820,14 @@ try:
 
         fig2 = go.Figure()
 
-        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
+        # Filtrar o dataframe para o plot do CAGR, removendo NaNs
         df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
 
         if not df_plot_cagr.empty:
             # CAGR do Fundo
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
-                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de rolling CAGR
+                y=df_plot_cagr['CAGR_Fundo'],
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
@@ -818,7 +835,7 @@ try:
             ))
 
             fig2.add_trace(go.Scatter(
-                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
+                x=df_plot_cagr['DT_COMPTC'],
                 y=[mean_cagr] * len(df_plot_cagr),
                 mode='lines',
                 line=dict(dash='dash', color=color_secondary, width=2),
@@ -829,7 +846,7 @@ try:
             if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
-                    y=df_plot_cagr['CAGR_CDI'], # Usar a nova coluna de rolling CAGR do CDI
+                    y=df_plot_cagr['CAGR_CDI'],
                     mode='lines',
                     name='CAGR do CDI',
                     line=dict(color=color_cdi, width=2.5),
