@@ -325,7 +325,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
                 sizey=1.75,  # 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.15,  # <<< AQUI A OPACIDADE DA MARCA D'ÁGUA FOI AUMENTADA
                 layer="below"
             )
         )
@@ -1292,7 +1292,7 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 105], ticksuffix="%") # Aumenta o range superior para dar espaço ao texto
+                    yaxis=dict(range=[0, 110], ticksuffix="%") # Aumenta o range superior para dar mais espaço ao texto
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency, use_container_width=True)
