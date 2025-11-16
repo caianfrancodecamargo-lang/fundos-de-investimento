@@ -497,252 +497,272 @@ with col2_sidebar:
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
 
 # Botão de carregar dados
-if st.sidebar.button("Carregar Dados"):
-    st.session_state['trigger_load'] = True
-else:
-    if 'trigger_load' not in st.session_state:
-        st.session_state['trigger_load'] = False
+st.sidebar.markdown("---") # Separador visual
+carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary")
 
-# Validação e processamento
-if st.session_state['trigger_load']:
+# Título principal
+st.markdown("<h1>📊 Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
+st.markdown("---")
+
+# Variáveis de estado para controlar o carregamento e exibição
+if 'dados_carregados' not in st.session_state:
+    st.session_state.dados_carregados = False
+if 'cnpj_valido' not in st.session_state:
+    st.session_state.cnpj_valido = False
+if 'datas_validas' not in st.session_state:
+    st.session_state.datas_validas = False
+
+# Validação dos inputs ao clicar no botão
+if carregar_button:
     cnpj_limpo = limpar_cnpj(cnpj_input)
     data_inicial_api = formatar_data_api(data_inicial_input)
     data_final_api = formatar_data_api(data_final_input)
 
+    st.session_state.cnpj_valido = False
+    st.session_state.datas_validas = False
+
     if not cnpj_limpo or len(cnpj_limpo) != 14:
         st.sidebar.error("❌ Por favor, insira um CNPJ válido (14 dígitos).")
-        st.session_state['trigger_load'] = False
-    elif not data_inicial_api or not data_final_api:
-        st.sidebar.error("❌ Por favor, insira datas válidas no formato DD/MM/AAAA.")
-        st.session_state['trigger_load'] = False
     else:
-        dt_ini_user = datetime.strptime(data_inicial_api, '%Y%m%d')
-        dt_fim_user = datetime.strptime(data_final_api, '%Y%m%d')
+        st.session_state.cnpj_valido = True
 
-        if dt_ini_user >= dt_fim_user:
-            st.sidebar.error("❌ A Data Inicial deve ser anterior à Data Final.")
-            st.session_state['trigger_load'] = False
-
-if st.session_state['trigger_load']:
-    try:
-        # --- Carregamento e Preparação dos Dados ---
-        st.info("⏳ Carregando dados do fundo e do CDI...")
-
-        # 1. Obter dados do CDI para o período exato do usuário
-        df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
-        tem_cdi = mostrar_cdi and not df_cdi_raw.empty
-
-        if tem_cdi:
-            df_cdi_raw = df_cdi_raw.set_index('DT_COMPTC')
-            df_cdi_raw = df_cdi_raw.reindex(pd.bdate_range(start=dt_ini_user, end=dt_fim_user))
-            df_cdi_raw = df_cdi_raw.reset_index().rename(columns={'index': 'DT_COMPTC'})
-            df_cdi_raw['DT_COMPTC'] = pd.to_datetime(df_cdi_raw['DT_COMPTC'])
-            df_cdi_raw['VL_CDI_normalizado'] = df_cdi_raw['VL_CDI_normalizado'].ffill()
-            df_cdi_raw = df_cdi_raw.dropna(subset=['VL_CDI_normalizado']) # Remove dias não úteis sem preenchimento
-            if df_cdi_raw.empty:
-                tem_cdi = False
-                st.warning("⚠️ Não foi possível obter dados do CDI para o período selecionado.")
-
-        # 2. Obter dados do fundo para um período ligeiramente ampliado para ffill
-        # (60 dias antes da data inicial do usuário para garantir preenchimento)
-        data_inicio_fundo_ampliada = dt_ini_user - timedelta(days=60)
-        url_template = "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{ano}{mes}.csv.gz"
-        df_fundo_completo = pd.DataFrame()
-
-        current_date = data_inicio_fundo_ampliada
-        while current_date <= dt_fim_user:
-            ano_mes = current_date.strftime("%Y%m")
-            url = url_template.format(ano=ano_mes[:4], mes=ano_mes[4:])
-            try:
-                with urllib.request.urlopen(url) as response:
-                    with gzip.open(BytesIO(response.read()), 'rt', encoding='latin-1') as f:
-                        df_mes = pd.read_csv(f, sep=';', dtype={'CNPJ_FUNDO': str})
-                        df_fundo_completo = pd.concat([df_fundo_completo, df_mes], ignore_index=True)
-            except Exception as e:
-                # st.warning(f"Não foi possível carregar dados para {ano_mes}: {e}") # Comentar para não poluir
-                pass # Ignora erros de meses sem arquivo
-
-            # Avança para o próximo mês
-            if current_date.month == 12:
-                current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
+    if not data_inicial_api or not data_final_api:
+        st.sidebar.error("❌ Por favor, insira datas válidas no formato DD/MM/AAAA.")
+    else:
+        try:
+            dt_ini_user_temp = datetime.strptime(data_inicial_api, '%Y%m%d')
+            dt_fim_user_temp = datetime.strptime(data_final_api, '%Y%m%d')
+            if dt_ini_user_temp >= dt_fim_user_temp:
+                st.sidebar.error("❌ A Data Inicial deve ser anterior à Data Final.")
             else:
-                current_date = current_date.replace(month=current_date.month + 1, day=1)
+                st.session_state.datas_validas = True
+                st.session_state.cnpj = cnpj_limpo
+                st.session_state.data_ini = data_inicial_api
+                st.session_state.data_fim = data_final_api
+                st.session_state.mostrar_cdi = mostrar_cdi
+        except ValueError:
+            st.sidebar.error("❌ Erro ao processar datas. Verifique o formato DD/MM/AAAA.")
 
-        if df_fundo_completo.empty:
-            raise ValueError("Não foi possível carregar dados do fundo para o período. Verifique o CNPJ e o período.")
+    if st.session_state.cnpj_valido and st.session_state.datas_validas:
+        st.session_state.dados_carregados = True
+    else:
+        st.session_state.dados_carregados = False
 
-        df_fundo_completo['DT_COMPTC'] = pd.to_datetime(df_fundo_completo['DT_COMPTC'])
-        df_fundo_completo = df_fundo_completo[df_fundo_completo['CNPJ_FUNDO'] == cnpj_limpo].copy()
-        df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').drop_duplicates(subset=['DT_COMPTC'], keep='last')
+# Mensagem inicial se os dados ainda não foram carregados
+if not st.session_state.dados_carregados:
+    st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+    st.markdown("""
+    ### 📋 Como usar:
 
-        # Selecionar colunas relevantes e converter para numérico
-        cols_numericas = ['VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']
-        for col in cols_numericas:
-            df_fundo_completo[col] = pd.to_numeric(df_fundo_completo[col], errors='coerce')
+    1.  **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
+    2.  **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
+    3.  **Data Final**: Digite a data final no formato DD/MM/AAAA
+    4.  **Indicadores**: Marque a opção "Comparar com CDI" se desejar
+    5.  Clique em **Carregar Dados** para visualizar as análises
 
-        # 3. Combinar dados do fundo e CDI, usando datas do CDI como base
-        if tem_cdi:
+    ---
+
+    ### 📊 Análises disponíveis:
+    - Rentabilidade histórica e CAGR (com comparação ao CDI)
+    - Análise de risco (Drawdown, Volatilidade, VaR)
+    - Evolução patrimonial e captação
+    - Perfil de cotistas
+    - Retornos em janelas móveis (com comparação ao CDI)
+    """)
+    st.stop() # Interrompe a execução se os dados não foram carregados ou são inválidos
+
+# --- Bloco principal de execução após validação e carregamento ---
+# TODO: Este é o bloco que precisa ser cuidadosamente indentado sob o 'try'
+try:
+    with st.spinner('🔄 Carregando dados...'):
+        # Converte as datas de input do usuário para objetos datetime
+        dt_ini_user = datetime.strptime(st.session_state.data_ini, '%Y%m%d')
+        dt_fim_user = datetime.strptime(st.session_state.data_fim, '%Y%m%d')
+
+        # 1. BAIXAR DADOS DO FUNDO (período ampliado para ffill)
+        df_fundo_completo = carregar_dados_api(
+            st.session_state.cnpj,
+            st.session_state.data_ini,
+            st.session_state.data_fim
+        )
+        df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
+
+        # 2. OBTER DADOS DO CDI para o período EXATO solicitado pelo usuário
+        df_cdi_raw = pd.DataFrame()
+        if st.session_state.mostrar_cdi and BCB_DISPONIVEL:
+            df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
+            if not df_cdi_raw.empty:
+                df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
+
+        # 3. COMBINAR FUNDO E CDI, USANDO DATAS DO CDI COMO BASE
+        if not df_cdi_raw.empty:
+            # Usa as datas do CDI como base (left merge) e adiciona os dados do fundo
             df_final = df_cdi_raw[['DT_COMPTC', 'VL_CDI_normalizado']].copy()
-            df_final = pd.merge(df_final, df_fundo_completo[['DT_COMPTC', 'VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']],
-                                on='DT_COMPTC', how='left')
+            df_final = df_final.merge(df_fundo_completo, on='DT_COMPTC', how='left')
         else:
-            df_final = df_fundo_completo[['DT_COMPTC', 'VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']].copy()
-            df_final = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)]
-            df_final = df_final.reindex(pd.bdate_range(start=dt_ini_user, end=dt_fim_user)).reset_index().rename(columns={'index': 'DT_COMPTC'})
-            df_final['DT_COMPTC'] = pd.to_datetime(df_final['DT_COMPTC'])
+            # Se CDI não for solicitado ou não estiver disponível, usa os dados do fundo como base
+            df_final = df_fundo_completo.copy()
+            # Garante que colunas CDI não existam se não forem usadas
+            df_final.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
 
+        # Garante que o dataframe esteja ordenado por data
+        df_final = df_final.sort_values('DT_COMPTC').reset_index(drop=True)
 
-        # Preencher dados do fundo para datas onde não há cota (ffill)
-        cols_to_ffill = ['VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']
-        for col in cols_to_ffill:
-            df_final[col] = df_final[col].ffill()
+        # 4. Preencher valores ausentes para colunas do fundo com o último valor válido (forward-fill)
+        fund_cols_to_ffill = ['VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']
+        for col in fund_cols_to_ffill:
+            if col in df_final.columns:
+                df_final[col] = df_final[col].ffill()
 
-        # Remover linhas iniciais onde o fundo ainda não tinha dados (mesmo após ffill)
-        df_final = df_final.dropna(subset=['VL_QUOTA']).copy()
+        # 5. Remover linhas onde VL_QUOTA ainda é NaN (fundo não existia ou não tinha dados mesmo após ffill)
+        df_final.dropna(subset=['VL_QUOTA'], inplace=True)
 
-        # Filtrar para o período exato de análise do usuário
+        # 6. Filtrar o dataframe combinado para o período EXATO solicitado pelo usuário
         df = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)].copy()
 
+        # Verifica se o dataframe final está vazio após todas as operações
         if df.empty:
-            raise ValueError("Não há dados disponíveis para o fundo no período selecionado.")
+            raise ValueError("Não há dados disponíveis para o fundo no período selecionado após a combinação com o CDI ou o fundo não possui dados suficientes.")
 
-        # Re-normalizar VL_QUOTA e CDI_COTA para que ambos comecem em 1.0 na primeira data do DF final
-        df['VL_QUOTA_NORM'] = df['VL_QUOTA'] / df['VL_QUOTA'].iloc[0]
-        if tem_cdi:
-            df['CDI_COTA'] = df['VL_CDI_normalizado'] / df['VL_CDI_normalizado'].iloc[0]
-            df['CDI_NORM'] = df['CDI_COTA'] # Mantém o nome para consistência com outros cálculos
+        # 7. Re-normalizar a cota do fundo para começar em 1.0 (0% de rentabilidade) na primeira data do 'df' final
+        primeira_cota_fundo = df['VL_QUOTA'].iloc[0]
+        df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota_fundo) - 1) * 100
 
-        # --- Cálculos de Métricas ---
-        df['Retorno_Diario'] = df['VL_QUOTA_NORM'].pct_change()
-        if tem_cdi:
-            df['Retorno_Diario_CDI'] = df['CDI_NORM'].pct_change()
+        # Processa e re-normaliza os dados do CDI para o 'df' final
+        tem_cdi = False
+        if st.session_state.mostrar_cdi and 'VL_CDI_normalizado' in df.columns:
+            # Re-normaliza o CDI para começar em 1.0 na primeira data do 'df' final
+            first_cdi_normalized_value_in_period = df['VL_CDI_normalizado'].iloc[0]
+            df['CDI_COTA'] = df['VL_CDI_normalizado'] / first_cdi_normalized_value_in_period
+            df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
+            tem_cdi = True
+        else:
+            # Garante que colunas CDI sejam removidas se não forem solicitadas ou não estiverem disponíveis
+            df.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado', 'CDI_COTA', 'CDI_NORM'] if col in df.columns], errors='ignore', inplace=True)
 
-        # Rentabilidade Histórica
-        rentabilidade_fundo = (df['VL_QUOTA_NORM'].iloc[-1] / df['VL_QUOTA_NORM'].iloc[0]) - 1
-        rentabilidade_cdi = (df['CDI_NORM'].iloc[-1] / df['CDI_NORM'].iloc[0]) - 1 if tem_cdi else 0
+    # 3. CALCULAR MÉTRICAS (agora usando o 'df' combinado e normalizado)
+    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
 
-        # Volatilidade
-        vol_window = 21 # dias úteis para volatilidade móvel (aprox. 1 mês)
-        df['Volatilidade'] = df['Retorno_Diario'].rolling(window=vol_window).std() * np.sqrt(252) * 100
-        vol_hist = df['Retorno_Diario'].std() * np.sqrt(252) * 100
+    # Métricas do fundo
+    df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
+    df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
+    df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
+    df['Soma_Acumulada'] = df['CAPTC_DIA'].cumsum() - df['RESG_DIA'].cumsum() # Ajuste para acumular corretamente
+    df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
 
-        # Drawdown
-        df['Max_Quota'] = df['VL_QUOTA_NORM'].cummax()
-        df['Drawdown'] = ((df['VL_QUOTA_NORM'] / df['Max_Quota']) - 1) * 100
-        max_drawdown = df['Drawdown'].min()
+    vol_window = 21
+    trading_days_in_year = 252 # Número de dias úteis em um ano para anualização
+    df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
+    df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days_in_year) * 100
+    vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days_in_year) * 100, 2)
 
-        # CAGR Anual por Dia de Aplicação
-        trading_days_in_year = 252
-        df['CAGR_Fundo'] = np.nan
+    # CAGR - Cálculo conforme sua especificação: última cota fixa, cota inicial variável
+    df['CAGR_Fundo'] = np.nan
+    if tem_cdi:
         df['CAGR_CDI'] = np.nan
 
-        # Calcular o CAGR para cada ponto de início até a última data disponível
-        # O loop vai até o ponto onde ainda há pelo menos 252 dias úteis restantes para a data final
-        for i in range(len(df) - trading_days_in_year + 1):
-            initial_value_fundo = df['VL_QUOTA_NORM'].iloc[i]
-            end_value_fundo = df['VL_QUOTA_NORM'].iloc[-1]
-            num_intervals = (len(df) - 1) - i # Número de intervalos (dias úteis) entre o ponto i e o final
-
-            if num_intervals >= trading_days_in_year: # Garante que há pelo menos 252 dias para anualizar
-                cagr_fundo = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals)) - 1
-                df.loc[df.index[i], 'CAGR_Fundo'] = cagr_fundo * 100 # Em porcentagem
-
-            if tem_cdi:
-                initial_value_cdi = df['CDI_NORM'].iloc[i]
-                end_value_cdi = df['CDI_NORM'].iloc[-1]
-                if num_intervals >= trading_days_in_year:
-                    cagr_cdi = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals)) - 1
-                    df.loc[df.index[i], 'CAGR_CDI'] = cagr_cdi * 100 # Em porcentagem
-
-        mean_cagr = df['CAGR_Fundo'].mean()
-
-        # Excesso de Retorno Anualizado (composto)
+    if not df.empty and len(df) > trading_days_in_year:
+        end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
-            df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
-            # Converter para fator de retorno antes da divisão composta
-            cagr_fundo_fator = 1 + (df['CAGR_Fundo'] / 100)
-            cagr_cdi_fator = 1 + (df['CAGR_CDI'] / 100)
-            df['EXCESSO_RETORNO_ANUALIZADO'] = ((cagr_fundo_fator / cagr_cdi_fator) - 1) * 100
-            # Remover NaNs que podem surgir de divisões por zero ou NaNs nos CAGRs
-            df['EXCESSO_RETORNO_ANUALIZADO'] = df['EXCESSO_RETORNO_ANUALIZADO'].replace([np.inf, -np.inf], np.nan)
-            df['EXCESSO_RETORNO_ANUALIZADO'] = df['EXCESSO_RETORNO_ANUALIZADO'].dropna()
+            end_value_cdi = df['CDI_COTA'].iloc[-1]
 
+        # O loop vai até o índice que é 'trading_days_in_year' antes do último.
+        # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
+        # O range vai de 0 até (len(df) - trading_days_in_year)
+        for i in range(len(df) - trading_days_in_year):
+            initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
-        # VaR e ES
-        VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0
-        df['Retorno_21d'] = df['VL_QUOTA_NORM'].pct_change(periods=21)
-        if len(df['Retorno_21d'].dropna()) >= 21: # Mínimo de 21 retornos para calcular VaR/ES
-            retornos_mensais = df['Retorno_21d'].dropna()
-            VaR_95 = retornos_mensais.quantile(0.05)
-            VaR_99 = retornos_mensais.quantile(0.01)
-            ES_95 = retornos_mensais[retornos_mensais <= VaR_95].mean()
-            ES_99 = retornos_mensais[retornos_mensais <= VaR_99].mean()
+            # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
+            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
+            # Se i=1, num_intervals = (3-1) = 2.
+            num_intervals = (len(df) - 1) - i
 
-        # Outras métricas
-        df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
-        df['Soma_Acumulada'] = (df['CAPTC_DIA'] - df['RESG_DIA']).cumsum()
+            if initial_value_fundo > 0 and num_intervals > 0:
+                df.loc[df.index[i], 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
-        # --- Formatação para exibição ---
-        def fmt_pct(value):
-            return f"{value:.2%}" if pd.notna(value) else "N/A"
+            if tem_cdi and 'CDI_COTA' in df.columns:
+                initial_value_cdi = df['CDI_COTA'].iloc[i]
+                if initial_value_cdi > 0 and num_intervals > 0:
+                    df.loc[df.index[i], 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
-        def fmt_pct_port(value):
-            return f"{value:.2%}" if pd.notna(value) else "N/A"
+    # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
+    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
+    if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
+        mean_cagr = 0
 
-        def format_brl(value):
-            return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notna(value) else "N/A"
+    # Excesso de Retorno Anualizado
+    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
+    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
+        # Apenas calcula onde ambos os CAGRs estão disponíveis
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
+            ) * 100 # Multiplica por 100 para exibir em porcentagem
 
-        # --- Dashboard Layout ---
-        st.title(f"Dashboard de Análise de Fundos: {df['DENOM_SOCIAL'].iloc[0]}")
+    # VaR
+    df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
+    df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
+    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
+    if not df_plot_var.empty:
+        VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
+        VaR_99 = np.percentile(df_plot_var['Retorno_21d'], 1)
+        ES_95 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
+        ES_99 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+    else:
+        st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
 
-        # Cards de Métricas
-        col1, col2, col3, col4 = st.columns(4)
+    # Cores
+    color_primary = '#1a5f3f'  # Verde escuro para o fundo
+    color_secondary = '#6b9b7f'
+    color_danger = '#dc3545'
+    color_cdi = '#f0b429'  # Amarelo para o CDI
 
-        with col1:
-            st.metric(label="Rentabilidade Histórica", value=fmt_pct(rentabilidade_fundo))
-        with col2:
-            st.metric(label="CAGR Anualizado", value=f"{mean_cagr:.2f}%" if pd.notna(mean_cagr) else "N/A")
-        with col3:
-            st.metric(label="Volatilidade (a.a.)", value=f"{vol_hist:.2f}%" if pd.notna(vol_hist) else "N/A")
-        with col4:
-            st.metric(label="Max Drawdown", value=f"{max_drawdown:.2f}%" if pd.notna(max_drawdown) else "N/A")
+    # Cards de métricas
+    col1, col2, col3, col4 = st.columns(4)
 
-        if tem_cdi:
-            col_cdi_1, col_cdi_2, col_cdi_3, col_cdi_4 = st.columns(4)
-            with col_cdi_1:
-                st.metric(label="Rentabilidade CDI", value=fmt_pct(rentabilidade_cdi))
-            with col_cdi_2:
-                cagr_cdi_total = df['CAGR_CDI'].mean() if 'CAGR_CDI' in df.columns else np.nan
-                st.metric(label="CAGR CDI Anualizado", value=f"{cagr_cdi_total:.2f}%" if pd.notna(cagr_cdi_total) else "N/A")
-            with col_cdi_3:
-                vol_cdi_hist = df['Retorno_Diario_CDI'].std() * np.sqrt(252) * 100 if 'Retorno_Diario_CDI' in df.columns else np.nan
-                st.metric(label="Volatilidade CDI (a.a.)", value=f"{vol_cdi_hist:.2f}%" if pd.notna(vol_cdi_hist) else "N/A")
-            with col_cdi_4:
-                excess_return_total = ((1 + rentabilidade_fundo) / (1 + rentabilidade_cdi) - 1) if rentabilidade_cdi != -1 else np.nan
-                st.metric(label="Excesso Retorno Total", value=fmt_pct(excess_return_total) if pd.notna(excess_return_total) else "N/A")
+    with col1:
+        st.metric("💰 Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
 
-        st.markdown("---")
+    with col2:
+        st.metric("👥 Número de Cotistas", f"{int(df['NR_COTST'].iloc[-1]):,}".replace(',', '.'))
 
-        # Tabs para gráficos
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "Rentabilidade e CAGR", "Risco (Drawdown, Vol, VaR)",
-            "Patrimônio e Captação", "Patrimônio Médio e Cotistas",
-            "Retornos em Janelas Móveis"
-        ])
+    with col3:
+        st.metric("📈 CAGR Médio", f"{mean_cagr:.2f}%")
+
+    with col4:
+        st.metric("📊 Volatilidade Histórica", f"{vol_hist:.2f}%")
+
+    st.markdown("---")
+
+    # Tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📈 Rentabilidade",
+        "📉 Risco",
+        "💰 Patrimônio",
+        "👥 Cotistas",
+        "🎯 Janelas Móveis"
+    ])
 
     with tab1:
-        st.subheader("📈 Rentabilidade Acumulada")
+        st.subheader("📈 Rentabilidade Histórica")
 
         fig1 = go.Figure()
+
+        # Linha do Fundo
         fig1.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['VL_QUOTA_NORM'],
             mode='lines',
             name='Fundo',
             line=dict(color=color_primary, width=2.5),
-            hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2%}<extra></extra>'
+            fill='tozeroy',
+            fillcolor='rgba(26, 95, 63, 0.1)',
+            hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
 
+        # Linha do CDI (se selecionado)
         if tem_cdi:
             fig1.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
@@ -750,16 +770,15 @@ if st.session_state['trigger_load']:
                 mode='lines',
                 name='CDI',
                 line=dict(color=color_cdi, width=2.5),
-                hovertemplate='<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2%}<extra></extra>'
+                hovertemplate='<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
         fig1.update_layout(
             xaxis_title="Data",
-            yaxis_title="Rentabilidade Acumulada",
+            yaxis_title="Rentabilidade (%)",
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            yaxis=dict(tickformat=".2%"),
             font=dict(family="Inter, sans-serif"),
             legend=dict(
                 orientation="h",
@@ -769,6 +788,7 @@ if st.session_state['trigger_load']:
                 x=1
             )
         )
+        # Ajusta o range do eixo X para os dados de df
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -782,7 +802,7 @@ if st.session_state['trigger_load']:
             # CAGR do Fundo
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
-                y=df_plot_cagr['CAGR_Fundo'],
+                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de CAGR
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(width=2.5, color=color_primary),
@@ -1163,7 +1183,7 @@ if st.session_state['trigger_load']:
                     y=df_returns[f'CDI_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do CDI — {janela_selecionada}",
-                    line=dict(width=2.5, color=color_cdi),
+                    line=dict(color=color_cdi, width=2.5),
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
