@@ -176,6 +176,7 @@ st.markdown("""
         font-size: 0.8rem !important;
     }
 
+    /* Texto das validações em PRETO */
     [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"] {
         color: #000000 !important;
         font-weight: 600 !important;
@@ -380,6 +381,27 @@ def formatar_cnpj_display(cnpj):
         return f"{cnpj_limpo[:2]}.{cnpj_limpo[2:5]}.{cnpj_limpo[5:8]}/{cnpj_limpo[8:12]}-{cnpj_limpo[12:]}"
     return cnpj
 
+# Função para formatar data automaticamente enquanto digita
+def formatar_data_input(data_str):
+    """
+    Formata data automaticamente: 01011900 → 01/01/1900
+    """
+    if not data_str:
+        return ""
+
+    # Remove tudo que não é número
+    numeros = re.sub(r'\D', '', data_str)
+
+    # Aplica formatação progressiva
+    if len(numeros) <= 2:
+        return numeros
+    elif len(numeros) <= 4:
+        return f"{numeros[:2]}/{numeros[2:]}"
+    elif len(numeros) <= 8:
+        return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:]}"
+    else:
+        return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:8]}"
+
 # Função para converter data brasileira para formato API
 def formatar_data_api(data_str):
     if not data_str:
@@ -553,35 +575,41 @@ if logo_base64:
         unsafe_allow_html=True
     )
 
-# Input de CNPJ
+# Input de CNPJ com valor padrão do fundo Sul América
 cnpj_input = st.sidebar.text_input(
     "CNPJ do Fundo",
-    value="",
+    value="13.823.084/0001-05",  # CNPJ do Sul América Crédito Ativo
     placeholder="00.000.000/0000-00",
     help="Digite o CNPJ com ou sem formatação"
 )
 
-# Inputs de data
+# Inputs de data com formatação automática
 st.sidebar.markdown("#### 📅 Período de Análise")
 col1_sidebar, col2_sidebar = st.sidebar.columns(2)
 
 with col1_sidebar:
     data_inicial_input = st.text_input(
         "Data Inicial",
-        value="",
+        value="01/01/2022",
         placeholder="DD/MM/AAAA",
-        help="Formato: DD/MM/AAAA",
+        help="Digite a data (formatação automática)",
         key="data_inicial"
     )
+    # Formatar data automaticamente
+    if data_inicial_input:
+        data_inicial_input = formatar_data_input(data_inicial_input)
 
 with col2_sidebar:
     data_final_input = st.text_input(
         "Data Final",
-        value="",
+        value="31/12/2023",
         placeholder="DD/MM/AAAA",
-        help="Formato: DD/MM/AAAA",
+        help="Digite a data (formatação automática)",
         key="data_final"
     )
+    # Formatar data automaticamente
+    if data_final_input:
+        data_final_input = formatar_data_input(data_final_input)
 
 # NOVO: Opção para mostrar CDI
 st.sidebar.markdown("#### 📈 Indicadores de Comparação")
