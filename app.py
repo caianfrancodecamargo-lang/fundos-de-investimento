@@ -414,8 +414,7 @@ def obter_dados_cdi_real(data_inicio_str, data_fim_str):
 
             st.info(f"Buscando CDI de {current_start.strftime('%d/%m/%Y')} a {current_end.strftime('%d/%m/%Y')}...")
 
-            # Obter dados do CDI (série 12) usando a biblioteca bcb
-            # A série 12 já é a taxa diária do CDI
+            # Obter dados do CDI (série 12) - retorna apenas as taxas diárias
             cdi_chunk = sgs.get({'cdi': 12}, start=current_start, end=current_end)
 
             if not cdi_chunk.empty:
@@ -520,8 +519,9 @@ def processar_dados_com_cdi(df_fundo_raw, data_inicial_usuario_str, data_final_u
 
     # 5. Normalizar CDI (se for para incluir)
     if incluir_cdi:
-        # CDI_COTA já é VL_CDI_normalizado (começa em 1.0)
+        # CDI_COTA é agora o valor acumulado normalizado, começando em 1.0
         df_merged['CDI_COTA'] = df_merged['VL_CDI_normalizado']
+
         # CDI_NORM será a rentabilidade percentual, começando em 0.00%
         df_merged['CDI_NORM'] = (df_merged['CDI_COTA'] - 1) * 100
     else:
@@ -680,18 +680,20 @@ if not st.session_state.dados_carregados:
 try:
     with st.spinner('🔄 Carregando dados...'):
         # 1. BAIXAR DADOS DO FUNDO (período ampliado para garantir cobertura)
-        df_fundo_raw = carregar_dados_api(
+        df_fundo_completo = carregar_dados_api(
             st.session_state.cnpj,
             st.session_state.data_ini, # Passa a data inicial do usuário
             st.session_state.data_fim
         )
+        # A função ajustar_periodo_analise não é mais necessária aqui,
+        # pois o merge com o CDI como base já fará o alinhamento de datas.
 
         # 2. PROCESSAR DADOS (CDI É A BASE PRINCIPAL)
         df = processar_dados_com_cdi(
-            df_fundo_raw, 
-            incluir_cdi=st.session_state.mostrar_cdi,
+            df_fundo_completo, 
             data_inicial_usuario_str=st.session_state.data_ini,
-            data_final_usuario_str=st.session_state.data_fim
+            data_final_usuario_str=st.session_state.data_fim,
+            incluir_cdi=st.session_state.mostrar_cdi
         )
 
     # 3. CALCULAR MÉTRICAS
@@ -736,8 +738,14 @@ try:
         df_cagr = df_cagr.loc[first_valid_cagr_idx:].copy()
 
     end_value = df_cagr['VL_QUOTA'].iloc[-1]
-    df_cagr['dias_uteis'] = (df_cagr.index[-1] - df_cagr.index).map(lambda x: x.days) # Convert timedelta to days
-    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy() # Filtrar para ter pelo menos 1 ano de dados
+
+    # CORREÇÃO: Calcular dias_uteis como um número inteiro de dias
+    # (df_cagr['DT_COMPTC'].iloc[-1] - df_cagr['DT_COMPTC']) resulta em uma Series de Timedelta
+    # .dt.days extrai o número de dias de cada Timedelta
+    df_cagr['dias_uteis'] = (df_cagr['DT_COMPTC'].iloc[-1] - df_cagr['DT_COMPTC']).dt.days
+
+    # Filtrar para ter pelo menos 252 dias (aproximadamente 1 ano útil)
+    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
 
     if not df_cagr.empty:
         # CAGR do Fundo
@@ -905,7 +913,7 @@ try:
 
         fig3 = go.Figure()
 
-        # Drawdown do Fundo
+        # Drawdown do Fundo (APENAS)
         fig3.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Drawdown'],
@@ -917,17 +925,6 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        # Drawdown do CDI (se disponível)
-        if tem_cdi:
-            fig3.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['CDI_Drawdown'],
-                mode='lines',
-                name='Drawdown do CDI',
-                line=dict(color=color_cdi, width=2.5),
-                hovertemplate='<b>Drawdown do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
-            ))
-
         fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
 
         fig3.update_layout(
@@ -936,14 +933,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig3 = add_watermark_and_style(fig3, logo_base64)
@@ -953,7 +943,7 @@ try:
 
         fig4 = go.Figure()
 
-        # Volatilidade do Fundo
+        # Volatilidade do Fundo (APENAS)
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Volatilidade'],
@@ -971,39 +961,13 @@ try:
             name=f'Vol. Histórica ({vol_hist:.2f}%)'
         ))
 
-        # Volatilidade do CDI (se disponível)
-        if tem_cdi:
-            fig4.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['CDI_Volatilidade'],
-                mode='lines',
-                name=f'Volatilidade do CDI ({vol_window} dias)',
-                line=dict(color=color_cdi, width=2.5),
-                hovertemplate='<b>Volatilidade do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
-            ))
-
-            fig4.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=[cdi_vol_hist] * len(df),
-                mode='lines',
-                line=dict(dash='dot', color=color_cdi, width=1.5),
-                name=f'CDI Vol. Histórica ({cdi_vol_hist:.2f}%)'
-            ))
-
         fig4.update_layout(
             xaxis_title="Data",
             yaxis_title="Volatilidade (% a.a.)",
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig4 = add_watermark_and_style(fig4, logo_base64)
