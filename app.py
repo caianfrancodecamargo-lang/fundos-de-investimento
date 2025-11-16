@@ -308,10 +308,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Função para adicionar marca d'água GIGANTE e estilizar gráficos
-def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=True):
+def add_watermark_and_style(fig, logo_base64=None):
     """
-    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico e aplica estilo.
-    Permite definir o range do eixo X.
+    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
     """
     if logo_base64:
         fig.add_layout_image(
@@ -362,7 +361,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
     )
 
     # Estilizar eixos
-    x_axes_update_params = dict(
+    fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
         gridcolor='rgba(224, 221, 213, 0.5)',
@@ -372,14 +371,6 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
         tickfont=dict(size=11, color="#6b9b7f")
     )
-
-    if x_range is not None:
-        x_axes_update_params['range'] = x_range
-        x_axes_update_params['autorange'] = False # Se o range é definido, desativa o autorange
-    else:
-        x_axes_update_params['autorange'] = x_autorange # Usa o autorange padrão ou passado
-
-    fig.update_xaxes(**x_axes_update_params)
 
     fig.update_yaxes(
         showgrid=True,
@@ -456,35 +447,6 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# Função para carregar dados da CVM (API Okanebox ou arquivos CVM)
-@st.cache_data
-def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
-    dt_inicial = datetime.strptime(data_ini_str, '%Y%m%d')
-    # Amplia o período inicial para garantir dados para ffill
-    dt_ampliada = dt_inicial - timedelta(days=60)
-    data_ini_ampliada_str = dt_ampliada.strftime('%Y%m%d')
-
-    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada_str}/{data_fim_str}/"
-    req = urllib.request.Request(url)
-    req.add_header('Accept-Encoding', 'gzip')
-    req.add_header('Authorization', 'Bearer caianfrancodecamargo@gmail.com')
-
-    response = urllib.request.urlopen(req)
-
-    if response.info().get('Content-Encoding') == 'gzip':
-        buf = BytesIO(response.read())
-        f = gzip.GzipFile(fileobj=buf)
-        content_json = json.loads(f.read().decode("utf-8"))
-    else:
-        content = response.read().decode("utf-8")
-        content_json = json.loads(content)
-
-    df = pd.DataFrame(content_json)
-    if 'DT_COMPTC' in df.columns:
-        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
-
-    return df
-
 # Sidebar com logo (SEM título "Configurações")
 if logo_base64:
     st.sidebar.markdown(
@@ -522,64 +484,100 @@ with col2_sidebar:
         key="data_final"
     )
 
-# Opção para comparar com CDI
+# Opção para mostrar CDI
+st.sidebar.markdown("#### 📈 Indicadores de Comparação")
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
 
-# Botão de carregar dados
-st.sidebar.markdown("---") # Separador visual
-carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary")
+st.sidebar.markdown("---")
+
+# Processar inputs
+cnpj_limpo = limpar_cnpj(cnpj_input)
+data_inicial_formatada = formatar_data_api(data_inicial_input)
+data_final_formatada = formatar_data_api(data_final_input)
+
+# Validação
+cnpj_valido = False
+datas_validas = False
+
+if cnpj_input:
+    if len(cnpj_limpo) != 14:
+        st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+    else:
+        st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
+        cnpj_valido = True
+
+if data_inicial_input and data_final_input:
+    if not data_inicial_formatada or not data_final_formatada:
+        st.sidebar.error("❌ Formato de data inválido. Use DD/MM/AAAA")
+    else:
+        try:
+            dt_ini = datetime.strptime(data_inicial_formatada, '%Y%m%d')
+            dt_fim = datetime.strptime(data_final_formatada, '%Y%m%d')
+            if dt_ini > dt_fim:
+                st.sidebar.error("❌ Data inicial deve ser anterior à data final")
+            else:
+                st.sidebar.success(f"✅ Período: {dt_ini.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}")
+                datas_validas = True
+        except:
+            st.sidebar.error("❌ Erro ao processar datas")
+
+# Botão para carregar dados
+carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
 
 # Título principal
 st.markdown("<h1>📊 Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Variáveis de estado para controlar o carregamento e exibição
+# Função para carregar dados
+@st.cache_data
+def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
+    dt_inicial = datetime.strptime(data_ini_str, '%Y%m%d')
+    # Amplia o período inicial para garantir dados para ffill
+    dt_ampliada = dt_inicial - timedelta(days=60)
+    data_ini_ampliada_str = dt_ampliada.strftime('%Y%m%d')
+
+    url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada_str}/{data_fim_str}/"
+    req = urllib.request.Request(url)
+    req.add_header('Accept-Encoding', 'gzip')
+    req.add_header('Authorization', 'Bearer caianfrancodecamargo@gmail.com')
+
+    response = urllib.request.urlopen(req)
+
+    if response.info().get('Content-Encoding') == 'gzip':
+        buf = BytesIO(response.read())
+        f = gzip.GzipFile(fileobj=buf)
+        content_json = json.loads(f.read().decode("utf-8"))
+    else:
+        content = response.read().decode("utf-8")
+        content_json = json.loads(content)
+
+    df = pd.DataFrame(content_json)
+    if 'DT_COMPTC' in df.columns:
+        df['DT_COMPTC'] = pd.to_datetime(df['DT_COMPTC'])
+
+    return df
+
+# Funções de formatação
+def format_brl(valor):
+    return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+def fmt_pct_port(x):
+    return f"{x*100:.2f}%".replace('.', ',')
+
+# Verificar se deve carregar os dados
 if 'dados_carregados' not in st.session_state:
     st.session_state.dados_carregados = False
-if 'cnpj_valido' not in st.session_state:
-    st.session_state.cnpj_valido = False
-if 'datas_validas' not in st.session_state:
-    st.session_state.datas_validas = False
 
-# Validação dos inputs ao clicar no botão
-if carregar_button:
-    cnpj_limpo = limpar_cnpj(cnpj_input)
-    data_inicial_api = formatar_data_api(data_inicial_input)
-    data_final_api = formatar_data_api(data_final_input)
+if carregar_button and cnpj_valido and datas_validas:
+    st.session_state.dados_carregados = True
+    st.session_state.cnpj = cnpj_limpo
+    st.session_state.data_ini = data_inicial_formatada
+    st.session_state.data_fim = data_final_formatada
+    st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
 
-    st.session_state.cnpj_valido = False
-    st.session_state.datas_validas = False
-
-    if not cnpj_limpo or len(cnpj_limpo) != 14:
-        st.sidebar.error("❌ Por favor, insira um CNPJ válido (14 dígitos).")
-    else:
-        st.session_state.cnpj_valido = True
-
-    if not data_inicial_api or not data_final_api:
-        st.sidebar.error("❌ Por favor, insira datas válidas no formato DD/MM/AAAA.")
-    else:
-        try:
-            dt_ini_user_temp = datetime.strptime(data_inicial_api, '%Y%m%d')
-            dt_fim_user_temp = datetime.strptime(data_final_api, '%Y%m%d')
-            if dt_ini_user_temp >= dt_fim_user_temp:
-                st.sidebar.error("❌ A Data Inicial deve ser anterior à Data Final.")
-            else:
-                st.session_state.datas_validas = True
-                st.session_state.cnpj = cnpj_limpo
-                st.session_state.data_ini = data_inicial_api
-                st.session_state.data_fim = data_final_api
-                st.session_state.mostrar_cdi = mostrar_cdi
-        except ValueError:
-            st.sidebar.error("❌ Erro ao processar datas. Verifique o formato DD/MM/AAAA.")
-
-    if st.session_state.cnpj_valido and st.session_state.datas_validas:
-        st.session_state.dados_carregados = True
-    else:
-        st.session_state.dados_carregados = False
-
-# Mensagem inicial se os dados ainda não foram carregados
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+
     st.markdown("""
     ### 📋 Como usar:
 
@@ -598,9 +596,9 @@ if not st.session_state.dados_carregados:
     - Perfil de cotistas
     - Retornos em janelas móveis (com comparação ao CDI)
     """)
-    st.stop() # Interrompe a execução se os dados não foram carregados ou são inválidos
 
-# --- Bloco principal de execução após validação e carregamento ---
+    st.stop()
+
 try:
     with st.spinner('🔄 Carregando dados...'):
         # Converte as datas de input do usuário para objetos datetime
@@ -625,7 +623,7 @@ try:
         # 3. COMBINAR FUNDO E CDI, USANDO DATAS DO CDI COMO BASE
         if not df_cdi_raw.empty:
             # Usa as datas do CDI como base (left merge) e adiciona os dados do fundo
-            df_final = df_cdi_raw[['DT_COMPTC', 'VL_CDI_normalizado']].copy()
+            df_final = df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']].copy()
             df_final = df_final.merge(df_fundo_completo, on='DT_COMPTC', how='left')
         else:
             # Se CDI não for solicitado ou não estiver disponível, usa os dados do fundo como base
@@ -650,7 +648,8 @@ try:
 
         # Verifica se o dataframe final está vazio após todas as operações
         if df.empty:
-            raise ValueError("Não há dados disponíveis para o fundo no período selecionado após a combinação com o CDI ou o fundo não possui dados suficientes.")
+            st.error("❌ Não há dados disponíveis para o fundo no período selecionado após a combinação com o CDI ou o fundo não possui dados suficientes.")
+            st.stop()
 
         # 7. Re-normalizar a cota do fundo para começar em 1.0 (0% de rentabilidade) na primeira data do 'df' final
         primeira_cota_fundo = df['VL_QUOTA'].iloc[0]
@@ -675,7 +674,7 @@ try:
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
     df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
     df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
-    df['Soma_Acumulada'] = df['CAPTC_DIA'].cumsum() - df['RESG_DIA'].cumsum() # Ajuste para acumular corretamente
+    df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
     df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
 
     vol_window = 21
@@ -689,6 +688,7 @@ try:
     if tem_cdi:
         df['CAGR_CDI'] = np.nan
 
+    # Apenas calcula CAGR se houver dados suficientes para pelo menos 1 ano
     if not df.empty and len(df) > trading_days_in_year:
         end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
@@ -696,7 +696,7 @@ try:
 
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
         # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
-        # O range vai de 0 até (len(df) - trading_days_in_year)
+        # O range vai de 0 até (len(df) - trading_days_in_year - 1)
         for i in range(len(df) - trading_days_in_year):
             initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
@@ -706,28 +706,17 @@ try:
             num_intervals = (len(df) - 1) - i
 
             if initial_value_fundo > 0 and num_intervals > 0:
-                df.loc[df.index[i], 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
+                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
             if tem_cdi and 'CDI_COTA' in df.columns:
                 initial_value_cdi = df['CDI_COTA'].iloc[i]
                 if initial_value_cdi > 0 and num_intervals > 0:
-                    df.loc[df.index[i], 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
+                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
         mean_cagr = 0
-
-    # Excesso de Retorno Anualizado
-    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
-    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
-        # Apenas calcula onde ambos os CAGRs estão disponíveis
-        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
-        if not valid_excess_return_indices.empty:
-            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
-                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
-                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
-            ) * 100 # Multiplica por 100 para exibir em porcentagem
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -816,30 +805,28 @@ try:
                 x=1
             )
         )
-        # Ajusta o range do eixo X para os dados de df
-        fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
+
+        fig1 = add_watermark_and_style(fig1, logo_base64)
         st.plotly_chart(fig1, use_container_width=True)
 
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
 
+        fig2 = go.Figure()
+
+        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
         df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
 
         if not df_plot_cagr.empty:
-            fig2 = go.Figure()
-
             # CAGR do Fundo
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
                 y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de CAGR
                 mode='lines',
                 name='CAGR do Fundo',
-                line=dict(width=2.5, color=color_primary),
-                fill='tozeroy',
-                fillcolor='rgba(26, 95, 63, 0.1)',
+                line=dict(color=color_primary, width=2.5),
                 hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
             ))
 
-            # Linha de referência do CAGR médio
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
                 y=[mean_cagr] * len(df_plot_cagr),
@@ -876,57 +863,9 @@ try:
                 x=1
             )
         )
-        if not df_plot_cagr.empty:
-            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
-        else:
-            fig2 = add_watermark_and_style(fig2, logo_base64)
+
+        fig2 = add_watermark_and_style(fig2, logo_base64)
         st.plotly_chart(fig2, use_container_width=True)
-
-        st.subheader("📊 Excesso de Retorno Anualizado (vs. CDI)")
-
-        df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
-
-        if tem_cdi and not df_plot_excess.empty:
-            fig_excesso_retorno = go.Figure()
-            fig_excesso_retorno.add_trace(go.Scatter(
-                x=df_plot_excess['DT_COMPTC'],
-                y=df_plot_excess['EXCESSO_RETORNO_ANUALIZADO'],
-                mode='lines',
-                name='Excesso de Retorno Anualizado',
-                line=dict(width=2.5, color=color_primary), # Cor principal do fundo
-                fill='tozeroy',
-                fillcolor='rgba(26, 95, 63, 0.1)',
-                hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
-            ))
-            # Linha de referência em 0%
-            fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
-
-            fig_excesso_retorno.update_layout(
-                xaxis_title="Data",
-                yaxis_title="Excesso de Retorno (% a.a.)",
-                template="plotly_white",
-                hovermode="x unified",
-                height=500,
-                yaxis=dict(tickformat=".2%"),
-                font=dict(family="Inter, sans-serif"),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
-            )
-            if not df_plot_excess.empty:
-                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
-            else:
-                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64)
-            st.plotly_chart(fig_excesso_retorno, use_container_width=True)
-        elif tem_cdi:
-            st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
-        else:
-            st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
-
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
@@ -955,8 +894,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
-        fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
+
+        fig3 = add_watermark_and_style(fig3, logo_base64)
         st.plotly_chart(fig3, use_container_width=True)
 
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
@@ -987,22 +926,14 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
-        fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
+
+        fig4 = add_watermark_and_style(fig4, logo_base64)
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
 
-        df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
         if not df_plot_var.empty:
             fig5 = go.Figure()
             fig5.add_trace(go.Scatter(
@@ -1050,8 +981,8 @@ try:
                 height=600,
                 font=dict(family="Inter, sans-serif")
             )
-            # Ajusta o range do eixo X para os dados de df_plot_var
-            fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
+
+            fig5 = add_watermark_and_style(fig5, logo_base64)
             st.plotly_chart(fig5, use_container_width=True)
 
             st.info(f"""
@@ -1098,8 +1029,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
-        fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
+
+        fig6 = add_watermark_and_style(fig6, logo_base64)
         st.plotly_chart(fig6, use_container_width=True)
 
         st.subheader("📊 Captação Líquida Mensal")
@@ -1128,11 +1059,8 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df_monthly
-        if not df_monthly.empty:
-            fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
-        else:
-            fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
+
+        fig7 = add_watermark_and_style(fig7, logo_base64)
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -1165,17 +1093,10 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
-        fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
+
+        fig8 = add_watermark_and_style(fig8, logo_base64)
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
@@ -1245,12 +1166,8 @@ try:
                     x=1
                 )
             )
-            # Ajusta o range do eixo X para os dados de df_returns
-            df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
-            if not df_plot_returns.empty:
-                fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
-            else:
-                fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
+
+            fig9 = add_watermark_and_style(fig9, logo_base64)
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
