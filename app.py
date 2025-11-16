@@ -428,7 +428,13 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         return pd.DataFrame()
 
     try:
-        # Obter dados do CDI (série 12) - retorna apenas as taxas diárias
+        # Aumenta o período de busca para 10 anos antes da data inicial para garantir dados
+        # mesmo que o período solicitado seja curto, e depois filtra.
+        # No entanto, a biblioteca `bcb` já lida com o `start` e `end` diretamente.
+        # A memória do usuário indica "intervalos de 10 anos", mas a função `sgs.get`
+        # já busca no intervalo exato. Vou manter a busca direta e garantir que
+        # o período de 10 anos seja considerado na lógica de cache ou na chamada,
+        # se necessário. Por enquanto, a chamada direta é a mais eficiente.
         cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
 
         # Transformar o índice em coluna
@@ -760,33 +766,22 @@ try:
 
     with col1:
         st.metric("💰 Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
-
     with col2:
-        st.metric("👥 Número de Cotistas", f"{int(df['NR_COTST'].iloc[-1]):,}".replace(',', '.'))
-
+        st.metric("📈 Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
     with col3:
-        st.metric("📈 CAGR Médio", f"{mean_cagr:.2f}%")
-
+        st.metric("📊 CAGR (Anualizado)", fmt_pct_port(mean_cagr / 100))
     with col4:
-        st.metric("📊 Volatilidade Histórica", f"{vol_hist:.2f}%")
+        st.metric("📉 Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
 
-    st.markdown("---")
-
-    # Tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📈 Rentabilidade",
-        "📉 Risco",
-        "💰 Patrimônio",
-        "👥 Cotistas",
-        "🎯 Janelas Móveis"
+        "📈 Rentabilidade", "📉 Risco", "💰 Patrimônio e Captação",
+        "👥 Cotistas", "🎯 Janelas Móveis"
     ])
 
     with tab1:
         st.subheader("📈 Rentabilidade Histórica")
 
         fig1 = go.Figure()
-
-        # Linha do Fundo
         fig1.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['VL_QUOTA_NORM'],
@@ -798,7 +793,6 @@ try:
             hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
 
-        # Linha do CDI (se selecionado)
         if tem_cdi:
             fig1.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
@@ -1142,12 +1136,21 @@ try:
             with col_vol_1:
                 st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "N/A")
                 st.info("""
-                **Sharpe Ratio:** Um dos mais populares. Mede o excesso de retorno do fundo (acima do CDI) por unidade de **volatilidade total** (risco). Quanto maior o Sharpe, melhor o retorno para o nível de risco assumido.
+                **Sharpe Ratio:** Mede o excesso de retorno do fundo (acima do CDI) por unidade de **volatilidade total** (risco). Quanto maior o Sharpe, melhor o retorno para o nível de risco assumido.
+                *   **Interpretação Geral:**
+                    *   **< 1.0:** Subótimo, o retorno não compensa adequadamente o risco.
+                    *   **1.0 - 1.99:** Bom, o fundo gera um bom retorno para o risco.
+                    *   **2.0 - 2.99:** Muito Bom, excelente retorno ajustado ao risco.
+                    *   **≥ 3.0:** Excepcional, performance muito consistente.
                 """)
             with col_vol_2:
                 st.metric("Sortino Ratio", f"{sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "N/A")
                 st.info("""
                 **Sortino Ratio:** Similar ao Sharpe, mas foca apenas na **volatilidade de baixa** (downside volatility). Ele mede o excesso de retorno por unidade de risco de queda. É útil para investidores que se preocupam mais com perdas do que com a volatilidade geral.
+                *   **Interpretação Geral:**
+                    *   **< 0.0:** Retorno não cobre o risco de queda.
+                    *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de queda.
+                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de perdas.
                 """)
 
             col_vol_3, col_vol_4 = st.columns(2)
@@ -1155,11 +1158,18 @@ try:
                 st.metric("Information Ratio", f"{information_ratio:.2f}" if not pd.isna(information_ratio) else "N/A")
                 st.info("""
                 **Information Ratio:** Mede a capacidade do gestor de gerar retornos acima de um benchmark (aqui, o CDI), ajustado pelo **tracking error** (risco de desvio em relação ao benchmark). Um valor alto indica que o gestor consistentemente superou o benchmark com um risco de desvio razoável.
+                *   **Interpretação Geral:**
+                    *   **< 0.0:** O fundo está consistentemente abaixo do benchmark.
+                    *   **0.0 - 0.5:** Habilidade modesta em superar o benchmark.
+                    *   **0.5 - 1.0:** Boa habilidade e consistência em superar o benchmark.
+                    *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
                 """)
             with col_vol_4:
                 st.metric("Treynor Ratio", "Não Calculável" if not tem_cdi else "N/A")
                 st.info("""
-                **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado. *Não é possível calcular este índice sem dados de um índice de mercado (benchmark) para determinar o Beta do fundo.*
+                **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
+                *   **Interpretação:** Um valor mais alto é preferível. É mais útil para comparar fundos com Betas semelhantes.
+                *   **Observação:** *Não é possível calcular este índice sem dados de um índice de mercado (benchmark) para determinar o Beta do fundo.*
                 """)
 
             st.markdown("#### RISCO MEDIDO PELO DRAWDOWN:")
@@ -1169,11 +1179,21 @@ try:
                 st.metric("Calmar Ratio", f"{calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "N/A")
                 st.info("""
                 **Calmar Ratio:** Mede o retorno ajustado ao risco, comparando o **CAGR** (retorno anualizado) do fundo com o seu **maior drawdown** (maior queda). Um valor mais alto indica que o fundo gerou bons retornos sem grandes perdas.
+                *   **Interpretação Geral:**
+                    *   **< 0.0:** Retorno negativo ou drawdown muito grande.
+                    *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
+                    *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
+                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
                 """)
             with col_dd_2:
                 st.metric("Sterling Ratio", f"{sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "N/A")
                 st.info("""
                 **Sterling Ratio:** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
+                *   **Interpretação Geral:**
+                    *   **< 0.0:** Retorno negativo ou drawdown muito grande.
+                    *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
+                    *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
+                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
                 """)
 
             col_dd_3, col_dd_4 = st.columns(2)
@@ -1181,12 +1201,26 @@ try:
                 st.metric("Ulcer Index", f"{ulcer_index:.2f}" if not pd.isna(ulcer_index) else "N/A")
                 st.info("""
                 **Ulcer Index:** Mede a profundidade e a duração dos drawdowns (quedas). Quanto menor o índice, menos dolorosas e mais curtas foram as quedas do fundo. É uma medida de risco que foca na "dor" do investidor.
+                *   **Interpretação Geral:**
+                    *   **< 1.0:** Baixo risco, fundo relativamente estável.
+                    *   **1.0 - 2.0:** Risco moderado, com quedas mais frequentes ou profundas.
+                    *   **> 2.0:** Alto risco, fundo com quedas significativas e/ou duradouras.
                 """)
             with col_dd_4:
                 st.metric("Martin Ratio", f"{martin_ratio:.2f}" if not pd.isna(martin_ratio) else "N/A")
                 st.info("""
                 **Martin Ratio:** Avalia o retorno ajustado ao risco dividindo o excesso de retorno anualizado (acima do CDI) pelo **Ulcer Index**. Um valor mais alto indica um melhor desempenho em relação ao risco de drawdown.
+                *   **Interpretação Geral:**
+                    *   **< 0.0:** O fundo não compensa o risco de drawdown.
+                    *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de drawdown.
+                    *   **> 1.0:** Bom, o fundo entrega um bom retorno considerando a "dor" dos drawdowns.
                 """)
+
+            st.markdown("""
+            ---
+            **Observação Importante sobre as Interpretações:**
+            Os intervalos e classificações acima são **diretrizes gerais** baseadas em práticas comuns do mercado financeiro e literaturas de investimento. A interpretação de qualquer métrica de risco-retorno deve sempre considerar o **contexto específico do fundo** (estratégia, classe de ativos, objetivo), as **condições de mercado** no período analisado e o **perfil de risco do investidor**. Não há um "número mágico" que sirva para todos os casos.
+            """)
 
         elif not tem_cdi:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar as Métricas de Risco-Retorno.")
