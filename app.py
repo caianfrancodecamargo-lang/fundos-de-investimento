@@ -516,7 +516,7 @@ if data_inicial_input and data_final_input:
             if dt_ini > dt_fim:
                 st.sidebar.error("❌ Data inicial deve ser anterior à data final")
             else:
-                st.sidebar.success(f"✅ Período: {dt_ini.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}")
+                st.sidebar.success(f"✅ Período: {dt_ini.strftime('%d/%m/%Y')} a {dt_fim.strftime('%Y%m%d')}")
                 datas_validas = True
         except:
             st.sidebar.error("❌ Erro ao processar datas")
@@ -629,7 +629,6 @@ try:
             # Se CDI não for solicitado ou não estiver disponível, usa os dados do fundo como base
             df_final = df_fundo_completo.copy()
             # Garante que colunas CDI não existam se não forem usadas
-            # CORREÇÃO DO SYNTAXERROR AQUI: 'col col' para 'col for col'
             df_final.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
 
         # Garante que o dataframe esteja ordenado por data
@@ -694,24 +693,35 @@ try:
         if tem_cdi:
             end_value_cdi = df['CDI_COTA'].iloc[-1]
 
-        # O loop vai até o índice que é 'trading_days_in_year' antes do último.
-        # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
-        for i in range(len(df) - trading_days_in_year):
-            initial_value_fundo = df['VL_QUOTA'].iloc[i]
+        # Calcular o número de intervalos (dias úteis - 1) de cada ponto até o final
+        df['dias_uteis_intervalos'] = df.index[-1] - df.index
 
-            # num_datas é a contagem de dias úteis do ponto inicial (i) até o ponto final (último)
-            # len(df) - 1 é o índice da última linha.
-            # i é o índice da linha atual.
-            # A diferença é o número de intervalos. Para ter a contagem de dias, somamos 1.
-            num_datas = (len(df) - 1) - i + 1 
+        # Filtrar para calcular CAGR apenas para pontos com pelo menos 252 dias (251 intervalos) até o final
+        df_cagr_calc = df[df['dias_uteis_intervalos'] >= (trading_days_in_year - 1)].copy()
 
-            if initial_value_fundo > 0 and num_datas > 0:
-                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_datas) - 1) * 100
+        if not df_cagr_calc.empty:
+            # CAGR do Fundo
+            initial_values_fundo = df_cagr_calc['VL_QUOTA']
+            num_datas_for_cagr = df_cagr_calc['dias_uteis_intervalos'] + 1 # num_datas = intervalos + 1
 
-            if tem_cdi and 'CDI_COTA' in df.columns:
-                initial_value_cdi = df['CDI_COTA'].iloc[i]
-                if initial_value_cdi > 0 and num_datas > 0:
-                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_datas) - 1) * 100
+            # Evitar divisão por zero ou log de zero
+            valid_indices_fundo = (initial_values_fundo > 0) & (num_datas_for_cagr > 0)
+
+            df.loc[df_cagr_calc.index[valid_indices_fundo], 'CAGR_Fundo'] = (
+                (end_value_fundo / initial_values_fundo[valid_indices_fundo]) ** 
+                (trading_days_in_year / num_datas_for_cagr[valid_indices_fundo]) - 1
+            ) * 100
+
+            # CAGR do CDI (se disponível)
+            if tem_cdi and 'CDI_COTA' in df_cagr_calc.columns:
+                initial_values_cdi = df_cagr_calc['CDI_COTA']
+
+                valid_indices_cdi = (initial_values_cdi > 0) & (num_datas_for_cagr > 0)
+
+                df.loc[df_cagr_calc.index[valid_indices_cdi], 'CAGR_CDI'] = (
+                    (end_value_cdi / initial_values_cdi[valid_indices_cdi]) ** 
+                    (trading_days_in_year / num_datas_for_cagr[valid_indices_cdi]) - 1
+                ) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
