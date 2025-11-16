@@ -11,6 +11,14 @@ import re
 from datetime import datetime, timedelta
 import base64
 
+# Importar biblioteca para obter dados do CDI
+try:
+    from bcb import sgs
+    BCB_DISPONIVEL = True
+except ImportError:
+    BCB_DISPONIVEL = False
+    st.warning("⚠️ Biblioteca 'python-bcb' não encontrada. Instale com: pip install python-bcb")
+
 # Configuração da página
 st.set_page_config(
     page_title="Dashboard - Fundos de Investimentos",
@@ -356,14 +364,6 @@ def limpar_cnpj(cnpj):
         return ""
     return re.sub(r'\D', '', cnpj)
 
-# Função para formatar CNPJ para exibição
-def formatar_cnpj_display(cnpj):
-    """Formata CNPJ para exibição: 00.000.000/0000-00"""
-    cnpj_limpo = limpar_cnpj(cnpj)
-    if len(cnpj_limpo) == 14:
-        return f"{cnpj_limpo[:2]}.{cnpj_limpo[2:5]}.{cnpj_limpo[5:8]}/{cnpj_limpo[8:12]}-{cnpj_limpo[12:]}"
-    return cnpj
-
 # Função para converter data brasileira para formato API
 def formatar_data_api(data_str):
     if not data_str:
@@ -418,39 +418,40 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# FUNÇÃO PARA GERAR DADOS DO CDI (SIMULAÇÃO)
-def gerar_dados_cdi_simulado(df_fundo):
+# FUNÇÃO PARA OBTER DADOS REAIS DO CDI
+@st.cache_data
+def obter_dados_cdi_real(data_inicio, data_fim):
     """
-    Gera dados simulados do CDI com base nas datas do fundo
-    Taxa CDI aproximada: 0.045% ao dia (aproximadamente 11.5% ao ano)
+    Obtém dados REAIS do CDI usando a biblioteca python-bcb
+    Exatamente como no código fornecido
     """
+    if not BCB_DISPONIVEL:
+        st.error("❌ Biblioteca 'python-bcb' não está instalada. Instale com: pip install python-bcb")
+        return pd.DataFrame()
+
     try:
-        # Criar DataFrame com as mesmas datas do fundo
-        df_cdi = pd.DataFrame({
-            'DT_COMPTC': df_fundo['DT_COMPTC'].values
-        })
+        # Obter dados do CDI (série 12) usando a biblioteca bcb
+        cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
 
-        # Taxa CDI diária aproximada (0.045% = 11.5% a.a.)
-        taxa_cdi_diaria = 0.045 / 100
+        # Calcular valor acumulado do CDI
+        cdi_diario['VL_CDI'] = (1 + cdi_diario['cdi']/100).cumprod()
 
-        # Criar série de taxas
-        df_cdi['CDI_taxa'] = taxa_cdi_diaria * 100  # Em percentual
-        df_cdi['CDI_decimal'] = taxa_cdi_diaria
+        # Transformar o índice em coluna
+        cdi_diario = cdi_diario.reset_index()
 
-        # Calcular fator acumulado
-        df_cdi['CDI_fator'] = 1 + df_cdi['CDI_decimal']
-        df_cdi['CDI_acum'] = df_cdi['CDI_fator'].cumprod()
+        # Alterar o nome da coluna
+        cdi_diario = cdi_diario.rename(columns={'Date': 'DT_COMPTC'})
 
-        return df_cdi
+        return cdi_diario
 
     except Exception as e:
-        st.warning(f"Aviso ao gerar CDI simulado: {str(e)}")
+        st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
 # FUNÇÃO PARA COMBINAR FUNDO E CDI
 def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
     """
-    Processa os dados do fundo e opcionalmente adiciona o CDI
+    Processa os dados do fundo e opcionalmente adiciona o CDI REAL
 
     Args:
         df_fundo: DataFrame com dados do fundo
@@ -465,20 +466,28 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
     primeira_cota = df['VL_QUOTA'].iloc[0]
     df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
 
-    # Se incluir CDI, gerar e normalizar
-    if incluir_cdi:
-        df_cdi = gerar_dados_cdi_simulado(df)
+    # Se incluir CDI, obter dados reais e normalizar
+    if incluir_cdi and BCB_DISPONIVEL:
+        # Obter dados do CDI para o período do fundo
+        data_inicio = df['DT_COMPTC'].iloc[0]
+        data_fim = df['DT_COMPTC'].iloc[-1]
+
+        df_cdi = obter_dados_cdi_real(data_inicio, data_fim)
 
         if not df_cdi.empty:
-            # Adicionar colunas do CDI ao DataFrame principal
-            df = df.merge(df_cdi, on='DT_COMPTC', how='left')
+            # Fazer merge com os dados do fundo
+            df = df.merge(df_cdi[['DT_COMPTC', 'cdi', 'VL_CDI']], on='DT_COMPTC', how='left')
+
+            # Preencher valores ausentes com forward fill
+            df['cdi'].fillna(method='ffill', inplace=True)
+            df['VL_CDI'].fillna(method='ffill', inplace=True)
 
             # Normalizar CDI para começar em 0% (mesmo ponto que o fundo)
-            valor_inicial_cdi = df['CDI_acum'].iloc[0]
-            df['CDI_NORM'] = ((df['CDI_acum'] / valor_inicial_cdi) - 1) * 100
+            valor_inicial_cdi = df['VL_CDI'].iloc[0]
+            df['CDI_NORM'] = ((df['VL_CDI'] / valor_inicial_cdi) - 1) * 100
 
             # Criar "cota" do CDI para cálculos similares
-            df['CDI_COTA'] = df['CDI_acum'] / valor_inicial_cdi
+            df['CDI_COTA'] = df['VL_CDI'] / valor_inicial_cdi
 
     return df
 
@@ -538,7 +547,7 @@ if cnpj_input:
     if len(cnpj_limpo) != 14:
         st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
     else:
-        st.sidebar.success(f"✅ CNPJ: {formatar_cnpj_display(cnpj_limpo)}")
+        st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
         cnpj_valido = True
 
 if data_inicial_input and data_final_input:
@@ -635,7 +644,7 @@ try:
             st.session_state.data_fim
         )
 
-        # 2. PROCESSAR DADOS (COM OU SEM CDI)
+        # 2. PROCESSAR DADOS (COM OU SEM CDI REAL)
         df = processar_dados_com_cdi(df_fundo, incluir_cdi=st.session_state.mostrar_cdi)
 
     # 3. CALCULAR MÉTRICAS
@@ -658,8 +667,8 @@ try:
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns
     if tem_cdi:
         # Drawdown do CDI
-        df['CDI_Max'] = df['CDI_acum'].cummax()
-        df['CDI_Drawdown'] = (df['CDI_acum'] / df['CDI_Max'] - 1) * 100
+        df['CDI_Max'] = df['VL_CDI'].cummax()
+        df['CDI_Drawdown'] = (df['VL_CDI'] / df['CDI_Max'] - 1) * 100
 
         # Volatilidade do CDI
         df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
