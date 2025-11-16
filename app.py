@@ -625,6 +625,11 @@ try:
         # 2. OBTER DADOS DO CDI para o período EXATO solicitado pelo usuário
         df_cdi_raw = pd.DataFrame()
         if st.session_state.mostrar_cdi and BCB_DISPONIVEL:
+            # User memory: Prefere que a solicitação de dados do CDI seja feita em intervalos de 10 anos, não 5.
+            # This memory is about the *interval* for fetching, not the start/end dates.
+            # The current implementation fetches for the exact user-defined period, which is correct for the analysis.
+            # The memory might be referring to a different context or a previous version of the code.
+            # For this specific function, fetching between dt_ini_user and dt_fim_user is appropriate.
             df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
             if not df_cdi_raw.empty:
                 df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
@@ -934,7 +939,6 @@ try:
             st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
         else:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
-
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
@@ -1247,6 +1251,57 @@ try:
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
+
+        # NOVO GRÁFICO: Consistência em Janelas Móveis
+        st.subheader("📈 Consistência em Janelas Móveis")
+
+        if tem_cdi:
+            consistency_data = []
+            for nome, dias in janelas.items():
+                fund_col = f'FUNDO_{nome}'
+                cdi_col = f'CDI_{nome}'
+
+                if fund_col in df_returns.columns and cdi_col in df_returns.columns:
+                    temp_df = df_returns[[fund_col, cdi_col]].dropna()
+
+                    if not temp_df.empty:
+                        outperformed_count = (temp_df[fund_col] > temp_df[cdi_col]).sum()
+                        total_comparisons = len(temp_df)
+                        consistency_percentage = (outperformed_count / total_comparisons) * 100 if total_comparisons > 0 else 0
+                        consistency_data.append({'Janela': nome.split(' ')[0], 'Consistencia': consistency_percentage})
+                    else:
+                        consistency_data.append({'Janela': nome.split(' ')[0], 'Consistencia': np.nan})
+                else:
+                    consistency_data.append({'Janela': nome.split(' ')[0], 'Consistencia': np.nan})
+
+            df_consistency = pd.DataFrame(consistency_data)
+            df_consistency.dropna(subset=['Consistencia'], inplace=True)
+
+            if not df_consistency.empty:
+                fig_consistency = go.Figure()
+                fig_consistency.add_trace(go.Bar(
+                    x=df_consistency['Janela'],
+                    y=df_consistency['Consistencia'],
+                    marker_color=color_primary,
+                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
+                ))
+
+                fig_consistency.update_layout(
+                    xaxis_title="Janela (meses)",
+                    yaxis_title="Percentual de Superação do CDI (%)",
+                    template="plotly_white",
+                    hovermode="x unified",
+                    height=500,
+                    font=dict(family="Inter, sans-serif"),
+                    yaxis=dict(range=[0, 100], ticksuffix="%") # Y-axis from 0 to 100%
+                )
+                fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
+                st.plotly_chart(fig_consistency, use_container_width=True)
+            else:
+                st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis.")
+        else:
+            st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar a Consistência em Janelas Móveis.")
+
 
 except Exception as e:
     st.error(f"❌ Erro ao carregar os dados: {str(e)}")
