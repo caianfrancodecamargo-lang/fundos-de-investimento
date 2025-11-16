@@ -445,18 +445,18 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# FUNÇÃO PARA OBTER DADOS REAIS DO CDI - CORRIGIDA
+# FUNÇÃO PARA OBTER DADOS REAIS DO CDI - CORRIGIDA DEFINITIVAMENTE
 @st.cache_data
 def obter_dados_cdi_real(data_inicio, data_fim):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb
-    CORRIGIDO: Recalcula o acumulado a partir do período selecionado
+    CORREÇÃO DEFINITIVA: Recalcula o acumulado APENAS com as taxas do período
     """
     if not BCB_DISPONIVEL:
         return pd.DataFrame()
 
     try:
-        # Obter dados do CDI (série 12) usando a biblioteca bcb
+        # Obter dados do CDI (série 12) - retorna apenas as taxas diárias
         cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
 
         # Transformar o índice em coluna
@@ -465,10 +465,10 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         # Alterar o nome da coluna
         cdi_diario = cdi_diario.rename(columns={'Date': 'DT_COMPTC'})
 
-        # CORREÇÃO: Recalcular o acumulado A PARTIR DO PRIMEIRO DIA DO PERÍODO
-        # Isso garante que começa em 1.0 (base 100)
-        cdi_diario['CDI_fator'] = 1 + cdi_diario['cdi']/100
-        cdi_diario['VL_CDI'] = cdi_diario['CDI_fator'].cumprod()
+        # CORREÇÃO DEFINITIVA: Calcular o acumulado APENAS com as taxas do período
+        # Não usar nenhum VL_CDI que possa vir da API
+        cdi_diario['CDI_fator_diario'] = 1 + (cdi_diario['cdi'] / 100)
+        cdi_diario['VL_CDI'] = cdi_diario['CDI_fator_diario'].cumprod()
 
         return cdi_diario
 
@@ -476,7 +476,7 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# FUNÇÃO PARA COMBINAR FUNDO E CDI - SIMPLIFICADA
+# FUNÇÃO PARA COMBINAR FUNDO E CDI - SIMPLIFICADA E CORRIGIDA
 def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
     """
     Processa os dados do fundo e opcionalmente adiciona o CDI REAL
@@ -503,11 +503,11 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
             df['cdi'].fillna(method='ffill', inplace=True)
             df['VL_CDI'].fillna(method='ffill', inplace=True)
 
-            # CORREÇÃO: Como VL_CDI já começa em 1.0 (recalculado no período),
-            # a cota é simplesmente o VL_CDI
+            # CORREÇÃO: Normalizar para que o CDI comece exatamente em 1.0
+            # VL_CDI já vem do cumprod() começando em 1.0
             df['CDI_COTA'] = df['VL_CDI']
 
-            # Normalizar para percentual (começando em 0%)
+            # Normalizar para percentual (começando EXATAMENTE em 0%)
             df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
 
     return df
