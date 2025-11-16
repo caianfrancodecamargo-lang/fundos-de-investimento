@@ -32,12 +32,11 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com espaçamentos reduzidos na sidebar
+# CSS customizado
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Variáveis de cores inspiradas no Copaíba */
     :root {
         --primary-color: #1a5f3f;
         --secondary-color: #2d8659;
@@ -48,13 +47,11 @@ st.markdown("""
         --text-light: #ffffff;
     }
 
-    /* Fundo geral */
     .stApp {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar com padding reduzido */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #5a8a6f 0%, #4a7a5f 100%);
         padding: 1rem 0.8rem !important;
@@ -64,7 +61,6 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* Logo na sidebar - espaçamento reduzido */
     [data-testid="stSidebar"] .sidebar-logo {
         text-align: center;
         padding: 0.5rem 0 0.8rem 0 !important;
@@ -75,12 +71,10 @@ st.markdown("""
     [data-testid="stSidebar"] .sidebar-logo img {
         max-width: 240px !important;
         height: auto;
-        filter: brightness(1.1);
+        filter: brightness(1.05);
     }
 
-    /* Labels dos inputs - espaçamento reduzido */
-    [data-testid="stSidebar"] .stTextInput label,
-    [data-testid="stSidebar"] .stDateInput label {
+    [data-testid="stSidebar"] .stTextInput label {
         color: #ffffff !important;
         font-weight: 600;
         font-size: 0.8rem !important;
@@ -88,25 +82,21 @@ st.markdown("""
         margin-top: 0 !important;
     }
 
-    /* Reduzir espaçamento entre elementos */
     [data-testid="stSidebar"] .stTextInput,
     [data-testid="stSidebar"] .stMarkdown {
         margin-bottom: 0.4rem !important;
     }
 
-    /* Título "Período de Análise" com menos espaço */
     [data-testid="stSidebar"] h4 {
         margin-top: 0.5rem !important;
         margin-bottom: 0.3rem !important;
         font-size: 0.85rem !important;
     }
 
-    /* Divisores com menos espaço */
     [data-testid="stSidebar"] hr {
         margin: 0.5rem 0 !important;
     }
 
-    /* INPUTS COM BORDA ELEGANTE */
     [data-testid="stSidebar"] input {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
@@ -137,7 +127,6 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
     }
 
-    /* BOTÃO COM DEGRADÊ - espaçamento reduzido */
     .stButton > button {
         background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%) !important;
         color: #ffffff !important;
@@ -164,9 +153,8 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* Mensagens de validação - espaçamento reduzido */
     [data-testid="stSidebar"] .stAlert {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.95) 100%) !important;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
         border-radius: 10px !important;
         padding: 0.5rem 0.7rem !important;
         margin: 0.3rem 0 !important;
@@ -176,12 +164,12 @@ st.markdown("""
         font-size: 0.8rem !important;
     }
 
-    [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"] {
+    [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"],
+    [data-testid="stSidebar"] .stAlert * {
         color: #000000 !important;
         font-weight: 600 !important;
     }
 
-    /* Estilo para checkbox */
     [data-testid="stSidebar"] .stCheckbox {
         margin-bottom: 0.5rem !important;
     }
@@ -192,7 +180,6 @@ st.markdown("""
         font-size: 0.9rem !important;
     }
 
-    /* Título principal */
     h1 {
         color: #1a5f3f;
         font-weight: 700;
@@ -201,7 +188,6 @@ st.markdown("""
         text-align: center;
     }
 
-    /* Cards de métricas */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 700;
@@ -230,7 +216,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
 
-    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
@@ -258,19 +243,16 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(107, 155, 127, 0.3);
     }
 
-    /* Subtítulos */
     h2, h3 {
         color: #1a5f3f;
         font-weight: 600;
     }
 
-    /* Info boxes */
     .stAlert {
         border-radius: 12px;
         border-left: 4px solid #1a5f3f;
     }
 
-    /* Divisor */
     hr {
         margin: 2rem 0;
         border: none;
@@ -278,7 +260,6 @@ st.markdown("""
         background: linear-gradient(90deg, transparent, #1a5f3f, transparent);
     }
 
-    /* Scrollbar personalizada */
     ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -299,11 +280,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água GIGANTE e estilizar gráficos
+# Função para adicionar marca d'água e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
-    """
-    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
-    """
+    """Adiciona marca d'água e estilização aos gráficos"""
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -312,24 +291,19 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,  # 120% do tamanho do gráfico
-                sizey=1.75,  # 120% do tamanho do gráfico
+                sizex=1.75,
+                sizey=1.75,
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.08,
                 layer="below"
             )
         )
 
-    # Estilização elegante sem bordas
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
-        paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente para remover o retângulo branco
-        font=dict(
-            family="Inter, sans-serif",
-            size=12,
-            color="#2c2c2c"
-        ),
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family="Inter, sans-serif", size=12, color="#2c2c2c"),
         margin=dict(l=60, r=60, t=80, b=60),
         hoverlabel=dict(
             bgcolor="white",
@@ -337,16 +311,14 @@ def add_watermark_and_style(fig, logo_base64=None):
             font_family="Inter, sans-serif",
             bordercolor="#6b9b7f"
         ),
-        # Remover shapes para não criar moldura
         shapes=[]
     )
 
-    # Estilizar eixos
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
         gridcolor='rgba(224, 221, 213, 0.5)',
-        showline=False,  # Sem linha de borda
+        showline=False,
         linewidth=1,
         linecolor='#e0ddd5',
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
@@ -357,7 +329,7 @@ def add_watermark_and_style(fig, logo_base64=None):
         showgrid=True,
         gridwidth=1,
         gridcolor='rgba(224, 221, 213, 0.5)',
-        showline=False,  # Sem linha de borda
+        showline=False,
         linewidth=1,
         linecolor='#e0ddd5',
         title_font=dict(size=13, color="#1a5f3f", family="Inter"),
@@ -380,35 +352,11 @@ def formatar_cnpj_display(cnpj):
         return f"{cnpj_limpo[:2]}.{cnpj_limpo[2:5]}.{cnpj_limpo[5:8]}/{cnpj_limpo[8:12]}-{cnpj_limpo[12:]}"
     return cnpj
 
-# Função para formatar data automaticamente enquanto digita
-def formatar_data_input(data_str):
-    """
-    Formata data automaticamente: 01011900 → 01/01/1900
-    """
-    if not data_str:
-        return ""
-
-    # Remove tudo que não é número
-    numeros = re.sub(r'\D', '', data_str)
-
-    # Aplica formatação progressiva
-    if len(numeros) <= 2:
-        return numeros
-    elif len(numeros) <= 4:
-        return f"{numeros[:2]}/{numeros[2:]}"
-    elif len(numeros) <= 8:
-        return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:]}"
-    else:
-        return f"{numeros[:2]}/{numeros[2:4]}/{numeros[4:8]}"
-
 # Função para converter data brasileira para formato API
 def formatar_data_api(data_str):
-    """Converte DD/MM/AAAA para AAAAMMDD"""
     if not data_str:
         return None
-
     data_limpa = re.sub(r'\D', '', data_str)
-
     if len(data_limpa) == 8:
         try:
             dia = data_limpa[:2]
@@ -418,7 +366,6 @@ def formatar_data_api(data_str):
             return f"{ano}{mes}{dia}"
         except ValueError:
             return None
-
     return None
 
 # Função para buscar data anterior disponível
@@ -459,138 +406,107 @@ def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
 
     return df, ajustes
 
-# Função alternativa para obter dados do CDI
+# FUNÇÃO PARA OBTER DADOS DO CDI
 @st.cache_data
 def obter_dados_cdi(data_ini, data_fim):
     """
-    Obtém dados do CDI usando o Yahoo Finance
-
-    Args:
-        data_ini (str): Data inicial no formato 'YYYYMMDD'
-        data_fim (str): Data final no formato 'YYYYMMDD'
-
-    Returns:
-        DataFrame: DataFrame com os dados do CDI
+    Obtém dados diários do CDI através da API do Banco Central
+    Série 12 = CDI
     """
     try:
-        # Converter datas para o formato esperado pelo Yahoo Finance
+        # Converter datas
         data_ini_dt = datetime.strptime(data_ini, '%Y%m%d')
         data_fim_dt = datetime.strptime(data_fim, '%Y%m%d')
 
-        # Adicionar 60 dias antes para ter dados suficientes
-        data_ini_ampliada = data_ini_dt - timedelta(days=60)
+        # Ampliar período para garantir dados suficientes
+        data_ini_ampliada = (data_ini_dt - timedelta(days=90)).strftime('%d/%m/%Y')
+        data_fim_api = data_fim_dt.strftime('%d/%m/%Y')
 
-        # Criar um DataFrame para armazenar os dados do CDI
-        # Usaremos uma aproximação baseada na taxa Selic diária
-        # Gerar datas entre a data inicial ampliada e a data final
-        datas = pd.date_range(start=data_ini_ampliada, end=data_fim_dt, freq='B')
+        # URL da API do BCB - Série 12 (CDI)
+        url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial={data_ini_ampliada}&dataFinal={data_fim_api}"
 
-        # Criar DataFrame com as datas
-        df_cdi = pd.DataFrame(index=datas)
-        df_cdi.reset_index(inplace=True)
-        df_cdi.rename(columns={'index': 'DT_COMPTC'}, inplace=True)
+        # Fazer requisição com headers adequados
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0')
+        req.add_header('Accept', 'application/json')
 
-        # Adicionar taxa CDI diária (aproximada como 0.045% ao dia)
-        # Esta é uma aproximação para fins de demonstração
-        df_cdi['CDI'] = 0.045  # Taxa CDI diária aproximada (%)
+        response = urllib.request.urlopen(req)
+        data = json.loads(response.read().decode('utf-8'))
 
-        # Converter taxa diária para decimal
-        df_cdi['CDI_decimal'] = df_cdi['CDI'] / 100
+        # Criar DataFrame
+        df_cdi = pd.DataFrame(data)
 
-        # Calcular rentabilidade acumulada
-        df_cdi['CDI_acum'] = (1 + df_cdi['CDI_decimal']).cumprod() - 1
+        if df_cdi.empty:
+            st.warning("⚠️ Nenhum dado do CDI foi retornado pela API.")
+            return pd.DataFrame()
 
-        # Filtrar para o período solicitado
-        df_cdi = df_cdi[df_cdi['DT_COMPTC'] >= data_ini_dt]
+        # Processar dados
+        df_cdi['data'] = pd.to_datetime(df_cdi['data'], format='%d/%m/%Y')
+        df_cdi['valor'] = df_cdi['valor'].astype(float)
+
+        # Renomear para padronizar
+        df_cdi.rename(columns={'data': 'DT_COMPTC', 'valor': 'CDI_taxa'}, inplace=True)
+
+        # Taxa diária em decimal
+        df_cdi['CDI_decimal'] = df_cdi['CDI_taxa'] / 100
+
+        # Calcular fator acumulado
+        df_cdi['CDI_fator'] = 1 + df_cdi['CDI_decimal']
+
+        # Rentabilidade acumulada
+        df_cdi['CDI_acum'] = df_cdi['CDI_fator'].cumprod()
 
         return df_cdi
 
     except Exception as e:
         st.error(f"Erro ao obter dados do CDI: {str(e)}")
-        # Criar um DataFrame vazio com a estrutura esperada
-        df_cdi = pd.DataFrame(columns=['DT_COMPTC', 'CDI', 'CDI_decimal', 'CDI_acum'])
-        return df_cdi
+        return pd.DataFrame()
 
-# Função para unificar e normalizar os dados do fundo e CDI
-def unificar_dados(df_fundo, df_cdi):
+# FUNÇÃO PARA COMBINAR FUNDO E CDI
+def combinar_fundo_cdi(df_fundo, df_cdi):
     """
-    Unifica os dados do fundo e CDI em um único DataFrame
-
-    Args:
-        df_fundo (DataFrame): DataFrame com os dados do fundo
-        df_cdi (DataFrame): DataFrame com os dados do CDI
-
-    Returns:
-        DataFrame: DataFrame unificado com dados do fundo e CDI normalizados
+    Combina os dados do fundo e do CDI por data
+    Normaliza ambas as séries para começarem em 100
     """
     if df_cdi.empty:
-        return df_fundo
+        return df_fundo, pd.DataFrame()
 
-    # Encontrar a data inicial em comum
-    data_inicial_fundo = df_fundo['DT_COMPTC'].min()
+    # Fazer merge por data (left join para manter todas as datas do fundo)
+    df_combined = pd.merge(
+        df_fundo,
+        df_cdi[['DT_COMPTC', 'CDI_taxa', 'CDI_decimal', 'CDI_acum']],
+        on='DT_COMPTC',
+        how='left'
+    )
 
-    # Filtrar CDI para começar na mesma data ou após o início do fundo
-    df_cdi_filtrado = df_cdi[df_cdi['DT_COMPTC'] >= data_inicial_fundo].copy()
+    # Preencher valores ausentes do CDI com forward fill
+    df_combined['CDI_taxa'].fillna(method='ffill', inplace=True)
+    df_combined['CDI_decimal'].fillna(method='ffill', inplace=True)
+    df_combined['CDI_acum'].fillna(method='ffill', inplace=True)
 
-    if df_cdi_filtrado.empty:
-        return df_fundo
+    # Normalizar ambas as séries para começarem em 100 na primeira data
+    valor_inicial_fundo = df_combined['VL_QUOTA'].iloc[0]
+    valor_inicial_cdi = df_combined['CDI_acum'].iloc[0]
 
-    # Obter a primeira data disponível para ambos
-    primeira_data = max(df_fundo['DT_COMPTC'].min(), df_cdi_filtrado['DT_COMPTC'].min())
+    # Rentabilidade normalizada do fundo (base 100)
+    df_combined['FUNDO_NORM'] = ((df_combined['VL_QUOTA'] / valor_inicial_fundo) - 1) * 100
 
-    # Filtrar ambos os DataFrames para começar na mesma data
-    df_fundo_filtrado = df_fundo[df_fundo['DT_COMPTC'] >= primeira_data].copy()
-    df_cdi_filtrado = df_cdi_filtrado[df_cdi_filtrado['DT_COMPTC'] >= primeira_data].copy()
+    # Rentabilidade normalizada do CDI (base 100)
+    df_combined['CDI_NORM'] = ((df_combined['CDI_acum'] / valor_inicial_cdi) - 1) * 100
 
-    # Criar um índice de todas as datas únicas
-    todas_datas = sorted(list(set(df_fundo_filtrado['DT_COMPTC']).union(set(df_cdi_filtrado['DT_COMPTC']))))
+    # Criar "cota" do CDI para cálculos similares
+    df_combined['CDI_COTA'] = df_combined['CDI_acum'] / valor_inicial_cdi
 
-    # Criar DataFrames com índice de data para facilitar o merge
-    df_fundo_idx = df_fundo_filtrado.set_index('DT_COMPTC')
-    df_cdi_idx = df_cdi_filtrado.set_index('DT_COMPTC')
+    return df_combined, df_cdi
 
-    # Reindexar ambos os DataFrames para incluir todas as datas
-    df_fundo_completo = df_fundo_idx.reindex(todas_datas, method='ffill')
-    df_cdi_completo = df_cdi_idx.reindex(todas_datas, method='ffill')
-
-    # Normalizar os valores a partir do primeiro dia
-    valor_inicial_fundo = df_fundo_completo['VL_QUOTA'].iloc[0]
-    valor_inicial_cdi = df_cdi_completo['CDI_acum'].iloc[0]
-
-    # Criar DataFrame unificado
-    df_unificado = pd.DataFrame(index=todas_datas)
-
-    # Adicionar dados do fundo
-    df_unificado['VL_QUOTA'] = df_fundo_completo['VL_QUOTA']
-    df_unificado['VL_QUOTA_NORM'] = ((df_unificado['VL_QUOTA'] / valor_inicial_fundo) - 1) * 100
-
-    # Adicionar outros campos do fundo que precisamos
-    for coluna in ['VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']:
-        if coluna in df_fundo_completo.columns:
-            df_unificado[coluna] = df_fundo_completo[coluna]
-
-    # Adicionar dados do CDI
-    df_unificado['CDI'] = df_cdi_completo['CDI']
-    df_unificado['CDI_decimal'] = df_cdi_completo['CDI_decimal']
-    df_unificado['CDI_acum'] = df_cdi_completo['CDI_acum']
-
-    # Normalizar CDI da mesma forma que o fundo
-    df_unificado['CDI_NORM'] = (((1 + df_unificado['CDI_acum']) / (1 + valor_inicial_cdi)) - 1) * 100
-
-    # Resetar o índice para ter a coluna de data
-    df_unificado.reset_index(inplace=True)
-    df_unificado.rename(columns={'index': 'DT_COMPTC'}, inplace=True)
-
-    return df_unificado
-
-# Sidebar com logo
+# Sidebar
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
         unsafe_allow_html=True
     )
 
-# Input de CNPJ com formatação automática
+# Input de CNPJ
 cnpj_input = st.sidebar.text_input(
     "CNPJ do Fundo",
     value="",
@@ -598,7 +514,7 @@ cnpj_input = st.sidebar.text_input(
     help="Digite o CNPJ com ou sem formatação"
 )
 
-# Inputs de data com formatação automática
+# Inputs de data
 st.sidebar.markdown("#### 📅 Período de Análise")
 col1_sidebar, col2_sidebar = st.sidebar.columns(2)
 
@@ -610,9 +526,6 @@ with col1_sidebar:
         help="Formato: DD/MM/AAAA",
         key="data_inicial"
     )
-    # Aplicar formatação automática
-    if data_inicial_input:
-        data_inicial_input = formatar_data_input(data_inicial_input)
 
 with col2_sidebar:
     data_final_input = st.text_input(
@@ -622,9 +535,6 @@ with col2_sidebar:
         help="Formato: DD/MM/AAAA",
         key="data_final"
     )
-    # Aplicar formatação automática
-    if data_final_input:
-        data_final_input = formatar_data_input(data_final_input)
 
 # Opção para mostrar CDI
 st.sidebar.markdown("#### 📈 Indicadores de Comparação")
@@ -718,113 +628,90 @@ if carregar_button and cnpj_valido and datas_validas:
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
-
     st.markdown("""
     ### 📋 Como usar:
-
     1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
     3. **Data Final**: Digite a data final no formato DD/MM/AAAA
     4. **Indicadores**: Selecione os indicadores para comparação
     5. Clique em **Carregar Dados** para visualizar as análises
-
-    ---
-
-    ### 📊 Análises disponíveis:
-    - Rentabilidade histórica e CAGR
-    - Análise de risco (Drawdown, Volatilidade, VaR)
-    - Evolução patrimonial e captação
-    - Perfil de cotistas
-    - Retornos em janelas móveis
     """)
-
     st.stop()
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-        # Carregar dados do fundo
-        df_completo = carregar_dados_api(st.session_state.cnpj, st.session_state.data_ini, st.session_state.data_fim)
-        df, ajustes = ajustar_periodo_analise(df_completo, st.session_state.data_ini, st.session_state.data_fim)
+        # 1. BAIXAR DADOS DO FUNDO
+        df_fundo_completo = carregar_dados_api(
+            st.session_state.cnpj,
+            st.session_state.data_ini,
+            st.session_state.data_fim
+        )
+        df_fundo, ajustes = ajustar_periodo_analise(
+            df_fundo_completo,
+            st.session_state.data_ini,
+            st.session_state.data_fim
+        )
 
-        # Carregar dados do CDI se selecionado
+        # 2. BAIXAR DADOS DO CDI (se selecionado)
         df_cdi = pd.DataFrame()
         if st.session_state.mostrar_cdi:
-            df_cdi = obter_dados_cdi(st.session_state.data_ini, st.session_state.data_fim)
+            df_cdi = obter_dados_cdi(
+                st.session_state.data_ini,
+                st.session_state.data_fim
+            )
 
-            # ABORDAGEM UNIFICADA: Unificar os dados do fundo e CDI em um único DataFrame
-            df_unificado = unificar_dados(df, df_cdi)
-        else:
-            df_unificado = df
+        # 3. COMBINAR AS BASES POR DATA
+        df, df_cdi_original = combinar_fundo_cdi(df_fundo, df_cdi)
 
-    # Preparação dos dados unificados
-    df_unificado = df_unificado.sort_values('DT_COMPTC').reset_index(drop=True)
+    # 4. CALCULAR MÉTRICAS A PARTIR DA BASE COMBINADA
+    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
 
-    # Calcular métricas para o fundo
-    df_unificado['Max_VL_QUOTA'] = df_unificado['VL_QUOTA'].cummax()
-    df_unificado['Drawdown'] = (df_unificado['VL_QUOTA'] / df_unificado['Max_VL_QUOTA'] - 1) * 100
-    df_unificado['Captacao_Liquida'] = df_unificado['CAPTC_DIA'] - df_unificado['RESG_DIA']
-    df_unificado['Soma_Acumulada'] = df_unificado['Captacao_Liquida'].cumsum()
-    df_unificado['Patrimonio_Liq_Medio'] = df_unificado['VL_PATRIM_LIQ'] / df_unificado['NR_COTST']
+    # Métricas do fundo
+    df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
+    df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
+    df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
+    df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
+    df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
 
-    # Volatilidade e retornos
     vol_window = 21
     trading_days = 252
-    df_unificado['Variacao_Perc'] = df_unificado['VL_QUOTA'].pct_change()
-    df_unificado['Volatilidade'] = df_unificado['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
-    vol_hist = round(df_unificado['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
+    df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
+    df['Volatilidade'] = df['VL_QUOTA'].pct_change().rolling(vol_window).std() * np.sqrt(trading_days) * 100
+    vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # Calcular métricas para o CDI se disponível
-    if 'CDI_decimal' in df_unificado.columns:
-        df_unificado['CDI_Variacao'] = df_unificado['CDI_decimal'].pct_change()
-        df_unificado['CDI_Volatilidade'] = df_unificado['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
-        cdi_vol_hist = round(df_unificado['CDI_Variacao'].dropna().std() * np.sqrt(trading_days) * 100, 2)
-
+    # Métricas do CDI (se disponível)
+    if st.session_state.mostrar_cdi and not df_cdi_original.empty:
         # Drawdown do CDI
-        df_unificado['CDI_Max'] = df_unificado['CDI_acum'].cummax()
-        df_unificado['CDI_Drawdown'] = (df_unificado['CDI_acum'] / df_unificado['CDI_Max'] - 1) * 100
+        df['CDI_Max'] = df['CDI_acum'].cummax()
+        df['CDI_Drawdown'] = (df['CDI_acum'] / df['CDI_Max'] - 1) * 100
+
+        # Volatilidade do CDI
+        df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
+        df['CDI_Volatilidade'] = df['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
+        cdi_vol_hist = round(df['CDI_Variacao'].std() * np.sqrt(trading_days) * 100, 2)
 
     # CAGR
-    df_cagr = df_unificado.copy()
+    df_cagr = df.copy()
     end_value = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
     df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
-    if not df_cagr.empty:
-        df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
-        df_cagr['CAGR'] = df_cagr['CAGR'] * 100
-        mean_cagr = df_cagr['CAGR'].mean()
+    df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+    df_cagr['CAGR'] = df_cagr['CAGR'] * 100
+    mean_cagr = df_cagr['CAGR'].mean()
 
-        # CAGR do CDI se disponível
-        if 'CDI_acum' in df_cagr.columns:
-            cdi_end_value = (1 + df_cagr['CDI_acum'].iloc[-1])
-            df_cagr['CDI_CAGR'] = []
-
-            for i, row in df_cagr.iterrows():
-                dias_uteis = row['dias_uteis']
-                if dias_uteis >= 252:
-                    cdi_start_value = (1 + row['CDI_acum'])
-                    cdi_cagr = ((cdi_end_value / cdi_start_value) ** (252 / dias_uteis) - 1) * 100
-                    df_cagr.at[i, 'CDI_CAGR'] = cdi_cagr
-
-            cdi_mean_cagr = df_cagr['CDI_CAGR'].mean()
-    else:
-        mean_cagr = 0
-        if 'CDI_acum' in df_unificado.columns:
-            cdi_mean_cagr = 0
+    # CAGR do CDI (se disponível)
+    if st.session_state.mostrar_cdi and not df_cdi_original.empty:
+        end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
+        df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+        df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
 
     # VaR
-    df_unificado['Retorno_21d'] = df_unificado['VL_QUOTA'].pct_change(21)
-    df_plot = df_unificado.dropna(subset=['Retorno_21d']).copy()
-    if not df_plot.empty:
-        VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
-        VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
-        ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
-        ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
-
-        # VaR do CDI se disponível
-        if 'CDI_acum' in df_plot.columns:
-            df_plot['CDI_Retorno_21d'] = df_plot['CDI_acum'].pct_change(21)
-            CDI_VaR_95 = np.percentile(df_plot['CDI_Retorno_21d'].dropna(), 5)
-            CDI_VaR_99 = np.percentile(df_plot['CDI_Retorno_21d'].dropna(), 1)
+    df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
+    df_plot = df.dropna(subset=['Retorno_21d']).copy()
+    VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
+    VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
+    ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
+    ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
 
     # Cores
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
@@ -836,10 +723,10 @@ try:
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("💰 Patrimônio Líquido", format_brl(df_unificado['VL_PATRIM_LIQ'].iloc[-1]))
+        st.metric("💰 Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
 
     with col2:
-        st.metric("👥 Número de Cotistas", f"{int(df_unificado['NR_COTST'].iloc[-1]):,}".replace(',', '.'))
+        st.metric("👥 Número de Cotistas", f"{int(df['NR_COTST'].iloc[-1]):,}".replace(',', '.'))
 
     with col3:
         st.metric("📈 CAGR Médio", f"{mean_cagr:.2f}%")
@@ -862,25 +749,27 @@ try:
         st.subheader("📈 Rentabilidade Histórica")
 
         fig1 = go.Figure()
+
+        # Linha do Fundo
         fig1.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=df_unificado['VL_QUOTA_NORM'],
+            x=df['DT_COMPTC'],
+            y=df['FUNDO_NORM'],
             mode='lines',
             name='Fundo',
             line=dict(color=color_primary, width=2.5),
             fill='tozeroy',
-            fillcolor=f'rgba(26, 95, 63, 0.1)',
+            fillcolor='rgba(26, 95, 63, 0.1)',
             hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
 
-        # Adicionar CDI se disponível
-        if 'CDI_NORM' in df_unificado.columns:
+        # Linha do CDI (se selecionado)
+        if st.session_state.mostrar_cdi and not df_cdi_original.empty:
             fig1.add_trace(go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=df_unificado['CDI_NORM'],
+                x=df['DT_COMPTC'],
+                y=df['CDI_NORM'],
                 mode='lines',
                 name='CDI',
-                line=dict(color=color_cdi, width=2),  # Linha contínua (não tracejada)
+                line=dict(color=color_cdi, width=2.5),
                 hovertemplate='<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
@@ -906,42 +795,35 @@ try:
         st.subheader("📊 CAGR Anual por Dia de Aplicação")
 
         fig2 = go.Figure()
-        if not df_cagr.empty:
+
+        # CAGR do Fundo
+        fig2.add_trace(go.Scatter(
+            x=df_cagr['DT_COMPTC'],
+            y=df_cagr['CAGR'],
+            mode='lines',
+            name='CAGR do Fundo',
+            line=dict(color=color_primary, width=2.5),
+            hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
+        ))
+
+        fig2.add_trace(go.Scatter(
+            x=df_cagr['DT_COMPTC'],
+            y=[mean_cagr] * len(df_cagr),
+            mode='lines',
+            line=dict(dash='dash', color=color_secondary, width=2),
+            name=f'CAGR Médio ({mean_cagr:.2f}%)'
+        ))
+
+        # CAGR do CDI (se disponível)
+        if st.session_state.mostrar_cdi and not df_cdi_original.empty:
             fig2.add_trace(go.Scatter(
                 x=df_cagr['DT_COMPTC'],
-                y=df_cagr['CAGR'],
+                y=df_cagr['CAGR_CDI'],
                 mode='lines',
-                name='CAGR do Fundo',
-                line=dict(color=color_primary, width=2.5),
-                hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
+                name='CAGR do CDI',
+                line=dict(color=color_cdi, width=2.5),
+                hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
             ))
-            fig2.add_trace(go.Scatter(
-                x=df_cagr['DT_COMPTC'],
-                y=[mean_cagr] * len(df_cagr),
-                mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2),
-                name=f'CAGR Médio ({mean_cagr:.2f}%)'
-            ))
-
-            # Adicionar CAGR do CDI se disponível
-            if 'CDI_CAGR' in df_cagr.columns:
-                fig2.add_trace(go.Scatter(
-                    x=df_cagr['DT_COMPTC'],
-                    y=df_cagr['CDI_CAGR'],
-                    mode='lines',
-                    name='CAGR do CDI',
-                    line=dict(color=color_cdi, width=2),  # Linha contínua
-                    hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
-                ))
-
-                # Adicionar linha média do CAGR do CDI
-                fig2.add_trace(go.Scatter(
-                    x=df_cagr['DT_COMPTC'],
-                    y=[cdi_mean_cagr] * len(df_cagr),
-                    mode='lines',
-                    line=dict(dash='dash', color=color_cdi, width=1.5),
-                    name=f'CDI CAGR Médio ({cdi_mean_cagr:.2f}%)'
-                ))
 
         fig2.update_layout(
             xaxis_title="Data",
@@ -966,9 +848,11 @@ try:
         st.subheader("📉 Drawdown Histórico")
 
         fig3 = go.Figure()
+
+        # Drawdown do Fundo
         fig3.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=df_unificado['Drawdown'],
+            x=df['DT_COMPTC'],
+            y=df['Drawdown'],
             mode='lines',
             name='Drawdown do Fundo',
             line=dict(color=color_danger, width=2.5),
@@ -977,14 +861,14 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        # Adicionar Drawdown do CDI se disponível
-        if 'CDI_Drawdown' in df_unificado.columns:
+        # Drawdown do CDI (se disponível)
+        if st.session_state.mostrar_cdi and not df_cdi_original.empty:
             fig3.add_trace(go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=df_unificado['CDI_Drawdown'],
+                x=df['DT_COMPTC'],
+                y=df['CDI_Drawdown'],
                 mode='lines',
                 name='Drawdown do CDI',
-                line=dict(color=color_cdi, width=2),  # Linha contínua
+                line=dict(color=color_cdi, width=2.5),
                 hovertemplate='<b>Drawdown do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
             ))
 
@@ -1012,9 +896,11 @@ try:
         st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
 
         fig4 = go.Figure()
+
+        # Volatilidade do Fundo
         fig4.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=df_unificado['Volatilidade'],
+            x=df['DT_COMPTC'],
+            y=df['Volatilidade'],
             mode='lines',
             name=f'Volatilidade do Fundo ({vol_window} dias)',
             line=dict(color=color_primary, width=2.5),
@@ -1022,29 +908,29 @@ try:
         ))
 
         fig4.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=[vol_hist] * len(df_unificado),
+            x=df['DT_COMPTC'],
+            y=[vol_hist] * len(df),
             mode='lines',
             line=dict(dash='dash', color=color_secondary, width=2),
             name=f'Vol. Histórica ({vol_hist:.2f}%)'
         ))
 
-        # Adicionar Volatilidade do CDI se disponível
-        if 'CDI_Volatilidade' in df_unificado.columns:
+        # Volatilidade do CDI (se disponível)
+        if st.session_state.mostrar_cdi and not df_cdi_original.empty:
             fig4.add_trace(go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=df_unificado['CDI_Volatilidade'],
+                x=df['DT_COMPTC'],
+                y=df['CDI_Volatilidade'],
                 mode='lines',
                 name=f'Volatilidade do CDI ({vol_window} dias)',
-                line=dict(color=color_cdi, width=2),  # Linha contínua
+                line=dict(color=color_cdi, width=2.5),
                 hovertemplate='<b>Volatilidade do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
             ))
 
             fig4.add_trace(go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=[cdi_vol_hist] * len(df_unificado),
+                x=df['DT_COMPTC'],
+                y=[cdi_vol_hist] * len(df),
                 mode='lines',
-                line=dict(dash='dash', color=color_cdi, width=1.5),
+                line=dict(dash='dot', color=color_cdi, width=1.5),
                 name=f'CDI Vol. Histórica ({cdi_vol_hist:.2f}%)'
             ))
 
@@ -1069,115 +955,87 @@ try:
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
 
-        if not df_plot.empty:
-            fig5 = go.Figure()
-            fig5.add_trace(go.Scatter(
-                x=df_plot['DT_COMPTC'],
-                y=df_plot['Retorno_21d'] * 100,
-                mode='lines',
-                name='Rentabilidade móvel do Fundo (1m)',
-                line=dict(color=color_primary, width=2),
-                hovertemplate='<b>Rentabilidade do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
-            ))
-            fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
-                y=[VaR_95 * 100, VaR_95 * 100],
-                mode='lines',
-                name='VaR 95%',
-                line=dict(dash='dot', color='orange', width=2)
-            ))
-            fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
-                y=[VaR_99 * 100, VaR_99 * 100],
-                mode='lines',
-                name='VaR 99%',
-                line=dict(dash='dot', color='red', width=2)
-            ))
-            fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
-                y=[ES_95 * 100, ES_95 * 100],
-                mode='lines',
-                name='ES 95%',
-                line=dict(dash='dash', color='orange', width=2)
-            ))
-            fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
-                y=[ES_99 * 100, ES_99 * 100],
-                mode='lines',
-                name='ES 99%',
-                line=dict(dash='dash', color='red', width=2)
-            ))
+        fig5 = go.Figure()
+        fig5.add_trace(go.Scatter(
+            x=df_plot['DT_COMPTC'],
+            y=df_plot['Retorno_21d'] * 100,
+            mode='lines',
+            name='Rentabilidade móvel (1m)',
+            line=dict(color=color_primary, width=2),
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[VaR_95 * 100, VaR_95 * 100],
+            mode='lines',
+            name='VaR 95%',
+            line=dict(dash='dot', color='orange', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[VaR_99 * 100, VaR_99 * 100],
+            mode='lines',
+            name='VaR 99%',
+            line=dict(dash='dot', color='red', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[ES_95 * 100, ES_95 * 100],
+            mode='lines',
+            name='ES 95%',
+            line=dict(dash='dash', color='orange', width=2)
+        ))
+        fig5.add_trace(go.Scatter(
+            x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+            y=[ES_99 * 100, ES_99 * 100],
+            mode='lines',
+            name='ES 99%',
+            line=dict(dash='dash', color='red', width=2)
+        ))
 
-            # Adicionar retorno móvel do CDI se disponível
-            if 'CDI_Retorno_21d' in df_plot.columns:
-                fig5.add_trace(go.Scatter(
-                    x=df_plot['DT_COMPTC'],
-                    y=df_plot['CDI_Retorno_21d'] * 100,
-                    mode='lines',
-                    name='Rentabilidade móvel do CDI (1m)',
-                    line=dict(color=color_cdi, width=2),  # Linha contínua
-                    hovertemplate='<b>Rentabilidade do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
-                ))
+        fig5.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Rentabilidade (%)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=600,
+            font=dict(family="Inter, sans-serif")
+        )
 
-                # Adicionar linhas de VaR do CDI
-                fig5.add_trace(go.Scatter(
-                    x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
-                    y=[CDI_VaR_95 * 100, CDI_VaR_95 * 100],
-                    mode='lines',
-                    name='CDI VaR 95%',
-                    line=dict(dash='dot', color=color_cdi, width=1.5)
-                ))
+        fig5 = add_watermark_and_style(fig5, logo_base64)
+        st.plotly_chart(fig5, use_container_width=True)
 
-            fig5.update_layout(
-                xaxis_title="Data",
-                yaxis_title="Rentabilidade (%)",
-                template="plotly_white",
-                hovermode="x unified",
-                height=600,
-                font=dict(family="Inter, sans-serif"),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
-            )
+        st.info(f"""
+        **Este gráfico mostra que, em um período de 1 mês:**
 
-            fig5 = add_watermark_and_style(fig5, logo_base64)
-            st.plotly_chart(fig5, use_container_width=True)
+        • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
+        e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
 
-            st.info(f"""
-            **Este gráfico mostra que, em um período de 1 mês:**
-
-            • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
-            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
-
-            • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
-            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
-            """)
+        • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
+        e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
+        """)
 
     with tab3:
         st.subheader("💰 Patrimônio e Captação Líquida")
 
         fig6 = go.Figure([
             go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=df_unificado['Soma_Acumulada'],
+                x=df['DT_COMPTC'],
+                y=df['Soma_Acumulada'],
                 mode='lines',
                 name='Captação Líquida',
                 line=dict(color=color_primary, width=2.5),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
-                customdata=[format_brl(v) for v in df_unificado['Soma_Acumulada']]
+                customdata=[format_brl(v) for v in df['Soma_Acumulada']]
             ),
             go.Scatter(
-                x=df_unificado['DT_COMPTC'],
-                y=df_unificado['VL_PATRIM_LIQ'],
+                x=df['DT_COMPTC'],
+                y=df['VL_PATRIM_LIQ'],
                 mode='lines',
                 name='Patrimônio Líquido',
                 line=dict(color=color_secondary, width=2.5),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
-                customdata=[format_brl(v) for v in df_unificado['VL_PATRIM_LIQ']]
+                customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
         ])
 
@@ -1187,14 +1045,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig6 = add_watermark_and_style(fig6, logo_base64)
@@ -1202,7 +1053,7 @@ try:
 
         st.subheader("📊 Captação Líquida Mensal")
 
-        df_monthly = df_unificado.groupby(pd.Grouper(key='DT_COMPTC', freq='M'))[['CAPTC_DIA', 'RESG_DIA']].sum()
+        df_monthly = df.groupby(pd.Grouper(key='DT_COMPTC', freq='M'))[['CAPTC_DIA', 'RESG_DIA']].sum()
         df_monthly['Captacao_Liquida'] = df_monthly['CAPTC_DIA'] - df_monthly['RESG_DIA']
 
         colors = [color_primary if x >= 0 else color_danger for x in df_monthly['Captacao_Liquida']]
@@ -1224,14 +1075,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig7 = add_watermark_and_style(fig7, logo_base64)
@@ -1242,17 +1086,17 @@ try:
 
         fig8 = go.Figure()
         fig8.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=df_unificado['Patrimonio_Liq_Medio'],
+            x=df['DT_COMPTC'],
+            y=df['Patrimonio_Liq_Medio'],
             mode='lines',
             name='Patrimônio Médio por Cotista',
             line=dict(color=color_primary, width=2.5),
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
-            customdata=[format_brl(v) for v in df_unificado['Patrimonio_Liq_Medio']]
+            customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
         ))
         fig8.add_trace(go.Scatter(
-            x=df_unificado['DT_COMPTC'],
-            y=df_unificado['NR_COTST'],
+            x=df['DT_COMPTC'],
+            y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
             line=dict(color=color_secondary, width=2.5),
@@ -1267,14 +1111,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
 
         fig8 = add_watermark_and_style(fig8, logo_base64)
@@ -1291,38 +1128,37 @@ try:
             "60 meses (1260 dias)": 1260
         }
 
-        df_returns = df_unificado.copy()
+        df_returns = df.copy()
         for nome, dias in janelas.items():
-            df_returns[nome] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
-
-            # Calcular retornos do CDI se disponível
-            if 'CDI_acum' in df_returns.columns:
-                df_returns[f'CDI_{nome}'] = (1 + df_returns['CDI_acum']) / (1 + df_returns['CDI_acum'].shift(dias)) - 1
+            df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
+            if st.session_state.mostrar_cdi and not df_cdi_original.empty:
+                df_returns[f'CDI_{nome}'] = df_returns['CDI_COTA'] / df_returns['CDI_COTA'].shift(dias) - 1
 
         janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
 
-        if not df_returns[janela_selecionada].dropna().empty:
+        if not df_returns[f'FUNDO_{janela_selecionada}'].dropna().empty:
             fig9 = go.Figure()
+
+            # Retorno do Fundo
             fig9.add_trace(go.Scatter(
                 x=df_returns['DT_COMPTC'],
-                y=df_returns[janela_selecionada],
+                y=df_returns[f'FUNDO_{janela_selecionada}'],
                 mode='lines',
                 name=f"Retorno do Fundo — {janela_selecionada}",
                 line=dict(width=2.5, color=color_primary),
                 fill='tozeroy',
-                fillcolor=f'rgba(26, 95, 63, 0.1)',
+                fillcolor='rgba(26, 95, 63, 0.1)',
                 hovertemplate="<b>Retorno do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
-            # Adicionar retorno do CDI se disponível
-            cdi_col = f'CDI_{janela_selecionada}'
-            if cdi_col in df_returns.columns:
+            # Retorno do CDI (se disponível)
+            if st.session_state.mostrar_cdi and not df_cdi_original.empty:
                 fig9.add_trace(go.Scatter(
                     x=df_returns['DT_COMPTC'],
-                    y=df_returns[cdi_col],
+                    y=df_returns[f'CDI_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do CDI — {janela_selecionada}",
-                    line=dict(width=2, color=color_cdi),  # Linha contínua
+                    line=dict(width=2.5, color=color_cdi),
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
