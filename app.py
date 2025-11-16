@@ -674,6 +674,20 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.cnpj = cnpj_limpo
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
-    st.session_state.mostrar_cdi = mostrar_cdi
+    st.session_state.mostrar_cdi = mostrar_cdi  # Salvar a preferência do CDI
 
-if
+# Verificar se os dados já foram carregados
+if not st.session_state.dados_carregados:
+    st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+
+    st.markdown("""
+    ### 📋 Como usar:
+
+    1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
+    2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
+    3. **Data Final**: Digite a data final no formato DD/MM/AAAA
+    4. **Indicadores**: Selecione os indicadores para comparação
+    5. Clique em **Carregar Dados** para visualizar as análises
+    """)
+
+    st.stop()
