@@ -168,7 +168,13 @@ st.markdown("""
         background: linear-gradient(135deg, #8ba888 0%, #6b9b7f 100%) !important;
     }
 
-    .stButton > button:: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
+    .stButton > button:active {
+        transform: translateY(0px) !important;
+    }
+
+    /* Mensagens de validação - espaçamento reduzido */
+    [data-testid="stSidebar"] .stAlert {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
         border-radius: 10px !important;
         padding: 0.5rem 0.7rem !important;
         margin: 0.3rem 0 !important;
@@ -690,22 +696,21 @@ try:
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
         # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
         # O range vai de 0 até (len(df) - trading_days_in_year)
-        for i in range(len(df) - trading_days_in_year + 1): # Ajustado para incluir o ponto onde num_datas = 252
+        for i in range(len(df) - trading_days_in_year):
             initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
-            # num_datas é a contagem de dias úteis do ponto inicial (i) até o ponto final (último)
-            # len(df) - 1 é o índice da última linha.
-            # i é o índice da linha atual.
-            # A diferença é o número de intervalos. Para ter a contagem de dias, somamos 1.
-            num_datas = (len(df) - 1) - i + 1
+            # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
+            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
+            # Se i=1, num_intervals = (3-1) = 2.
+            num_intervals = (len(df) - 1) - i
 
-            if initial_value_fundo > 0 and num_datas > 0:
-                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_datas) - 1) * 100
+            if initial_value_fundo > 0 and num_intervals > 0:
+                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
             if tem_cdi and 'CDI_COTA' in df.columns:
                 initial_value_cdi = df['CDI_COTA'].iloc[i]
-                if initial_value_cdi > 0 and num_datas > 0:
-                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_datas) - 1) * 100
+                if initial_value_cdi > 0 and num_intervals > 0:
+                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
@@ -740,8 +745,7 @@ try:
     color_secondary = '#6b9b7f'
     color_danger = '#dc3545'
     color_cdi = '#f0b429'  # Amarelo para o CDI
-    color_excess_positive = '#28a745' # Verde para excesso positivo
-    color_excess_negative = '#dc3545' # Vermelho para excesso negativo
+    # Removendo cores específicas de excesso, usaremos color_primary para a linha
 
     # Cards de métricas
     col1, col2, col3, col4 = st.columns(4)
@@ -886,7 +890,7 @@ try:
                 y=df['EXCESSO_RETORNO_ANUALIZADO'],
                 mode='lines',
                 name='Excesso de Retorno Anualizado',
-                line=dict(color=color_excess_positive, width=2.5), # Cor inicial, pode mudar com base no valor
+                line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
                 hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
             ))
 
