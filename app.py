@@ -320,11 +320,11 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,
-                sizey=1.75,
+                sizex=1.75,  # 120% do tamanho do gráfico
+                sizey=1.75,  # 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,
+                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
                 layer="below"
             )
         )
@@ -451,6 +451,7 @@ def obter_dados_cdi_real(data_inicio, data_fim):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb
     CORREÇÃO DEFINITIVA: Recalcula o acumulado APENAS com as taxas do período
+    e normaliza para começar em 1.0.
     """
     if not BCB_DISPONIVEL:
         return pd.DataFrame()
@@ -465,10 +466,20 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         # Alterar o nome da coluna
         cdi_diario = cdi_diario.rename(columns={'Date': 'DT_COMPTC'})
 
-        # CORREÇÃO DEFINITIVA: Calcular o acumulado APENAS com as taxas do período
-        # Não usar nenhum VL_CDI que possa vir da API
+        # Calcular o fator diário
         cdi_diario['CDI_fator_diario'] = 1 + (cdi_diario['cdi'] / 100)
-        cdi_diario['VL_CDI'] = cdi_diario['CDI_fator_diario'].cumprod()
+
+        # Calcular o produto acumulado a partir do primeiro dia do período
+        # Isso garante que o primeiro valor será 1 + (primeira taxa / 100)
+        cdi_diario['VL_CDI_acum'] = cdi_diario['CDI_fator_diario'].cumprod()
+
+        # NORMALIZAR para que o primeiro valor da série acumulada seja EXATAMENTE 1.0
+        # Isso faz com que a rentabilidade normalizada comece em 0.00%
+        if not cdi_diario.empty:
+            primeiro_valor_acum = cdi_diario['VL_CDI_acum'].iloc[0]
+            cdi_diario['VL_CDI_normalizado'] = cdi_diario['VL_CDI_acum'] / primeiro_valor_acum
+        else:
+            cdi_diario['VL_CDI_normalizado'] = pd.Series(dtype='float64') # Garante que a coluna exista
 
         return cdi_diario
 
@@ -493,21 +504,21 @@ def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
         data_inicio = df['DT_COMPTC'].iloc[0]
         data_fim = df['DT_COMPTC'].iloc[-1]
 
-        df_cdi = obter_dados_cdi_real(data_inicio, data_fim)
+        df_cdi_raw = obter_dados_cdi_real(data_inicio, data_fim)
 
-        if not df_cdi.empty:
+        if not df_cdi_raw.empty:
             # Fazer merge com os dados do fundo
-            df = df.merge(df_cdi[['DT_COMPTC', 'cdi', 'VL_CDI']], on='DT_COMPTC', how='left')
+            # Usar a coluna 'VL_CDI_normalizado' que já começa em 1.0
+            df = df.merge(df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']], on='DT_COMPTC', how='left')
 
             # Preencher valores ausentes com forward fill
             df['cdi'].fillna(method='ffill', inplace=True)
-            df['VL_CDI'].fillna(method='ffill', inplace=True)
+            df['VL_CDI_normalizado'].fillna(method='ffill', inplace=True)
 
-            # CORREÇÃO: Normalizar para que o CDI comece exatamente em 1.0
-            # VL_CDI já vem do cumprod() começando em 1.0
-            df['CDI_COTA'] = df['VL_CDI']
+            # CDI_COTA é agora o valor acumulado normalizado, começando em 1.0
+            df['CDI_COTA'] = df['VL_CDI_normalizado']
 
-            # Normalizar para percentual (começando EXATAMENTE em 0%)
+            # CDI_NORM será a rentabilidade percentual, começando em 0.00%
             df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
 
     return df
@@ -637,7 +648,7 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.cnpj = cnpj_limpo
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
-    st.session_state.mostrar_cdi = mostrar_cdi
+    st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
@@ -699,7 +710,7 @@ try:
     # Verificar se tem CDI disponível
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns
 
-    # CAGR - CORRIGIDO
+    # CAGR
     df_cagr = df.copy()
     end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
     df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
@@ -711,13 +722,9 @@ try:
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
-        # CAGR do CDI (se disponível) - CORRIGIDO
+        # CAGR do CDI (se disponível)
         if tem_cdi and 'CDI_COTA' in df_cagr.columns:
-            # Usar o ÚLTIMO valor da cota do CDI (mesma lógica do fundo)
             end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
-
-            # Calcular CAGR para cada ponto: da data X até a data final
-            # Mesma fórmula usada para o fundo
             df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (252 / df_cagr['dias_uteis'])) - 1
             df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
     else:
