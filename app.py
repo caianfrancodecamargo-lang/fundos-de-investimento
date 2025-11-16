@@ -168,13 +168,7 @@ st.markdown("""
         background: linear-gradient(135deg, #8ba888 0%, #6b9b7f 100%) !important;
     }
 
-    .stButton > button:active {
-        transform: translateY(0px) !important;
-    }
-
-    /* Mensagens de validação - espaçamento reduzido */
-    [data-testid="stSidebar"] .stAlert {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
+    .stButton > button:: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
         border-radius: 10px !important;
         padding: 0.5rem 0.7rem !important;
         margin: 0.3rem 0 !important;
@@ -688,7 +682,6 @@ try:
     if tem_cdi:
         df['CAGR_CDI'] = np.nan
 
-    # Apenas calcula CAGR se houver dados suficientes para pelo menos 1 ano
     if not df.empty and len(df) > trading_days_in_year:
         end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
@@ -696,27 +689,39 @@ try:
 
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
         # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
-        # O range vai de 0 até (len(df) - trading_days_in_year - 1)
-        for i in range(len(df) - trading_days_in_year):
+        # O range vai de 0 até (len(df) - trading_days_in_year)
+        for i in range(len(df) - trading_days_in_year + 1): # Ajustado para incluir o ponto onde num_datas = 252
             initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
-            # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
-            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
-            # Se i=1, num_intervals = (3-1) = 2.
-            num_intervals = (len(df) - 1) - i
+            # num_datas é a contagem de dias úteis do ponto inicial (i) até o ponto final (último)
+            # len(df) - 1 é o índice da última linha.
+            # i é o índice da linha atual.
+            # A diferença é o número de intervalos. Para ter a contagem de dias, somamos 1.
+            num_datas = (len(df) - 1) - i + 1
 
-            if initial_value_fundo > 0 and num_intervals > 0:
-                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
+            if initial_value_fundo > 0 and num_datas > 0:
+                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_datas) - 1) * 100
 
             if tem_cdi and 'CDI_COTA' in df.columns:
                 initial_value_cdi = df['CDI_COTA'].iloc[i]
-                if initial_value_cdi > 0 and num_intervals > 0:
-                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
+                if initial_value_cdi > 0 and num_datas > 0:
+                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_datas) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
         mean_cagr = 0
+
+    # Excesso de Retorno Anualizado
+    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
+    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
+        # Apenas calcula onde ambos os CAGRs estão disponíveis
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
+            ) * 100 # Multiplica por 100 para exibir em porcentagem
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -735,6 +740,8 @@ try:
     color_secondary = '#6b9b7f'
     color_danger = '#dc3545'
     color_cdi = '#f0b429'  # Amarelo para o CDI
+    color_excess_positive = '#28a745' # Verde para excesso positivo
+    color_excess_negative = '#dc3545' # Vermelho para excesso negativo
 
     # Cards de métricas
     col1, col2, col3, col4 = st.columns(4)
@@ -866,6 +873,49 @@ try:
 
         fig2 = add_watermark_and_style(fig2, logo_base64)
         st.plotly_chart(fig2, use_container_width=True)
+
+        # NOVO GRÁFICO: Excesso de Retorno Anualizado
+        st.subheader("📈 Excesso de Retorno Anualizado")
+
+        if tem_cdi and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).empty:
+            fig_excesso_retorno = go.Figure()
+
+            # Linha do Excesso de Retorno
+            fig_excesso_retorno.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['EXCESSO_RETORNO_ANUALIZADO'],
+                mode='lines',
+                name='Excesso de Retorno Anualizado',
+                line=dict(color=color_excess_positive, width=2.5), # Cor inicial, pode mudar com base no valor
+                hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
+            ))
+
+            # Adicionar linha de 0% para referência
+            fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+
+            fig_excesso_retorno.update_layout(
+                xaxis_title="Data",
+                yaxis_title="Excesso de Retorno (% a.a)",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                font=dict(family="Inter, sans-serif"),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+
+            fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64)
+            st.plotly_chart(fig_excesso_retorno, use_container_width=True)
+        elif st.session_state.mostrar_cdi:
+            st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
+        else:
+            st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
+
 
     with tab2:
         st.subheader("📉 Drawdown Histórico")
