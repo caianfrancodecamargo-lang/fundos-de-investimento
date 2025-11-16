@@ -299,11 +299,11 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,
-                sizey=1.75,
+                sizex=1.75,  # 120% do tamanho do gráfico
+                sizey=1.75,  # 120% do tamanho do gráfico
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,
+                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
                 layer="below"
             )
         )
@@ -380,20 +380,12 @@ def formatar_data_api(data_str):
             return None
     return None
 
-# Função para buscar data anterior disponível (usada para ajustar o período do fundo)
-def buscar_data_anterior(df, data_alvo):
-    datas_disponiveis = df['DT_COMPTC']
-    datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
-    if len(datas_anteriores) > 0:
-        return datas_anteriores.idxmax()
-    return None
-
 # FUNÇÃO PARA OBTER DADOS REAIS DO CDI (AGORA COM SUPORTE A PERÍODOS MAIORES QUE 10 ANOS)
 @st.cache_data
 def obter_dados_cdi_real(data_inicio_str, data_fim_str):
     """
     Obtém dados REAIS do CDI usando a biblioteca python-bcb,
-    dividindo a requisição em blocos para contornar limites de 10 anos.
+    dividindo a requisição em blocos de 10 anos para contornar limites da API.
     Normaliza o VL_CDI para começar em 1.0 no primeiro dia do período.
     """
     if not BCB_DISPONIVEL:
@@ -407,13 +399,12 @@ def obter_dados_cdi_real(data_inicio_str, data_fim_str):
         all_cdi_dfs = []
         current_start = data_inicio
 
-        # Loop para buscar dados em blocos de 10 anos (limite da API do BCB)
+        # Loop para buscar dados em blocos de 10 anos (limite da API)
         while current_start <= data_fim:
             current_end = min(current_start + timedelta(days=10*365 - 1), data_fim) 
 
             st.info(f"Buscando CDI de {current_start.strftime('%d/%m/%Y')} a {current_end.strftime('%d/%m/%Y')}...")
 
-            # Obter dados do CDI (série 12) usando a biblioteca bcb
             cdi_chunk = sgs.get({'cdi': 12}, start=current_start, end=current_end)
 
             if not cdi_chunk.empty:
@@ -621,7 +612,7 @@ def carregar_dados_api(cnpj, data_ini, data_fim):
     """
     # Ampliar o período inicial para garantir que pegamos dados suficientes para ffill/bfill
     dt_inicial_solicitada = datetime.strptime(data_ini, '%Y%m%d')
-    dt_ampliada = dt_inicial_solicitada - timedelta(days=365 * 5) # 5 anos antes para ter bastante histórico
+    dt_ampliada = dt_inicial_solicitada - timedelta(days=365 * 10) # 10 anos antes para ter bastante histórico
     data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
 
     url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada}/{data_fim}/"
@@ -685,10 +676,11 @@ try:
         )
 
         # 2. PROCESSAR DADOS (CDI É A BASE PRINCIPAL)
+        # A função ajustar_periodo_analise não é mais necessária aqui
         df = processar_dados_com_cdi(
             df_fundo_raw, 
-            st.session_state.data_ini,
-            st.session_state.data_fim,
+            data_inicial_usuario_str=st.session_state.data_ini,
+            data_final_usuario_str=st.session_state.data_fim,
             incluir_cdi=st.session_state.mostrar_cdi
         )
 
@@ -717,37 +709,33 @@ try:
     tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns and not df['CDI_NORM'].isnull().all()
     if tem_cdi:
         # Drawdown do CDI
-        df['CDI_Max'] = df['CDI_COTA'].cummax() # Usar CDI_COTA que já está normalizada
-        df['CDI_Drawdown'] = (df['CDI_COTA'] / df['CDI_Max'] - 1) * 100
+        df['CDI_Max'] = df['VL_CDI_normalizado'].cummax() # Usar VL_CDI_normalizado
+        df['CDI_Drawdown'] = (df['VL_CDI_normalizado'] / df['CDI_Max'] - 1) * 100
 
         # Volatilidade do CDI
         df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
         df['CDI_Volatilidade'] = df['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
         cdi_vol_hist = round(df['CDI_Variacao'].std() * np.sqrt(trading_days) * 100, 2)
-    else:
-        # Garantir que as colunas existam, mesmo que vazias, para evitar KeyErrors nos gráficos
-        df['CDI_Drawdown'] = np.nan
-        df['CDI_Volatilidade'] = np.nan
-        cdi_vol_hist = 0
-
 
     # CAGR
     df_cagr = df.copy()
+
+    # CORREÇÃO: Definir DT_COMPTC como índice para calcular dias_uteis corretamente
+    df_cagr = df_cagr.set_index('DT_COMPTC')
 
     # Filtrar df_cagr para garantir que VL_QUOTA não seja NaN no início do período de cálculo
     first_valid_cagr_idx = df_cagr['VL_QUOTA'].first_valid_index()
     if first_valid_cagr_idx is not None:
         df_cagr = df_cagr.loc[first_valid_cagr_idx:].copy()
 
-    # CORREÇÃO: Calcular dias_uteis usando a coluna DT_COMPTC
-    end_date_cagr = df_cagr['DT_COMPTC'].iloc[-1]
-    df_cagr['dias_uteis'] = (end_date_cagr - df_cagr['DT_COMPTC']).dt.days
+    end_value = df_cagr['VL_QUOTA'].iloc[-1]
+    # Agora df_cagr.index é um DatetimeIndex, então .days funciona
+    df_cagr['dias_uteis'] = (df_cagr.index[-1] - df_cagr.index).map(lambda x: x.days) 
     df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy() # Filtrar para ter pelo menos 1 ano de dados
 
     if not df_cagr.empty:
         # CAGR do Fundo
-        end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
-        df_cagr['CAGR'] = ((end_value_fundo / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+        df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
@@ -766,7 +754,7 @@ try:
     df_plot = df.dropna(subset=['Retorno_21d']).copy()
     if not df_plot.empty:
         VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
-        VaR_99 = np.percentile(df_plot['Retorno_2ño_21d'], 1)
+        VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
         ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
         ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
     else:
@@ -860,7 +848,7 @@ try:
         if not df_cagr.empty:
             # CAGR do Fundo
             fig2.add_trace(go.Scatter(
-                x=df_cagr['DT_COMPTC'],
+                x=df_cagr.index, # Usar o índice que agora é DT_COMPTC
                 y=df_cagr['CAGR'],
                 mode='lines',
                 name='CAGR do Fundo',
@@ -869,7 +857,7 @@ try:
             ))
 
             fig2.add_trace(go.Scatter(
-                x=df_cagr['DT_COMPTC'],
+                x=df_cagr.index, # Usar o índice que agora é DT_COMPTC
                 y=[mean_cagr] * len(df_cagr),
                 mode='lines',
                 line=dict(dash='dash', color=color_secondary, width=2),
@@ -879,7 +867,7 @@ try:
             # CAGR do CDI (se disponível)
             if tem_cdi and 'CAGR_CDI' in df_cagr.columns:
                 fig2.add_trace(go.Scatter(
-                    x=df_cagr['DT_COMPTC'],
+                    x=df_cagr.index, # Usar o índice que agora é DT_COMPTC
                     y=df_cagr['CAGR_CDI'],
                     mode='lines',
                     name='CAGR do CDI',
@@ -923,7 +911,7 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        # Drawdown do CDI (re-adicionado)
+        # Drawdown do CDI (se disponível)
         if tem_cdi:
             fig3.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
@@ -977,7 +965,7 @@ try:
             name=f'Vol. Histórica ({vol_hist:.2f}%)'
         ))
 
-        # Volatilidade do CDI (re-adicionado)
+        # Volatilidade do CDI (se disponível)
         if tem_cdi:
             fig4.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
