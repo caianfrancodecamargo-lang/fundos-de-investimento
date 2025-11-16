@@ -516,7 +516,7 @@ if data_inicial_input and data_final_input:
             if dt_ini > dt_fim:
                 st.sidebar.error("❌ Data inicial deve ser anterior à data final")
             else:
-                st.sidebar.success(f"✅ Período: {dt_ini.strftime('%d/%m/%Y')} a {dt_fim.strftime('%Y%m%d')}")
+                st.sidebar.success(f"✅ Período: {dt_ini.strftime('%d/%m/%Y')} a {dt_fim.strftime('%d/%m/%Y')}")
                 datas_validas = True
         except:
             st.sidebar.error("❌ Erro ao processar datas")
@@ -688,40 +688,30 @@ try:
     if tem_cdi:
         df['CAGR_CDI'] = np.nan
 
+    # Apenas calcula CAGR se houver dados suficientes para pelo menos 1 ano
     if not df.empty and len(df) > trading_days_in_year:
         end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
             end_value_cdi = df['CDI_COTA'].iloc[-1]
 
-        # Calcular o número de intervalos (dias úteis - 1) de cada ponto até o final
-        df['dias_uteis_intervalos'] = df.index[-1] - df.index
+        # O loop vai até o índice que é 'trading_days_in_year' antes do último.
+        # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
+        # O range vai de 0 até (len(df) - trading_days_in_year - 1)
+        for i in range(len(df) - trading_days_in_year):
+            initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
-        # Filtrar para calcular CAGR apenas para pontos com pelo menos 252 dias (251 intervalos) até o final
-        df_cagr_calc = df[df['dias_uteis_intervalos'] >= (trading_days_in_year - 1)].copy()
+            # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
+            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
+            # Se i=1, num_intervals = (3-1) = 2.
+            num_intervals = (len(df) - 1) - i
 
-        if not df_cagr_calc.empty:
-            # CAGR do Fundo
-            initial_values_fundo = df_cagr_calc['VL_QUOTA']
-            num_datas_for_cagr = df_cagr_calc['dias_uteis_intervalos'] + 1 # num_datas = intervalos + 1
+            if initial_value_fundo > 0 and num_intervals > 0:
+                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
-            # Evitar divisão por zero ou log de zero
-            valid_indices_fundo = (initial_values_fundo > 0) & (num_datas_for_cagr > 0)
-
-            df.loc[df_cagr_calc.index[valid_indices_fundo], 'CAGR_Fundo'] = (
-                (end_value_fundo / initial_values_fundo[valid_indices_fundo]) ** 
-                (trading_days_in_year / num_datas_for_cagr[valid_indices_fundo]) - 1
-            ) * 100
-
-            # CAGR do CDI (se disponível)
-            if tem_cdi and 'CDI_COTA' in df_cagr_calc.columns:
-                initial_values_cdi = df_cagr_calc['CDI_COTA']
-
-                valid_indices_cdi = (initial_values_cdi > 0) & (num_datas_for_cagr > 0)
-
-                df.loc[df_cagr_calc.index[valid_indices_cdi], 'CAGR_CDI'] = (
-                    (end_value_cdi / initial_values_cdi[valid_indices_cdi]) ** 
-                    (trading_days_in_year / num_datas_for_cagr[valid_indices_cdi]) - 1
-                ) * 100
+            if tem_cdi and 'CDI_COTA' in df.columns:
+                initial_value_cdi = df['CDI_COTA'].iloc[i]
+                if initial_value_cdi > 0 and num_intervals > 0:
+                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
     mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
@@ -730,7 +720,7 @@ try:
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
-    df_plot_var = df.dropna(subset=['Retorno_21d']).copy() # Renomeado para evitar conflito com df_plot_cagr
+    df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
     VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
     if not df_plot_var.empty:
         VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
@@ -739,7 +729,6 @@ try:
         ES_99 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
     else:
         st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
-
 
     # Cores
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
@@ -858,7 +847,6 @@ try:
                 ))
         else:
             st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano de dados).")
-
 
         fig2.update_layout(
             xaxis_title="Data",
@@ -1009,7 +997,6 @@ try:
         else:
             st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
 
-
     with tab3:
         st.subheader("💰 Patrimônio e Captação Líquida")
 
@@ -1134,7 +1121,6 @@ try:
                 df_returns[f'FUNDO_{nome}'] = np.nan
                 if tem_cdi:
                     df_returns[f'CDI_{nome}'] = np.nan
-
 
         janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
 
