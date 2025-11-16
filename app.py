@@ -40,12 +40,11 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com espaçamentos reduzidos na sidebar
+# CSS customizado
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Variáveis de cores inspiradas no Copaíba */
     :root {
         --primary-color: #1a5f3f;
         --secondary-color: #2d8659;
@@ -56,13 +55,11 @@ st.markdown("""
         --text-light: #ffffff;
     }
 
-    /* Fundo geral */
     .stApp {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         font-family: 'Inter', sans-serif;
     }
 
-    /* Sidebar com padding reduzido */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #5a8a6f 0%, #4a7a5f 100%);
         padding: 1rem 0.8rem !important;
@@ -72,7 +69,6 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* Logo na sidebar - espaçamento reduzido */
     [data-testid="stSidebar"] .sidebar-logo {
         text-align: center;
         padding: 0.5rem 0 0.8rem 0 !important;
@@ -86,9 +82,7 @@ st.markdown("""
         filter: brightness(1.05);
     }
 
-    /* Labels dos inputs - espaçamento reduzido */
-    [data-testid="stSidebar"] .stTextInput label,
-    [data-testid="stSidebar"] .stDateInput label {
+    [data-testid="stSidebar"] .stTextInput label {
         color: #ffffff !important;
         font-weight: 600;
         font-size: 0.8rem !important;
@@ -96,25 +90,21 @@ st.markdown("""
         margin-top: 0 !important;
     }
 
-    /* Reduzir espaçamento entre elementos */
     [data-testid="stSidebar"] .stTextInput,
     [data-testid="stSidebar"] .stMarkdown {
         margin-bottom: 0.4rem !important;
     }
 
-    /* Título "Período de Análise" com menos espaço */
     [data-testid="stSidebar"] h4 {
         margin-top: 0.5rem !important;
         margin-bottom: 0.3rem !important;
         font-size: 0.85rem !important;
     }
 
-    /* Divisores com menos espaço */
     [data-testid="stSidebar"] hr {
         margin: 0.5rem 0 !important;
     }
 
-    /* INPUTS COM BORDA ELEGANTE */
     [data-testid="stSidebar"] input {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
@@ -145,7 +135,6 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
     }
 
-    /* BOTÃO COM DEGRADÊ - espaçamento reduzido */
     .stButton > button {
         background: linear-gradient(135deg, #6b9b7f 0%, #8ba888 100%) !important;
         color: #ffffff !important;
@@ -172,7 +161,6 @@ st.markdown("""
         transform: translateY(0px) !important;
     }
 
-    /* Mensagens de validação - espaçamento reduzido */
     [data-testid="stSidebar"] .stAlert {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 249, 250, 0.98) 100%) !important;
         border-radius: 10px !important;
@@ -200,7 +188,6 @@ st.markdown("""
         font-size: 0.9rem !important;
     }
 
-    /* Título principal */
     h1 {
         color: #1a5f3f;
         font-weight: 700;
@@ -209,7 +196,6 @@ st.markdown("""
         text-align: center;
     }
 
-    /* Cards de métricas */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 700;
@@ -238,7 +224,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
 
-    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: linear-gradient(135deg, #ffffff 0%, #f8f6f1 100%);
@@ -266,19 +251,16 @@ st.markdown("""
         box-shadow: 0 3px 10px rgba(107, 155, 127, 0.3);
     }
 
-    /* Subtítulos */
     h2, h3 {
         color: #1a5f3f;
         font-weight: 600;
     }
 
-    /* Info boxes */
     .stAlert {
         border-radius: 12px;
         border-left: 4px solid #1a5f3f;
     }
 
-    /* Divisor */
     hr {
         margin: 2rem 0;
         border: none;
@@ -286,7 +268,6 @@ st.markdown("""
         background: linear-gradient(90deg, transparent, #1a5f3f, transparent);
     }
 
-    /* Scrollbar personalizada */
     ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -307,11 +288,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Função para adicionar marca d'água GIGANTE e estilizar gráficos
+# Função para adicionar marca d'água e estilizar gráficos
 def add_watermark_and_style(fig, logo_base64=None):
-    """
-    Adiciona marca d'água MUITO GRANDE cobrindo todo o gráfico
-    """
+    """Adiciona marca d'água e estilização aos gráficos"""
     if logo_base64:
         fig.add_layout_image(
             dict(
@@ -320,24 +299,19 @@ def add_watermark_and_style(fig, logo_base64=None):
                 yref="paper",
                 x=0.5,
                 y=0.5,
-                sizex=1.75,  # 120% do tamanho do gráfico
-                sizey=1.75,  # 120% do tamanho do gráfico
+                sizex=1.75,
+                sizey=1.75,
                 xanchor="center",
                 yanchor="middle",
-                opacity=0.08,  # <<< AQUI VOCÊ ALTERA A OPACIDADE DA MARCA D'ÁGUA
+                opacity=0.08,
                 layer="below"
             )
         )
 
-    # Estilização elegante
     fig.update_layout(
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
-        font=dict(
-            family="Inter, sans-serif",
-            size=12,
-            color="#2c2c2c"
-        ),
+        font=dict(family="Inter, sans-serif", size=12, color="#2c2c2c"),
         margin=dict(l=60, r=60, t=80, b=60),
         hoverlabel=dict(
             bgcolor="white",
@@ -360,7 +334,6 @@ def add_watermark_and_style(fig, logo_base64=None):
         ]
     )
 
-    # Estilizar eixos
     fig.update_xaxes(
         showgrid=True,
         gridwidth=1,
@@ -407,7 +380,7 @@ def formatar_data_api(data_str):
             return None
     return None
 
-# Função para buscar data anterior disponível
+# Função para buscar data anterior disponível (usada para ajustar o período do fundo)
 def buscar_data_anterior(df, data_alvo):
     datas_disponiveis = df['DT_COMPTC']
     datas_anteriores = datas_disponiveis[datas_disponiveis <= data_alvo]
@@ -415,50 +388,46 @@ def buscar_data_anterior(df, data_alvo):
         return datas_anteriores.idxmax()
     return None
 
-# Função para ajustar período de análise (SEM MOSTRAR NOTIFICAÇÃO)
-def ajustar_periodo_analise(df, data_inicial_str, data_final_str):
-    data_inicial = datetime.strptime(data_inicial_str, '%Y%m%d')
-    data_final = datetime.strptime(data_final_str, '%Y%m%d')
-    idx_inicial = buscar_data_anterior(df, data_inicial)
-    idx_final = buscar_data_anterior(df, data_final)
-
-    ajustes = {
-        'data_inicial_original': data_inicial,
-        'data_final_original': data_final,
-        'data_inicial_usada': None,
-        'data_final_usada': None,
-        'houve_ajuste_inicial': False,
-        'houve_ajuste_final': False
-    }
-
-    if idx_inicial is not None:
-        ajustes['data_inicial_usada'] = df.loc[idx_inicial, 'DT_COMPTC']
-        ajustes['houve_ajuste_inicial'] = ajustes['data_inicial_usada'].date() != data_inicial.date()
-
-    if idx_final is not None:
-        ajustes['data_final_usada'] = df.loc[idx_final, 'DT_COMPTC']
-        ajustes['houve_ajuste_final'] = ajustes['data_final_usada'].date() != data_final.date()
-
-    if idx_inicial is not None and idx_final is not None:
-        df_filtrado = df.loc[idx_inicial:idx_final].copy()
-        return df_filtrado, ajustes
-
-    return df, ajustes
-
-# FUNÇÃO PARA OBTER DADOS REAIS DO CDI - CORRIGIDA DEFINITIVAMENTE
+# FUNÇÃO PARA OBTER DADOS REAIS DO CDI (AGORA COM SUPORTE A PERÍODOS MAIORES QUE 10 ANOS)
 @st.cache_data
-def obter_dados_cdi_real(data_inicio, data_fim):
+def obter_dados_cdi_real(data_inicio_str, data_fim_str):
     """
-    Obtém dados REAIS do CDI usando a biblioteca python-bcb
-    CORREÇÃO DEFINITIVA: Recalcula o acumulado APENAS com as taxas do período
-    e normaliza para começar em 1.0.
+    Obtém dados REAIS do CDI usando a biblioteca python-bcb,
+    dividindo a requisição em blocos para contornar limites de 10 anos.
+    Normaliza o VL_CDI para começar em 1.0 no primeiro dia do período.
     """
     if not BCB_DISPONIVEL:
+        st.error("❌ Biblioteca 'python-bcb' não está instalada. Instale com: pip install python-bcb")
         return pd.DataFrame()
 
     try:
-        # Obter dados do CDI (série 12) - retorna apenas as taxas diárias
-        cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
+        data_inicio = datetime.strptime(data_inicio_str, '%Y%m%d')
+        data_fim = datetime.strptime(data_fim_str, '%Y%m%d')
+
+        all_cdi_dfs = []
+        current_start = data_inicio
+
+        # Loop para buscar dados em blocos de 5 anos
+        while current_start <= data_fim:
+            # A API do BCB pode ter limites, 5 anos é um bom chunk
+            current_end = min(current_start + timedelta(days=5*365 - 1), data_fim) 
+
+            st.info(f"Buscando CDI de {current_start.strftime('%d/%m/%Y')} a {current_end.strftime('%d/%m/%Y')}...")
+
+            # Obter dados do CDI (série 12) usando a biblioteca bcb
+            # A série 12 já é a taxa diária do CDI
+            cdi_chunk = sgs.get({'cdi': 12}, start=current_start, end=current_end)
+
+            if not cdi_chunk.empty:
+                all_cdi_dfs.append(cdi_chunk)
+
+            current_start = current_end + timedelta(days=1)
+
+        if not all_cdi_dfs:
+            return pd.DataFrame()
+
+        # Concatenar todos os chunks e remover duplicatas (se houver)
+        cdi_diario = pd.concat(all_cdi_dfs).drop_duplicates().sort_index()
 
         # Transformar o índice em coluna
         cdi_diario = cdi_diario.reset_index()
@@ -466,15 +435,16 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         # Alterar o nome da coluna
         cdi_diario = cdi_diario.rename(columns={'Date': 'DT_COMPTC'})
 
+        # Garantir que DT_COMPTC é datetime
+        cdi_diario['DT_COMPTC'] = pd.to_datetime(cdi_diario['DT_COMPTC'])
+
         # Calcular o fator diário
         cdi_diario['CDI_fator_diario'] = 1 + (cdi_diario['cdi'] / 100)
 
         # Calcular o produto acumulado a partir do primeiro dia do período
-        # Isso garante que o primeiro valor será 1 + (primeira taxa / 100)
         cdi_diario['VL_CDI_acum'] = cdi_diario['CDI_fator_diario'].cumprod()
 
         # NORMALIZAR para que o primeiro valor da série acumulada seja EXATAMENTE 1.0
-        # Isso faz com que a rentabilidade normalizada comece em 0.00%
         if not cdi_diario.empty:
             primeiro_valor_acum = cdi_diario['VL_CDI_acum'].iloc[0]
             cdi_diario['VL_CDI_normalizado'] = cdi_diario['VL_CDI_acum'] / primeiro_valor_acum
@@ -487,43 +457,78 @@ def obter_dados_cdi_real(data_inicio, data_fim):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# FUNÇÃO PARA COMBINAR FUNDO E CDI - SIMPLIFICADA E CORRIGIDA
-def processar_dados_com_cdi(df_fundo, incluir_cdi=False):
+# FUNÇÃO PARA COMBINAR FUNDO E CDI (CDI AGORA É A TABELA PRINCIPAL)
+def processar_dados_com_cdi(df_fundo_raw, incluir_cdi=False, data_inicial_usuario_str, data_final_usuario_str):
     """
-    Processa os dados do fundo e opcionalmente adiciona o CDI REAL
+    Processa os dados do fundo e opcionalmente adiciona o CDI REAL,
+    usando as datas do CDI como base principal.
     """
-    df = df_fundo.copy()
 
-    # Normalizar dados do fundo (sempre)
-    primeira_cota = df['VL_QUOTA'].iloc[0]
-    df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
+    # 1. Obter CDI para o período COMPLETO do usuário (será a base)
+    df_cdi_base = obter_dados_cdi_real(data_inicial_usuario_str, data_final_usuario_str)
 
-    # Se incluir CDI, obter dados reais e normalizar
-    if incluir_cdi and BCB_DISPONIVEL:
-        # Obter dados do CDI para o período do fundo
-        data_inicio = df['DT_COMPTC'].iloc[0]
-        data_fim = df['DT_COMPTC'].iloc[-1]
+    if df_cdi_base.empty:
+        st.warning("Não foi possível obter dados do CDI para o período selecionado.")
+        # Se não há CDI, apenas processa o fundo
+        df = df_fundo_raw.copy()
+        primeira_cota = df['VL_QUOTA'].iloc[0]
+        df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
+        return df
 
-        df_cdi_raw = obter_dados_cdi_real(data_inicio, data_fim)
+    # 2. Mesclar dados do fundo com a base do CDI (CDI é a tabela principal)
+    # Usamos 'left' merge aqui porque df_cdi_base é a tabela da esquerda (principal)
+    df_merged = df_cdi_base.merge(
+        df_fundo_raw, 
+        on='DT_COMPTC', 
+        how='left',
+        suffixes=('_cdi', '_fundo') # Adiciona sufixos para evitar conflitos de nomes se houver
+    )
 
-        if not df_cdi_raw.empty:
-            # Fazer merge com os dados do fundo
-            # Usar a coluna 'VL_CDI_normalizado' que já começa em 1.0
-            df = df.merge(df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']], on='DT_COMPTC', how='right')
+    # Garantir que o DataFrame esteja ordenado por data
+    df_merged = df_merged.sort_values('DT_COMPTC').reset_index(drop=True)
 
-            # Preencher valores ausentes com forward fill
-            df['cdi'].fillna(method='ffill', inplace=True)
-            df['VL_CDI_normalizado'].fillna(method='ffill', inplace=True)
+    # 3. Preencher valores ausentes para as colunas do fundo
+    # VL_QUOTA e VL_PATRIM_LIQ: ffill para preencher para frente, bfill para preencher para trás
+    # Isso lida com casos onde o fundo começa depois do CDI ou tem lacunas
+    df_merged['VL_QUOTA'].fillna(method='ffill', inplace=True)
+    df_merged['VL_QUOTA'].fillna(method='bfill', inplace=True) # Para NaNs no início se o fundo começa depois
 
-            # CDI_COTA é agora o valor acumulado normalizado, começando em 1.0
-            df['CDI_COTA'] = df['VL_CDI_normalizado']
+    df_merged['VL_PATRIM_LIQ'].fillna(method='ffill', inplace=True)
+    df_merged['VL_PATRIM_LIQ'].fillna(method='bfill', inplace=True) # Para NaNs no início
 
-            # CDI_NORM será a rentabilidade percentual, começando em 0.00%
-            df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
+    # NR_COTST, CAPTC_DIA, RESG_DIA: preencher com 0 se não houver dados
+    df_merged['NR_COTST'].fillna(0, inplace=True)
+    df_merged['CAPTC_DIA'].fillna(0, inplace=True)
+    df_merged['RESG_DIA'].fillna(0, inplace=True)
 
-    return df
+    # 4. Normalizar dados do fundo (agora que NaNs foram tratados)
+    # Encontrar a primeira cota válida para normalização
+    first_valid_quota_idx = df_merged['VL_QUOTA'].first_valid_index()
+    if first_valid_quota_idx is not None and not pd.isna(df_merged.loc[first_valid_quota_idx, 'VL_QUOTA']):
+        primeira_cota = df_merged.loc[first_valid_quota_idx, 'VL_QUOTA']
+        df_merged['VL_QUOTA_NORM'] = ((df_merged['VL_QUOTA'] / primeira_cota) - 1) * 100
+        # Preencher NaNs antes do início do fundo com 0 na rentabilidade normalizada
+        df_merged['VL_QUOTA_NORM'].fillna(0, inplace=True)
+    else:
+        # Se não há dados válidos para o fundo no período, a rentabilidade é 0
+        df_merged['VL_QUOTA_NORM'] = 0.0
+        st.warning("⚠️ Não há dados válidos para o fundo no período selecionado. Gráficos do fundo podem estar vazios.")
 
-# Sidebar com logo (SEM título "Configurações")
+    # 5. Normalizar CDI (se for para incluir)
+    if incluir_cdi:
+        # CDI_COTA já é VL_CDI_normalizado (começa em 1.0)
+        df_merged['CDI_COTA'] = df_merged['VL_CDI_normalizado']
+        # CDI_NORM será a rentabilidade percentual, começando em 0.00%
+        df_merged['CDI_NORM'] = (df_merged['CDI_COTA'] - 1) * 100
+    else:
+        # Se não incluir CDI, garantir que as colunas não existam ou sejam NaN
+        df_merged['CDI_COTA'] = np.nan
+        df_merged['CDI_NORM'] = np.nan
+        df_merged['cdi'] = np.nan # Taxa diária do CDI
+
+    return df_merged
+
+# Sidebar
 if logo_base64:
     st.sidebar.markdown(
         f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Copaíba Invest"></div>',
@@ -604,11 +609,17 @@ carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", disab
 st.markdown("<h1>📊 Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Função para carregar dados
+# Função para carregar dados do fundo
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini, data_fim):
-    dt_inicial = datetime.strptime(data_ini, '%Y%m%d')
-    dt_ampliada = dt_inicial - timedelta(days=60)
+    """
+    Carrega dados do fundo. O período é ampliado para garantir que
+    todas as datas relevantes para o CDI sejam cobertas, mesmo que o fundo
+    comece depois ou termine antes do período do CDI.
+    """
+    # Ampliar o período inicial para garantir que pegamos dados suficientes para ffill/bfill
+    dt_inicial_solicitada = datetime.strptime(data_ini, '%Y%m%d')
+    dt_ampliada = dt_inicial_solicitada - timedelta(days=365 * 5) # 5 anos antes para ter bastante histórico
     data_ini_ampliada = dt_ampliada.strftime('%Y%m%d')
 
     url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada}/{data_fim}/"
@@ -648,51 +659,44 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.cnpj = cnpj_limpo
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
-    st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
+    st.session_state.mostrar_cdi = mostrar_cdi
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
-
     st.markdown("""
     ### 📋 Como usar:
-
     1. **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2. **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
     3. **Data Final**: Digite a data final no formato DD/MM/AAAA
-    4. **Indicadores**: Marque a opção "Comparar com CDI" se desejar
+    4. **Indicadores**: Selecione os indicadores para comparação
     5. Clique em **Carregar Dados** para visualizar as análises
-
-    ---
-
-    ### 📊 Análises disponíveis:
-    - Rentabilidade histórica e CAGR (com comparação ao CDI)
-    - Análise de risco (Drawdown, Volatilidade, VaR)
-    - Evolução patrimonial e captação
-    - Perfil de cotistas
-    - Retornos em janelas móveis (com comparação ao CDI)
     """)
-
     st.stop()
 
 try:
     with st.spinner('🔄 Carregando dados...'):
-        # 1. BAIXAR DADOS DO FUNDO
-        df_fundo_completo = carregar_dados_api(
+        # 1. BAIXAR DADOS DO FUNDO (período ampliado para garantir cobertura)
+        df_fundo_raw = carregar_dados_api(
             st.session_state.cnpj,
-            st.session_state.data_ini,
-            st.session_state.data_fim
-        )
-        df_fundo, ajustes = ajustar_periodo_analise(
-            df_fundo_completo,
-            st.session_state.data_ini,
+            st.session_state.data_ini, # Passa a data inicial do usuário
             st.session_state.data_fim
         )
 
-        # 2. PROCESSAR DADOS (COM OU SEM CDI REAL)
-        df = processar_dados_com_cdi(df_fundo, incluir_cdi=st.session_state.mostrar_cdi)
+        # 2. PROCESSAR DADOS (CDI É A BASE PRINCIPAL)
+        df = processar_dados_com_cdi(
+            df_fundo_raw, 
+            incluir_cdi=st.session_state.mostrar_cdi,
+            data_inicial_usuario_str=st.session_state.data_ini,
+            data_final_usuario_str=st.session_state.data_fim
+        )
 
     # 3. CALCULAR MÉTRICAS
-    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
+    # df já está ordenado por DT_COMPTC dentro de processar_dados_com_cdi
+
+    # Verificar se há dados válidos para o fundo para calcular métricas
+    if 'VL_QUOTA' not in df.columns or df['VL_QUOTA'].isnull().all():
+        st.error("❌ Não foi possível obter dados válidos para o fundo no período selecionado. Verifique o CNPJ e as datas.")
+        st.stop()
 
     # Métricas do fundo
     df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
@@ -707,28 +711,45 @@ try:
     df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # Verificar se tem CDI disponível
-    tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns
+    # Métricas do CDI (se disponível)
+    tem_cdi = st.session_state.mostrar_cdi and 'CDI_NORM' in df.columns and not df['CDI_NORM'].isnull().all()
+    if tem_cdi:
+        # Drawdown do CDI
+        df['CDI_Max'] = df['VL_CDI_normalizado'].cummax()
+        df['CDI_Drawdown'] = (df['VL_CDI_normalizado'] / df['CDI_Max'] - 1) * 100
+
+        # Volatilidade do CDI
+        df['CDI_Variacao'] = df['CDI_COTA'].pct_change()
+        df['CDI_Volatilidade'] = df['CDI_Variacao'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
+        cdi_vol_hist = round(df['CDI_Variacao'].std() * np.sqrt(trading_days) * 100, 2)
 
     # CAGR
     df_cagr = df.copy()
-    end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
-    df_cagr['dias_uteis'] = df_cagr.index[-1] - df_cagr.index
-    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy()
+
+    # Filtrar df_cagr para garantir que VL_QUOTA não seja NaN no início do período de cálculo
+    first_valid_cagr_idx = df_cagr['VL_QUOTA'].first_valid_index()
+    if first_valid_cagr_idx is not None:
+        df_cagr = df_cagr.loc[first_valid_cagr_idx:].copy()
+
+    end_value = df_cagr['VL_QUOTA'].iloc[-1]
+    df_cagr['dias_uteis'] = (df_cagr.index[-1] - df_cagr.index).map(lambda x: x.days) # Convert timedelta to days
+    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy() # Filtrar para ter pelo menos 1 ano de dados
 
     if not df_cagr.empty:
         # CAGR do Fundo
-        df_cagr['CAGR'] = ((end_value_fundo / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
+        df_cagr['CAGR'] = ((end_value / df_cagr['VL_QUOTA']) ** (252 / df_cagr['dias_uteis'])) - 1
         df_cagr['CAGR'] = df_cagr['CAGR'] * 100
         mean_cagr = df_cagr['CAGR'].mean()
 
         # CAGR do CDI (se disponível)
-        if tem_cdi and 'CDI_COTA' in df_cagr.columns:
+        if tem_cdi and 'CDI_COTA' in df_cagr.columns and not df_cagr['CDI_COTA'].isnull().all():
             end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
             df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (252 / df_cagr['dias_uteis'])) - 1
             df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
     else:
         mean_cagr = 0
+        st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 252 dias úteis).")
+
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -738,6 +759,10 @@ try:
         VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
         ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
         ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+    else:
+        VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0
+        st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias úteis).")
+
 
     # Cores
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
@@ -876,7 +901,7 @@ try:
 
         fig3 = go.Figure()
 
-        # Drawdown do Fundo (APENAS - SEM CDI)
+        # Drawdown do Fundo
         fig3.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Drawdown'],
@@ -888,6 +913,17 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
+        # Drawdown do CDI (se disponível)
+        if tem_cdi:
+            fig3.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['CDI_Drawdown'],
+                mode='lines',
+                name='Drawdown do CDI',
+                line=dict(color=color_cdi, width=2.5),
+                hovertemplate='<b>Drawdown do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
+            ))
+
         fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
 
         fig3.update_layout(
@@ -896,7 +932,14 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
 
         fig3 = add_watermark_and_style(fig3, logo_base64)
@@ -906,7 +949,7 @@ try:
 
         fig4 = go.Figure()
 
-        # Volatilidade do Fundo (APENAS - SEM CDI)
+        # Volatilidade do Fundo
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Volatilidade'],
@@ -924,13 +967,39 @@ try:
             name=f'Vol. Histórica ({vol_hist:.2f}%)'
         ))
 
+        # Volatilidade do CDI (se disponível)
+        if tem_cdi:
+            fig4.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=df['CDI_Volatilidade'],
+                mode='lines',
+                name=f'Volatilidade do CDI ({vol_window} dias)',
+                line=dict(color=color_cdi, width=2.5),
+                hovertemplate='<b>Volatilidade do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
+            ))
+
+            fig4.add_trace(go.Scatter(
+                x=df['DT_COMPTC'],
+                y=[cdi_vol_hist] * len(df),
+                mode='lines',
+                line=dict(dash='dot', color=color_cdi, width=1.5),
+                name=f'CDI Vol. Histórica ({cdi_vol_hist:.2f}%)'
+            ))
+
         fig4.update_layout(
             xaxis_title="Data",
             yaxis_title="Volatilidade (% a.a.)",
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Inter, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
 
         fig4 = add_watermark_and_style(fig4, logo_base64)
