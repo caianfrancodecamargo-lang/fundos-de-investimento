@@ -458,7 +458,7 @@ def obter_dados_cdi_real(data_inicio_str, data_fim_str):
         return pd.DataFrame()
 
 # FUNÇÃO PARA COMBINAR FUNDO E CDI (CDI AGORA É A TABELA PRINCIPAL)
-def processar_dados_com_cdi(df_fundo_raw, incluir_cdi=False, data_inicial_usuario_str, data_final_usuario_str):
+def processar_dados_com_cdi(df_fundo_raw, data_inicial_usuario_str, data_final_usuario_str, incluir_cdi=False):
     """
     Processa os dados do fundo e opcionalmente adiciona o CDI REAL,
     usando as datas do CDI como base principal.
@@ -471,8 +471,12 @@ def processar_dados_com_cdi(df_fundo_raw, incluir_cdi=False, data_inicial_usuari
         st.warning("Não foi possível obter dados do CDI para o período selecionado.")
         # Se não há CDI, apenas processa o fundo
         df = df_fundo_raw.copy()
-        primeira_cota = df['VL_QUOTA'].iloc[0]
-        df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
+        # Verificar se df_fundo_raw não está vazio antes de acessar iloc[0]
+        if not df.empty and 'VL_QUOTA' in df.columns and not df['VL_QUOTA'].isnull().all():
+            primeira_cota = df['VL_QUOTA'].iloc[0]
+            df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota) - 1) * 100
+        else:
+            df['VL_QUOTA_NORM'] = 0.0 # Se não há dados do fundo, a rentabilidade é 0
         return df
 
     # 2. Mesclar dados do fundo com a base do CDI (CDI é a tabela principal)
