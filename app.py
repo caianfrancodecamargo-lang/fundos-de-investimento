@@ -186,7 +186,7 @@ st.markdown("""
 
     [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"],
     [data-testid="stSidebar"] .stAlert * {
-        color: #000000 !important; /* Cor preta para o texto de validação, conforme solicitado */
+        color: #000000 !important;
         font-weight: 600 !important;
     }
 
@@ -533,9 +533,9 @@ st.markdown("---")
 # Função para carregar dados
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
-    dt_inicial_user = datetime.strptime(data_ini_str, '%Y%m%d')
+    dt_inicial = datetime.strptime(data_ini_str, '%Y%m%d')
     # Amplia o período inicial para garantir dados para ffill
-    dt_ampliada = dt_inicial_user - timedelta(days=60)
+    dt_ampliada = dt_inicial - timedelta(days=60)
     data_ini_ampliada_str = dt_ampliada.strftime('%Y%m%d')
 
     url = f"https://www.okanebox.com.br/api/fundoinvestimento/hist/{cnpj}/{data_ini_ampliada_str}/{data_fim_str}/"
@@ -680,44 +680,45 @@ try:
     df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
 
     vol_window = 21
-    trading_days = 252
+    trading_days = 252 # Número de dias úteis em um ano
     df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
     df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days) * 100
     vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days) * 100, 2)
 
-    # CAGR
-    df_cagr = df.copy()
-    end_value_fundo = df_cagr['VL_QUOTA'].iloc[-1]
-    # Ajusta 'dias_uteis' para ser a diferença de dias *entre* as datas, não o índice
-    df_cagr['dias_uteis'] = (df_cagr['DT_COMPTC'].iloc[-1] - df_cagr['DT_COMPTC']).dt.days
-    df_cagr = df_cagr[df_cagr['dias_uteis'] >= 252].copy() # Garante pelo menos 1 ano de dados
+    # CAGR - AGORA COMO ROLLING CAGR DE 252 DIAS ÚTEIS
+    cagr_window_days = 252 # Janela de 1 ano em dias úteis para o CAGR móvel
 
-    mean_cagr = 0
-    if not df_cagr.empty:
-        # CAGR do Fundo
-        # Evita divisão por zero ou log de zero se VL_QUOTA for 0
-        df_cagr['CAGR'] = ((end_value_fundo / df_cagr['VL_QUOTA']) ** (365 / df_cagr['dias_uteis'])) - 1
-        df_cagr['CAGR'] = df_cagr['CAGR'] * 100
-        mean_cagr = df_cagr['CAGR'].mean()
+    # Calcular rolling CAGR para o Fundo
+    df['CAGR_Fundo'] = np.nan
+    if len(df) > cagr_window_days:
+        # Calcula o retorno sobre a janela
+        return_over_window_fundo = df['VL_QUOTA'] / df['VL_QUOTA'].shift(cagr_window_days)
+        # Anualiza o retorno (para uma janela de 252 dias, o expoente é 1, então é o próprio retorno)
+        df['CAGR_Fundo'] = (return_over_window_fundo ** (trading_days / cagr_window_days) - 1) * 100
 
-        # CAGR do CDI (se disponível)
-        if tem_cdi and 'CDI_COTA' in df_cagr.columns:
-            end_value_cdi = df_cagr['CDI_COTA'].iloc[-1]
-            df_cagr['CAGR_CDI'] = ((end_value_cdi / df_cagr['CDI_COTA']) ** (365 / df_cagr['dias_uteis'])) - 1
-            df_cagr['CAGR_CDI'] = df_cagr['CAGR_CDI'] * 100
-    else:
-        st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano).")
+    # Calcular rolling CAGR para o CDI (se disponível)
+    if tem_cdi and 'CDI_COTA' in df.columns and len(df) > cagr_window_days:
+        df['CAGR_CDI'] = np.nan
+        return_over_window_cdi = df['CDI_COTA'] / df['CDI_COTA'].shift(cagr_window_days)
+        df['CAGR_CDI'] = (return_over_window_cdi ** (trading_days / cagr_window_days) - 1) * 100
 
+    # Calcular CAGR médio para o card de métricas (baseado no rolling CAGR)
+    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
+    if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
+        mean_cagr = 0
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
-    df_plot = df.dropna(subset=['Retorno_21d']).copy()
-    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot estiver vazio
-    if not df_plot.empty:
-        VaR_95 = np.percentile(df_plot['Retorno_21d'], 5)
-        VaR_99 = np.percentile(df_plot['Retorno_21d'], 1)
-        ES_95 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
-        ES_99 = df_plot.loc[df_plot['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+    df_plot_var = df.dropna(subset=['Retorno_21d']).copy() # Renomeado para evitar conflito com df_plot_cagr
+    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
+    if not df_plot_var.empty:
+        VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
+        VaR_99 = np.percentile(df_plot_var['Retorno_21d'], 1)
+        ES_95 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
+        ES_99 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+    else:
+        st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
+
 
     # Cores
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
@@ -802,11 +803,14 @@ try:
 
         fig2 = go.Figure()
 
-        if not df_cagr.empty:
+        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
+        df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
+
+        if not df_plot_cagr.empty:
             # CAGR do Fundo
             fig2.add_trace(go.Scatter(
-                x=df_cagr['DT_COMPTC'],
-                y=df_cagr['CAGR'],
+                x=df_plot_cagr['DT_COMPTC'],
+                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de rolling CAGR
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
@@ -814,23 +818,26 @@ try:
             ))
 
             fig2.add_trace(go.Scatter(
-                x=df_cagr['DT_COMPTC'],
-                y=[mean_cagr] * len(df_cagr),
+                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
+                y=[mean_cagr] * len(df_plot_cagr),
                 mode='lines',
                 line=dict(dash='dash', color=color_secondary, width=2),
                 name=f'CAGR Médio ({mean_cagr:.2f}%)'
             ))
 
             # CAGR do CDI (se disponível)
-            if tem_cdi and 'CAGR_CDI' in df_cagr.columns:
+            if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
-                    x=df_cagr['DT_COMPTC'],
-                    y=df_cagr['CAGR_CDI'],
+                    x=df_plot_cagr['DT_COMPTC'],
+                    y=df_plot_cagr['CAGR_CDI'], # Usar a nova coluna de rolling CAGR do CDI
                     mode='lines',
                     name='CAGR do CDI',
                     line=dict(color=color_cdi, width=2.5),
                     hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
+        else:
+            st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano de dados).")
+
 
         fig2.update_layout(
             xaxis_title="Data",
@@ -918,39 +925,39 @@ try:
 
         st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
 
-        if not df_plot.empty:
+        if not df_plot_var.empty:
             fig5 = go.Figure()
             fig5.add_trace(go.Scatter(
-                x=df_plot['DT_COMPTC'],
-                y=df_plot['Retorno_21d'] * 100,
+                x=df_plot_var['DT_COMPTC'],
+                y=df_plot_var['Retorno_21d'] * 100,
                 mode='lines',
                 name='Rentabilidade móvel (1m)',
                 line=dict(color=color_primary, width=2),
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
             ))
             fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[VaR_95 * 100, VaR_95 * 100],
                 mode='lines',
                 name='VaR 95%',
                 line=dict(dash='dot', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[VaR_99 * 100, VaR_99 * 100],
                 mode='lines',
                 name='VaR 99%',
                 line=dict(dash='dot', color='red', width=2)
             ))
             fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[ES_95 * 100, ES_95 * 100],
                 mode='lines',
                 name='ES 95%',
                 line=dict(dash='dash', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
-                x=[df_plot['DT_COMPTC'].min(), df_plot['DT_COMPTC'].max()],
+                x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[ES_99 * 100, ES_99 * 100],
                 mode='lines',
                 name='ES 99%',
