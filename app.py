@@ -1283,7 +1283,9 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
+                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>',
+                    text=[f'{val:.2f}%' for val in df_consistency['Consistencia']], # Adiciona os valores como texto
+                    textposition='outside' # Posição do texto: 'outside' para fora da barra
                 ))
 
                 fig_consistency.update_layout(
@@ -1293,7 +1295,9 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 100], ticksuffix="%") # Y-axis from 0 to 100%
+                    yaxis=dict(range=[0, 100], ticksuffix="%"), # Y-axis from 0 to 100%
+                    uniformtext_minsize=8, # Garante que o texto não fique muito pequeno
+                    uniformtext_mode='hide' # Esconde o texto se não couber
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency, use_container_width=True)
