@@ -769,9 +769,11 @@ try:
     with col2:
         st.metric("📈 Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
     with col3:
-        st.metric("📊 CAGR (Anualizado)", fmt_pct_port(mean_cagr / 100))
+        st.metric("📊 CAGR Médio", fmt_pct_port(mean_cagr / 100))
     with col4:
         st.metric("📉 Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+    with col5:
+        st.metric(" Vol. Histórica", fmt_pct_port(vol_hist)
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📈 Rentabilidade", "📉 Risco", "💰 Patrimônio e Captação",
