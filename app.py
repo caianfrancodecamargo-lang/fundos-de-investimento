@@ -773,7 +773,7 @@ try:
     with col4:
         st.metric("📉 Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
     with col5:
-        st.metric(" Vol. Histórica", fmt_pct_port(vol_hist)
+        st.metric(" Vol. Histórica", fmt_pct_port(vol_hist))
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📈 Rentabilidade", "📉 Risco", "💰 Patrimônio e Captação",
