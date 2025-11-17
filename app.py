@@ -478,7 +478,7 @@ cnpj_input = st.sidebar.text_input(
 )
 
 # Inputs de data
-st.sidebar.markdown("#### 📅 Período de Análise")
+st.sidebar.markdown("#### Período de Análise")
 col1_sidebar, col2_sidebar = st.sidebar.columns(2)
 
 with col1_sidebar:
@@ -781,7 +781,7 @@ try:
     ])
 
     with tab1:
-        st.subheader("📈 Rentabilidade Histórica")
+        st.subheader("Rentabilidade Histórica")
 
         fig1 = go.Figure()
         fig1.add_trace(go.Scatter(
@@ -886,7 +886,7 @@ try:
         st.plotly_chart(fig2, use_container_width=True)
 
         # NOVO GRÁFICO: Excesso de Retorno Anualizado
-        st.subheader("📈 Excesso de Retorno Anualizado")
+        st.subheader("Excesso de Retorno Anualizado")
 
         if tem_cdi and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).empty:
             fig_excesso_retorno = go.Figure()
@@ -932,7 +932,7 @@ try:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
 
     with tab2:
-        st.subheader("📉 Drawdown Histórico")
+        st.subheader("Drawdown Histórico")
 
         fig3 = go.Figure()
 
@@ -962,7 +962,7 @@ try:
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig3, use_container_width=True)
 
-        st.subheader(f"📊 Volatilidade Móvel ({vol_window} dias úteis)")
+        st.subheader(f"Volatilidade Móvel ({vol_window} dias úteis)")
 
         fig4 = go.Figure()
 
@@ -996,7 +996,7 @@ try:
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig4, use_container_width=True)
 
-        st.subheader("⚠️ Value at Risk (VaR) e Expected Shortfall (ES)")
+        st.subheader("Value at Risk (VaR) e Expected Shortfall (ES)")
 
         if not df_plot_var.empty:
             fig5 = go.Figure()
@@ -1061,7 +1061,7 @@ try:
         else:
             st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
 
-        st.subheader("📊 Métricas de Risco-Retorno")
+        st.subheader("Métricas de Risco-Retorno")
 
         # --- Cálculos dos Novos Indicadores ---
         calmar_ratio, sterling_ratio, ulcer_index, martin_ratio, sharpe_ratio, sortino_ratio, information_ratio = [np.nan] * 7
@@ -1231,7 +1231,7 @@ try:
 
 
     with tab3:
-        st.subheader("💰 Patrimônio e Captação Líquida")
+        st.subheader("Patrimônio e Captação Líquida")
 
         fig6 = go.Figure([
             go.Scatter(
@@ -1300,7 +1300,7 @@ try:
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
-        st.subheader("👥 Patrimônio Médio e Nº de Cotistas")
+        st.subheader("Patrimônio Médio e Nº de Cotistas")
 
         fig8 = go.Figure()
         fig8.add_trace(go.Scatter(
@@ -1336,7 +1336,7 @@ try:
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
-        st.subheader("🎯 Retornos em Janelas Móveis")
+        st.subheader("Retornos em Janelas Móveis")
 
         janelas = {
             "12 meses (252 dias)": 252,
@@ -1413,7 +1413,7 @@ try:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
         # GRÁFICO: Consistência em Janelas Móveis
-        st.subheader("📈 Consistência em Janelas Móveis")
+        st.subheader("Consistência em Janelas Móveis")
 
         if tem_cdi:
             consistency_data = []
