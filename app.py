@@ -88,7 +88,8 @@ st.markdown("""
 
     /* Labels dos inputs - espaçamento reduzido */
     [data-testid="stSidebar"] .stTextInput label,
-    [data-testid="stSidebar"] .stDateInput label {
+    [data-testid="stSidebar"] .stDateInput label,
+    [data-testid="stSidebar"] .stTextArea label { /* Adicionado stTextArea */
         color: #ffffff !important;
         font-weight: 600;
         font-size: 0.8rem !important;
@@ -98,7 +99,8 @@ st.markdown("""
 
     /* Reduzir espaçamento entre elementos */
     [data-testid="stSidebar"] .stTextInput,
-    [data-testid="stSidebar"] .stMarkdown {
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] .stTextArea { /* Adicionado stTextArea */
         margin-bottom: 0.4rem !important;
     }
 
@@ -115,7 +117,8 @@ st.markdown("""
     }
 
     /* INPUTS COM BORDA ELEGANTE */
-    [data-testid="stSidebar"] input {
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] textarea { /* Adicionado textarea */
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         border: 2px solid rgba(255, 255, 255, 0.6) !important;
         color: #000000 !important;
@@ -127,20 +130,23 @@ st.markdown("""
         font-size: 0.85rem !important;
     }
 
-    [data-testid="stSidebar"] input::placeholder {
+    [data-testid="stSidebar"] input::placeholder,
+    [data-testid="stSidebar"] textarea::placeholder { /* Adicionado textarea */
         color: #666666 !important;
         opacity: 0.8 !important;
         font-weight: 500 !important;
     }
 
-    [data-testid="stSidebar"] input:focus {
+    [data-testid="stSidebar"] input:focus,
+    [data-testid="stSidebar"] textarea:focus { /* Adicionado textarea */
         color: #000000 !important;
         border-color: #8ba888 !important;
         box-shadow: 0 4px 12px rgba(139, 168, 136, 0.3) !important;
         transform: translateY(-1px) !important;
     }
 
-    [data-testid="stSidebar"] input:hover {
+    [data-testid="stSidebar"] input:hover,
+    [data-testid="stSidebar"] textarea:hover { /* Adicionado textarea */
         border-color: rgba(139, 168, 136, 0.5) !important;
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12) !important;
     }
@@ -469,12 +475,12 @@ if logo_base64:
         unsafe_allow_html=True
     )
 
-# Input de CNPJ
-cnpj_input = st.sidebar.text_input(
-    "CNPJ do Fundo",
+# Input de CNPJ (agora text_area para múltiplos)
+cnpj_input_raw = st.sidebar.text_area(
+    "CNPJs dos Fundos (separados por vírgula ou nova linha)",
     value="",
-    placeholder="00.000.000/0000-00",
-    help="Digite o CNPJ com ou sem formatação"
+    placeholder="00.000.000/0000-00, 11.111.111/1111-11",
+    help="Digite um ou mais CNPJs com ou sem formatação"
 )
 
 # Inputs de data
@@ -505,21 +511,23 @@ mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
 
 st.sidebar.markdown("---")
 
-# Processar inputs
-cnpj_limpo = limpar_cnpj(cnpj_input)
-data_inicial_formatada = formatar_data_api(data_inicial_input)
-data_final_formatada = formatar_data_api(data_final_input)
+# Processar inputs de CNPJ
+cnpjs_list_raw = [c.strip() for c in re.split(r'[,;\n]+', cnpj_input_raw) if c.strip()]
+cnpjs_list = [limpar_cnpj(c) for c in cnpjs_list_raw]
+cnpjs_list = [c for c in cnpjs_list if len(c) == 14] # Filtra apenas CNPJs válidos
 
 # Validação
 cnpj_valido = False
-datas_validas = False
-
-if cnpj_input:
-    if len(cnpj_limpo) != 14:
-        st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+if cnpjs_list_raw:
+    if not cnpjs_list:
+        st.sidebar.error("❌ Nenhum CNPJ válido encontrado. Verifique a formatação (14 dígitos).")
     else:
-        st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
+        st.sidebar.success(f"✅ CNPJs válidos: {len(cnpjs_list)}")
         cnpj_valido = True
+
+datas_validas = False
+data_inicial_formatada = formatar_data_api(data_inicial_input)
+data_final_formatada = formatar_data_api(data_final_input)
 
 if data_inicial_input and data_final_input:
     if not data_inicial_formatada or not data_final_formatada:
@@ -543,7 +551,7 @@ carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=n
 st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Função para carregar dados
+# Função para carregar dados da API
 @st.cache_data
 def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
     dt_inicial = datetime.strptime(data_ini_str, '%Y%m%d')
@@ -574,29 +582,244 @@ def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
 
 # Funções de formatação
 def format_brl(valor):
+    if pd.isna(valor):
+        return "N/A"
     return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
 def fmt_pct_port(x):
+    if pd.isna(x):
+        return "N/A"
     return f"{x*100:.2f}%".replace('.', ',')
+
+# NOVO: Função para processar dados e calcular métricas para um único fundo
+def process_single_fund_data(cnpj, data_ini_str, data_fim_str, mostrar_cdi, dt_ini_user, dt_fim_user):
+    fund_metrics = {}
+    df_fundo_completo = carregar_dados_api(cnpj, data_ini_str, data_fim_str)
+    df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
+
+    df_cdi_raw = pd.DataFrame()
+    if mostrar_cdi and BCB_DISPONIVEL:
+        df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
+        if not df_cdi_raw.empty:
+            df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
+
+    if not df_cdi_raw.empty:
+        df_final = df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']].copy()
+        df_final = df_final.merge(df_fundo_completo, on='DT_COMPTC', how='left')
+    else:
+        df_final = df_fundo_completo.copy()
+        df_final.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
+
+    df_final = df_final.sort_values('DT_COMPTC').reset_index(drop=True)
+
+    fund_cols_to_ffill = ['VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']
+    for col in fund_cols_to_ffill:
+        if col in df_final.columns:
+            df_final[col] = df_final[col].ffill()
+
+    df_final.dropna(subset=['VL_QUOTA'], inplace=True)
+
+    df = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)].copy()
+
+    if df.empty:
+        return pd.DataFrame(), fund_metrics # Retorna dataframe vazio e métricas vazias
+
+    primeira_cota_fundo = df['VL_QUOTA'].iloc[0]
+    df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota_fundo) - 1) * 100
+
+    tem_cdi = False
+    if mostrar_cdi and 'VL_CDI_normalizado' in df.columns:
+        first_cdi_normalized_value_in_period = df['VL_CDI_normalizado'].iloc[0]
+        df['CDI_COTA'] = df['VL_CDI_normalizado'] / first_cdi_normalized_value_in_period
+        df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
+        tem_cdi = True
+    else:
+        df.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado', 'CDI_COTA', 'CDI_NORM'] if col in df.columns], errors='ignore', inplace=True)
+
+    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
+
+    df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
+    df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
+    df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
+    df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
+    df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
+
+    vol_window = 21
+    trading_days_in_year = 252
+    df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
+    df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days_in_year) * 100
+    vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days_in_year) * 100, 2)
+
+    df['CAGR_Fundo'] = np.nan
+    if tem_cdi:
+        df['CAGR_CDI'] = np.nan
+
+    if not df.empty and len(df) > trading_days_in_year:
+        end_value_fundo = df['VL_QUOTA'].iloc[-1]
+        if tem_cdi:
+            end_value_cdi = df['CDI_COTA'].iloc[-1]
+
+        for i in range(len(df) - trading_days_in_year):
+            initial_value_fundo = df['VL_QUOTA'].iloc[i]
+            num_intervals = (len(df) - 1) - i
+
+            if initial_value_fundo > 0 and num_intervals > 0:
+                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
+
+            if tem_cdi and 'CDI_COTA' in df.columns:
+                initial_value_cdi = df['CDI_COTA'].iloc[i]
+                if initial_value_cdi > 0 and num_intervals > 0:
+                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
+
+    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
+    if pd.isna(mean_cagr):
+        mean_cagr = 0
+
+    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
+    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
+            ) * 100
+
+    df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
+    df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
+    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0
+    if not df_plot_var.empty:
+        VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
+        VaR_99 = np.percentile(df_plot_var['Retorno_21d'], 1)
+        ES_95 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
+        ES_99 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+
+    # --- Cálculos dos Novos Indicadores ---
+    calmar_ratio, sterling_ratio, ulcer_index, martin_ratio, sharpe_ratio, sortino_ratio, information_ratio = [np.nan] * 7
+
+    if tem_cdi and not df.empty and len(df) > trading_days_in_year:
+        total_fund_return = (df['VL_QUOTA'].iloc[-1] / df['VL_QUOTA'].iloc[0]) - 1
+        total_cdi_return = (df['CDI_COTA'].iloc[-1] / df['CDI_COTA'].iloc[0]) - 1
+
+        num_days_in_period = len(df)
+        if num_days_in_period > 0:
+            annualized_fund_return = (1 + total_fund_return)**(trading_days_in_year / num_days_in_period) - 1
+            annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1
+        else:
+            annualized_fund_return = 0
+            annualized_cdi_return = 0
+
+        annualized_fund_volatility = vol_hist / 100 if vol_hist else np.nan
+        max_drawdown_value = df['Drawdown'].min() / 100 if not df['Drawdown'].empty else np.nan
+        cagr_fund_decimal = mean_cagr / 100 if mean_cagr else np.nan
+
+        drawdown_series = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1)
+        squared_drawdowns = drawdown_series**2
+        if not squared_drawdowns.empty and squared_drawdowns.mean() > 0:
+            ulcer_index = np.sqrt(squared_drawdowns.mean())
+        else:
+            ulcer_index = np.nan
+
+        downside_returns = df['Variacao_Perc'][df['Variacao_Perc'] < 0]
+        if not downside_returns.empty:
+            annualized_downside_volatility = downside_returns.std() * np.sqrt(trading_days_in_year)
+        else:
+            annualized_downside_volatility = np.nan
+
+        if 'cdi' in df.columns and not df['Variacao_Perc'].empty:
+            excess_daily_returns = df['Variacao_Perc'] - (df['cdi'] / 100)
+            if not excess_daily_returns.empty:
+                tracking_error = excess_daily_returns.std() * np.sqrt(trading_days_in_year)
+            else:
+                tracking_error = np.nan
+        else:
+            tracking_error = np.nan
+
+        if not pd.isna(cagr_fund_decimal) and not pd.isna(annualized_cdi_return) and not pd.isna(max_drawdown_value) and max_drawdown_value != 0:
+            calmar_ratio = (cagr_fund_decimal - annualized_cdi_return) / abs(max_drawdown_value)
+            sterling_ratio = (cagr_fund_decimal - annualized_cdi_return) / abs(max_drawdown_value)
+
+        if not pd.isna(cagr_fund_decimal) and not pd.isna(annualized_cdi_return) and not pd.isna(ulcer_index) and ulcer_index != 0:
+            martin_ratio = (cagr_fund_decimal - annualized_cdi_return) / ulcer_index
+
+        if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(annualized_fund_volatility) and annualized_fund_volatility != 0:
+            sharpe_ratio = (annualized_fund_return - annualized_cdi_return) / annualized_fund_volatility
+
+        if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(annualized_downside_volatility) and annualized_downside_volatility != 0:
+            sortino_ratio = (annualized_fund_return - annualized_cdi_return) / annualized_downside_volatility
+
+        if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(tracking_error) and tracking_error != 0:
+            information_ratio = (annualized_fund_return - annualized_cdi_return) / tracking_error
+
+    fund_metrics = {
+        'Patrimônio Líquido': df['VL_PATRIM_LIQ'].iloc[-1],
+        'Rentabilidade Acumulada': df['VL_QUOTA_NORM'].iloc[-1] / 100,
+        'CAGR Médio': mean_cagr / 100,
+        'Max Drawdown': df['Drawdown'].min() / 100,
+        'Vol. Histórica': vol_hist / 100,
+        'Sharpe Ratio': sharpe_ratio,
+        'Sortino Ratio': sortino_ratio,
+        'Information Ratio': information_ratio,
+        'Calmar Ratio': calmar_ratio,
+        'Sterling Ratio': sterling_ratio,
+        'Ulcer Index': ulcer_index,
+        'Martin Ratio': martin_ratio,
+        'VaR 95%': VaR_95,
+        'VaR 99%': VaR_99,
+        'ES 95%': ES_95,
+        'ES 99%': ES_99,
+        'Tem CDI': tem_cdi,
+        'Dados VaR Suficientes': not df_plot_var.empty,
+        'Dados CAGR Suficientes': not df.empty and len(df) > trading_days_in_year
+    }
+
+    return df, fund_metrics
 
 # Verificar se deve carregar os dados
 if 'dados_carregados' not in st.session_state:
     st.session_state.dados_carregados = False
+    st.session_state.processed_funds_dfs = {}
+    st.session_state.fund_metrics_summary = {}
+    st.session_state.cnpjs_list = []
+    st.session_state.data_ini = None
+    st.session_state.data_fim = None
+    st.session_state.mostrar_cdi = False
 
 if carregar_button and cnpj_valido and datas_validas:
     st.session_state.dados_carregados = True
-    st.session_state.cnpj = cnpj_limpo
+    st.session_state.cnpjs_list = cnpjs_list
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
-    st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
+    st.session_state.mostrar_cdi = mostrar_cdi
 
-if not st.session_state.dados_carregados:
+    st.session_state.processed_funds_dfs = {}
+    st.session_state.fund_metrics_summary = {}
+
+    dt_ini_user = datetime.strptime(st.session_state.data_ini, '%Y%m%d')
+    dt_fim_user = datetime.strptime(st.session_state.data_fim, '%Y%m%d')
+
+    with st.spinner('🔄 Carregando e processando dados dos fundos...'):
+        for cnpj in st.session_state.cnpjs_list:
+            df_fund, metrics_fund = process_single_fund_data(
+                cnpj,
+                st.session_state.data_ini,
+                st.session_state.data_fim,
+                st.session_state.mostrar_cdi,
+                dt_ini_user,
+                dt_fim_user
+            )
+            if not df_fund.empty:
+                st.session_state.processed_funds_dfs[cnpj] = df_fund
+                st.session_state.fund_metrics_summary[cnpj] = metrics_fund
+            else:
+                st.warning(f"⚠️ Não foi possível carregar dados para o CNPJ {cnpj} no período selecionado.")
+
+if not st.session_state.dados_carregados or not st.session_state.processed_funds_dfs:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
 
     st.markdown("""
     ### 📋 Como usar:
 
-    1.  **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
+    1.  **CNPJs dos Fundos**: Digite um ou mais CNPJs (separados por vírgula ou nova linha)
     2.  **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
     3.  **Data Final**: Digite a data final no formato DD/MM/AAAA
     4.  **Indicadores**: Marque a opção "Comparar com CDI" se desejar
@@ -614,166 +837,35 @@ if not st.session_state.dados_carregados:
 
     st.stop()
 
-try:
-    with st.spinner('🔄 Carregando dados...'):
-        # Converte as datas de input do usuário para objetos datetime
-        dt_ini_user = datetime.strptime(st.session_state.data_ini, '%Y%m%d')
-        dt_fim_user = datetime.strptime(st.session_state.data_fim, '%Y%m%d')
+# Cores
+color_primary = '#1a5f3f'  # Verde escuro para o fundo
+color_secondary = '#6b9b7f'
+color_danger = '#dc3545'
+color_cdi = '#f0b429'  # Amarelo para o CDI
 
-        # 1. BAIXAR DADOS DO FUNDO (período ampliado para ffill)
-        df_fundo_completo = carregar_dados_api(
-            st.session_state.cnpj,
-            st.session_state.data_ini,
-            st.session_state.data_fim
-        )
-        df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
+# Exibir cards de métricas no topo APENAS se for um único fundo
+if len(st.session_state.cnpjs_list) == 1:
+    cnpj_unico = st.session_state.cnpjs_list[0]
+    metrics = st.session_state.fund_metrics_summary.get(cnpj_unico, {})
+    df = st.session_state.processed_funds_dfs.get(cnpj_unico)
 
-        # 2. OBTER DADOS DO CDI para o período EXATO solicitado pelo usuário
-        df_cdi_raw = pd.DataFrame()
-        if st.session_state.mostrar_cdi and BCB_DISPONIVEL:
-            df_cdi_raw = obter_dados_cdi_real(dt_ini_user, dt_fim_user)
-            if not df_cdi_raw.empty:
-                df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
+    if df is not None and not df.empty:
+        st.markdown(f"<h2>Análise Detalhada do Fundo: {cnpj_unico}</h2>", unsafe_allow_html=True)
+        col1, col2, col3, col4, col5 = st.columns(5)
 
-        # 3. COMBINAR FUNDO E CDI, USANDO DATAS DO CDI COMO BASE
-        if not df_cdi_raw.empty:
-            # Usa as datas do CDI como base (left merge) e adiciona os dados do fundo
-            df_final = df_cdi_raw[['DT_COMPTC', 'cdi', 'VL_CDI_normalizado']].copy()
-            df_final = df_final.merge(df_fundo_completo, on='DT_COMPTC', how='left')
-        else:
-            # Se CDI não for solicitado ou não estiver disponível, usa os dados do fundo como base
-            df_final = df_fundo_completo.copy()
-            # Garante que colunas CDI não existam se não forem usadas
-            df_final.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado'] if col in df_final.columns], errors='ignore', inplace=True)
-
-        # Garante que o dataframe esteja ordenado por data
-        df_final = df_final.sort_values('DT_COMPTC').reset_index(drop=True)
-
-        # 4. Preencher valores ausentes para colunas do fundo com o último valor válido (forward-fill)
-        fund_cols_to_ffill = ['VL_QUOTA', 'VL_PATRIM_LIQ', 'NR_COTST', 'CAPTC_DIA', 'RESG_DIA']
-        for col in fund_cols_to_ffill:
-            if col in df_final.columns:
-                df_final[col] = df_final[col].ffill()
-
-        # 5. Remover linhas onde VL_QUOTA ainda é NaN (fundo não existia ou não tinha dados mesmo após ffill)
-        df_final.dropna(subset=['VL_QUOTA'], inplace=True)
-
-        # 6. Filtrar o dataframe combinado para o período EXATO solicitado pelo usuário
-        df = df_final[(df_final['DT_COMPTC'] >= dt_ini_user) & (df_final['DT_COMPTC'] <= dt_fim_user)].copy()
-
-        # Verifica se o dataframe final está vazio após todas as operações
-        if df.empty:
-            st.error("❌ Não há dados disponíveis para o fundo no período selecionado após a combinação com o CDI ou o fundo não possui dados suficientes.")
-            st.stop()
-
-        # 7. Re-normalizar a cota do fundo para começar em 1.0 (0% de rentabilidade) na primeira data do 'df' final
-        primeira_cota_fundo = df['VL_QUOTA'].iloc[0]
-        df['VL_QUOTA_NORM'] = ((df['VL_QUOTA'] / primeira_cota_fundo) - 1) * 100
-
-        # Processa e re-normaliza os dados do CDI para o 'df' final
-        tem_cdi = False
-        if st.session_state.mostrar_cdi and 'VL_CDI_normalizado' in df.columns:
-            # Re-normaliza o CDI para começar em 1.0 na primeira data do 'df' final
-            first_cdi_normalized_value_in_period = df['VL_CDI_normalizado'].iloc[0]
-            df['CDI_COTA'] = df['VL_CDI_normalizado'] / first_cdi_normalized_value_in_period
-            df['CDI_NORM'] = (df['CDI_COTA'] - 1) * 100
-            tem_cdi = True
-        else:
-            # Garante que colunas CDI sejam removidas se não forem solicitadas ou não estiverem disponíveis
-            df.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado', 'CDI_COTA', 'CDI_NORM'] if col in df.columns], errors='ignore', inplace=True)
-
-    # 3. CALCULAR MÉTRICAS (agora usando o 'df' combinado e normalizado)
-    df = df.sort_values('DT_COMPTC').reset_index(drop=True)
-
-    # Métricas do fundo
-    df['Max_VL_QUOTA'] = df['VL_QUOTA'].cummax()
-    df['Drawdown'] = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1) * 100
-    df['Captacao_Liquida'] = df['CAPTC_DIA'] - df['RESG_DIA']
-    df['Soma_Acumulada'] = df['Captacao_Liquida'].cumsum()
-    df['Patrimonio_Liq_Medio'] = df['VL_PATRIM_LIQ'] / df['NR_COTST']
-
-    vol_window = 21
-    trading_days_in_year = 252 # Número de dias úteis em um ano para anualização
-    df['Variacao_Perc'] = df['VL_QUOTA'].pct_change()
-    df['Volatilidade'] = df['Variacao_Perc'].rolling(vol_window).std() * np.sqrt(trading_days_in_year) * 100
-    vol_hist = round(df['Variacao_Perc'].std() * np.sqrt(trading_days_in_year) * 100, 2)
-
-    # CAGR - Cálculo conforme sua especificação: última cota fixa, cota inicial variável
-    df['CAGR_Fundo'] = np.nan
-    if tem_cdi:
-        df['CAGR_CDI'] = np.nan
-
-    if not df.empty and len(df) > trading_days_in_year:
-        end_value_fundo = df['VL_QUOTA'].iloc[-1]
-        if tem_cdi:
-            end_value_cdi = df['CDI_COTA'].iloc[-1]
-
-        # O loop vai até o índice que é 'trading_days_in_year' antes do último.
-        # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
-        # O range vai de 0 até (len(df) - trading_days_in_year)
-        for i in range(len(df) - trading_days_in_year):
-            initial_value_fundo = df['VL_QUOTA'].iloc[i]
-
-            # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
-            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
-            # Se i=1, num_intervals = (3-1) = 2.
-            num_intervals = (len(df) - 1) - i
-
-            if initial_value_fundo > 0 and num_intervals > 0:
-                df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
-
-            if tem_cdi and 'CDI_COTA' in df.columns:
-                initial_value_cdi = df['CDI_COTA'].iloc[i]
-                if initial_value_cdi > 0 and num_intervals > 0:
-                    df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
-
-    # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
-    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
-    if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
-        mean_cagr = 0
-
-    # Excesso de Retorno Anualizado
-    df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
-    if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
-        # Apenas calcula onde ambos os CAGRs estão disponíveis
-        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
-        if not valid_excess_return_indices.empty:
-            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
-                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
-                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
-            ) * 100 # Multiplica por 100 para exibir em porcentagem
-
-    # VaR
-    df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
-    df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
-    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
-    if not df_plot_var.empty:
-        VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
-        VaR_99 = np.percentile(df_plot_var['Retorno_21d'], 1)
-        ES_95 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_95, 'Retorno_21d'].mean()
-        ES_99 = df_plot_var.loc[df_plot_var['Retorno_21d'] <= VaR_99, 'Retorno_21d'].mean()
+        with col1:
+            st.metric("Patrimônio Líquido", format_brl(metrics.get('Patrimônio Líquido')))
+        with col2:
+            st.metric("Rentabilidade Acumulada", fmt_pct_port(metrics.get('Rentabilidade Acumulada')))
+        with col3:
+            st.metric("CAGR Médio", fmt_pct_port(metrics.get('CAGR Médio')))
+        with col4:
+            st.metric("Max Drawdown", fmt_pct_port(metrics.get('Max Drawdown')))
+        with col5:
+            st.metric("Vol. Histórica", fmt_pct_port(metrics.get('Vol. Histórica')))
     else:
-        st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
-
-    # Cores
-    color_primary = '#1a5f3f'  # Verde escuro para o fundo
-    color_secondary = '#6b9b7f'
-    color_danger = '#dc3545'
-    color_cdi = '#f0b429'  # Amarelo para o CDI
-
-    # Cards de métricas
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
-    with col2:
-        st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
-    with col3:
-        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
-    with col4:
-        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
-    with col5:
-        st.metric("Vol. Histórica", fmt_pct_port(vol_hist/100))
+        st.error(f"❌ Não foi possível exibir as métricas de topo para o CNPJ {cnpj_unico}.")
+        st.stop() # Parar aqui se não houver dados para o único fundo
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Rentabilidade", "Risco", "Patrimônio e Captação",
@@ -795,7 +887,7 @@ try:
             hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
 
-        if tem_cdi:
+        if metrics.get('Tem CDI'):
             fig1.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['CDI_NORM'],
@@ -820,7 +912,6 @@ try:
                 x=1
             )
         )
-        # Ajusta o range do eixo X para os dados de df
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -828,14 +919,12 @@ try:
 
         fig2 = go.Figure()
 
-        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
         df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
 
         if not df_plot_cagr.empty:
-            # CAGR do Fundo
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
-                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de CAGR
+                y=df_plot_cagr['CAGR_Fundo'],
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
@@ -843,18 +932,17 @@ try:
             ))
 
             fig2.add_trace(go.Scatter(
-                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
-                y=[mean_cagr] * len(df_plot_cagr),
+                x=df_plot_cagr['DT_COMPTC'],
+                y=[metrics.get('CAGR Médio') * 100] * len(df_plot_cagr),
                 mode='lines',
                 line=dict(dash='dash', color=color_secondary, width=2),
-                name=f'CAGR Médio ({mean_cagr:.2f}%)'
+                name=f'CAGR Médio ({metrics.get("CAGR Médio")*100:.2f}%)'
             ))
 
-            # CAGR do CDI (se disponível)
-            if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
+            if metrics.get('Tem CDI') and 'CAGR_CDI' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
-                    y=df_plot_cagr['CAGR_CDI'], # Usar a nova coluna de CAGR do CDI
+                    y=df_plot_cagr['CAGR_CDI'],
                     mode='lines',
                     name='CAGR do CDI',
                     line=dict(color=color_cdi, width=2.5),
@@ -878,30 +966,26 @@ try:
                 x=1
             )
         )
-        # Ajusta o range do eixo X para os dados de df_plot_cagr
         if not df_plot_cagr.empty:
             fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
         else:
-            fig2 = add_watermark_and_style(fig2, logo_base64) # Sem range específico se não houver dados
+            fig2 = add_watermark_and_style(fig2, logo_base64)
         st.plotly_chart(fig2, use_container_width=True)
 
-        # NOVO GRÁFICO: Excesso de Retorno Anualizado
         st.subheader("Excesso de Retorno Anualizado")
 
-        if tem_cdi and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).empty:
+        if metrics.get('Tem CDI') and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).empty:
             fig_excesso_retorno = go.Figure()
 
-            # Linha do Excesso de Retorno
             fig_excesso_retorno.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['EXCESSO_RETORNO_ANUALIZADO'],
                 mode='lines',
                 name='Excesso de Retorno Anualizado',
-                line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
+                line=dict(color=color_primary, width=2.5),
                 hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
             ))
 
-            # Adicionar linha de 0% para referência
             fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
 
             fig_excesso_retorno.update_layout(
@@ -919,12 +1003,11 @@ try:
                     x=1
                 )
             )
-            # Ajusta o range do eixo X para os dados de df
             df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
             if not df_plot_excess.empty:
                 fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
             else:
-                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64) # Sem range específico se não houver dados
+                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64)
             st.plotly_chart(fig_excesso_retorno, use_container_width=True)
         elif st.session_state.mostrar_cdi:
             st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
@@ -936,7 +1019,6 @@ try:
 
         fig3 = go.Figure()
 
-        # Drawdown do Fundo (APENAS - SEM CDI)
         fig3.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Drawdown'],
@@ -958,7 +1040,6 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig3, use_container_width=True)
 
@@ -966,7 +1047,6 @@ try:
 
         fig4 = go.Figure()
 
-        # Volatilidade do Fundo (APENAS - SEM CDI)
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Volatilidade'],
@@ -978,10 +1058,10 @@ try:
 
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
-            y=[vol_hist] * len(df),
+            y=[metrics.get('Vol. Histórica') * 100] * len(df),
             mode='lines',
             line=dict(dash='dash', color=color_secondary, width=2),
-            name=f'Vol. Histórica ({vol_hist:.2f}%)'
+            name=f'Vol. Histórica ({metrics.get("Vol. Histórica")*100:.2f}%)'
         ))
 
         fig4.update_layout(
@@ -992,13 +1072,13 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig4, use_container_width=True)
 
         st.subheader("Value at Risk (VaR) e Expected Shortfall (ES)")
 
-        if not df_plot_var.empty:
+        if metrics.get('Dados VaR Suficientes'):
+            df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
             fig5 = go.Figure()
             fig5.add_trace(go.Scatter(
                 x=df_plot_var['DT_COMPTC'],
@@ -1010,28 +1090,28 @@ try:
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
-                y=[VaR_95 * 100, VaR_95 * 100],
+                y=[metrics.get('VaR 95%') * 100, metrics.get('VaR 95%') * 100],
                 mode='lines',
                 name='VaR 95%',
                 line=dict(dash='dot', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
-                y=[VaR_99 * 100, VaR_99 * 100],
+                y=[metrics.get('VaR 99%') * 100, metrics.get('VaR 99%') * 100],
                 mode='lines',
                 name='VaR 99%',
                 line=dict(dash='dot', color='red', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
-                y=[ES_95 * 100, ES_95 * 100],
+                y=[metrics.get('ES 95%') * 100, metrics.get('ES 95%') * 100],
                 mode='lines',
                 name='ES 95%',
                 line=dict(dash='dash', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
-                y=[ES_99 * 100, ES_99 * 100],
+                y=[metrics.get('ES 99%') * 100, metrics.get('ES 99%') * 100],
                 mode='lines',
                 name='ES 99%',
                 line=dict(dash='dash', color='red', width=2)
@@ -1045,98 +1125,29 @@ try:
                 height=600,
                 font=dict(family="Inter, sans-serif")
             )
-            # Ajusta o range do eixo X para os dados de df_plot_var
             fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig5, use_container_width=True)
 
             st.info(f"""
             **Este gráfico mostra que, em um período de 1 mês:**
 
-            • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
-            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
+            • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(metrics.get('VaR 99%'))} (VaR)**,
+            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(metrics.get('ES 99%'))} (ES)**.
 
-            • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
-            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
+            • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(metrics.get('VaR 95%'))} (VaR)**,
+            e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(metrics.get('ES 95%'))} (ES)**.
             """)
         else:
             st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
 
         st.subheader("Métricas de Risco-Retorno")
 
-        # --- Cálculos dos Novos Indicadores ---
-        calmar_ratio, sterling_ratio, ulcer_index, martin_ratio, sharpe_ratio, sortino_ratio, information_ratio = [np.nan] * 7
-
-        if tem_cdi and not df.empty and len(df) > trading_days_in_year:
-            # Retorno total do fundo e CDI no período
-            total_fund_return = (df['VL_QUOTA'].iloc[-1] / df['VL_QUOTA'].iloc[0]) - 1
-            total_cdi_return = (df['CDI_COTA'].iloc[-1] / df['CDI_COTA'].iloc[0]) - 1
-
-            # Anualização dos retornos totais para consistência
-            num_days_in_period = len(df)
-            if num_days_in_period > 0:
-                annualized_fund_return = (1 + total_fund_return)**(trading_days_in_year / num_days_in_period) - 1
-                annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1
-            else:
-                annualized_fund_return = 0
-                annualized_cdi_return = 0
-
-            # Volatilidade anualizada do fundo (já calculada como vol_hist, convertida para decimal)
-            annualized_fund_volatility = vol_hist / 100 if vol_hist else np.nan
-
-            # Max Drawdown (já calculada como df['Drawdown'].min(), convertida para decimal)
-            max_drawdown_value = df['Drawdown'].min() / 100 if not df['Drawdown'].empty else np.nan
-
-            # CAGR do fundo (já calculada como mean_cagr, convertida para decimal)
-            cagr_fund_decimal = mean_cagr / 100 if mean_cagr else np.nan
-
-            # Ulcer Index
-            drawdown_series = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1)
-            squared_drawdowns = drawdown_series**2
-            if not squared_drawdowns.empty and squared_drawdowns.mean() > 0:
-                ulcer_index = np.sqrt(squared_drawdowns.mean())
-            else:
-                ulcer_index = np.nan
-
-            # Downside Volatility
-            downside_returns = df['Variacao_Perc'][df['Variacao_Perc'] < 0]
-            if not downside_returns.empty:
-                annualized_downside_volatility = downside_returns.std() * np.sqrt(trading_days_in_year)
-            else:
-                annualized_downside_volatility = np.nan
-
-            # Tracking Error
-            if 'cdi' in df.columns and not df['Variacao_Perc'].empty:
-                excess_daily_returns = df['Variacao_Perc'] - (df['cdi'] / 100)
-                if not excess_daily_returns.empty:
-                    tracking_error = excess_daily_returns.std() * np.sqrt(trading_days_in_year)
-                else:
-                    tracking_error = np.nan
-            else:
-                tracking_error = np.nan
-
-            # --- Cálculo dos Ratios ---
-            if not pd.isna(cagr_fund_decimal) and not pd.isna(annualized_cdi_return) and not pd.isna(max_drawdown_value) and max_drawdown_value != 0:
-                calmar_ratio = (cagr_fund_decimal - annualized_cdi_return) / abs(max_drawdown_value)
-                sterling_ratio = (cagr_fund_decimal - annualized_cdi_return) / abs(max_drawdown_value) # Simplificado para Max Drawdown
-
-            if not pd.isna(cagr_fund_decimal) and not pd.isna(annualized_cdi_return) and not pd.isna(ulcer_index) and ulcer_index != 0:
-                martin_ratio = (cagr_fund_decimal - annualized_cdi_return) / ulcer_index
-
-            if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(annualized_fund_volatility) and annualized_fund_volatility != 0:
-                sharpe_ratio = (annualized_fund_return - annualized_cdi_return) / annualized_fund_volatility
-
-            if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(annualized_downside_volatility) and annualized_downside_volatility != 0:
-                sortino_ratio = (annualized_fund_return - annualized_cdi_return) / annualized_downside_volatility
-
-            if not pd.isna(annualized_fund_return) and not pd.isna(annualized_cdi_return) and not pd.isna(tracking_error) and tracking_error != 0:
-                information_ratio = (annualized_fund_return - annualized_cdi_return) / tracking_error
-
-            # --- Exibição dos Cards e Explicações ---
+        if metrics.get('Tem CDI') and metrics.get('Dados CAGR Suficientes'):
             st.markdown("#### RISCO MEDIDO PELA VOLATILIDADE:")
             col_vol_1, col_vol_2 = st.columns(2)
 
             with col_vol_1:
-                st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "N/A")
+                st.metric("Sharpe Ratio", f"{metrics.get('Sharpe Ratio'):.2f}" if not pd.isna(metrics.get('Sharpe Ratio')) else "N/A")
                 st.info("""
                 **Sharpe Ratio:** Mede o excesso de retorno do fundo (acima do CDI) por unidade de **volatilidade total** (risco). Quanto maior o Sharpe, melhor o retorno para o nível de risco assumido.
                 *   **Interpretação Geral:**
@@ -1146,7 +1157,7 @@ try:
                     *   **≥ 3.0:** Excepcional, performance muito consistente.
                 """)
             with col_vol_2:
-                st.metric("Sortino Ratio", f"{sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "N/A")
+                st.metric("Sortino Ratio", f"{metrics.get('Sortino Ratio'):.2f}" if not pd.isna(metrics.get('Sortino Ratio')) else "N/A")
                 st.info("""
                 **Sortino Ratio:** Similar ao Sharpe, mas foca apenas na **volatilidade de baixa** (downside volatility). Ele mede o excesso de retorno por unidade de risco de queda. É útil para investidores que se preocupam mais com perdas do que com a volatilidade geral.
                 *   **Interpretação Geral:**
@@ -1157,7 +1168,7 @@ try:
 
             col_vol_3, col_vol_4 = st.columns(2)
             with col_vol_3:
-                st.metric("Information Ratio", f"{information_ratio:.2f}" if not pd.isna(information_ratio) else "N/A")
+                st.metric("Information Ratio", f"{metrics.get('Information Ratio'):.2f}" if not pd.isna(metrics.get('Information Ratio')) else "N/A")
                 st.info("""
                 **Information Ratio:** Mede a capacidade do gestor de gerar retornos acima de um benchmark (aqui, o CDI), ajustado pelo **tracking error** (risco de desvio em relação ao benchmark). Um valor alto indica que o gestor consistentemente superou o benchmark com um risco de desvio razoável.
                 *   **Interpretação Geral:**
@@ -1167,7 +1178,7 @@ try:
                     *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
                 """)
             with col_vol_4:
-                st.metric("Treynor Ratio", "Não Calculável" if not tem_cdi else "N/A")
+                st.metric("Treynor Ratio", "Não Calculável" if not metrics.get('Tem CDI') else "N/A")
                 st.info("""
                 **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
                 *   **Interpretação:** Um valor mais alto é preferível. É mais útil para comparar fundos com Betas semelhantes.
@@ -1178,7 +1189,7 @@ try:
             col_dd_1, col_dd_2 = st.columns(2)
 
             with col_dd_1:
-                st.metric("Calmar Ratio", f"{calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "N/A")
+                st.metric("Calmar Ratio", f"{metrics.get('Calmar Ratio'):.2f}" if not pd.isna(metrics.get('Calmar Ratio')) else "N/A")
                 st.info("""
                 **Calmar Ratio:** Mede o retorno ajustado ao risco, comparando o **CAGR** (retorno anualizado) do fundo com o seu **maior drawdown** (maior queda). Um valor mais alto indica que o fundo gerou bons retornos sem grandes perdas.
                 *   **Interpretação Geral:**
@@ -1188,7 +1199,7 @@ try:
                     *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
                 """)
             with col_dd_2:
-                st.metric("Sterling Ratio", f"{sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "N/A")
+                st.metric("Sterling Ratio", f"{metrics.get('Sterling Ratio'):.2f}" if not pd.isna(metrics.get('Sterling Ratio')) else "N/A")
                 st.info("""
                 **Sterling Ratio:** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
                 *   **Interpretação Geral:**
@@ -1200,7 +1211,7 @@ try:
 
             col_dd_3, col_dd_4 = st.columns(2)
             with col_dd_3:
-                st.metric("Ulcer Index", f"{ulcer_index:.2f}" if not pd.isna(ulcer_index) else "N/A")
+                st.metric("Ulcer Index", f"{metrics.get('Ulcer Index'):.2f}" if not pd.isna(metrics.get('Ulcer Index')) else "N/A")
                 st.info("""
                 **Ulcer Index:** Mede a profundidade e a duração dos drawdowns (quedas). Quanto menor o índice, menos dolorosas e mais curtas foram as quedas do fundo. É uma medida de risco que foca na "dor" do investidor.
                 *   **Interpretação Geral:**
@@ -1209,7 +1220,7 @@ try:
                     *   **> 2.0:** Alto risco, fundo com quedas significativas e/ou duradouras.
                 """)
             with col_dd_4:
-                st.metric("Martin Ratio", f"{martin_ratio:.2f}" if not pd.isna(martin_ratio) else "N/A")
+                st.metric("Martin Ratio", f"{metrics.get('Martin Ratio'):.2f}" if not pd.isna(metrics.get('Martin Ratio')) else "N/A")
                 st.info("""
                 **Martin Ratio:** Avalia o retorno ajustado ao risco dividindo o excesso de retorno anualizado (acima do CDI) pelo **Ulcer Index**. Um valor mais alto indica um melhor desempenho em relação ao risco de drawdown.
                 *   **Interpretação Geral:**
@@ -1224,11 +1235,10 @@ try:
             Os intervalos e classificações acima são **diretrizes gerais** baseadas em práticas comuns do mercado financeiro e literaturas de investimento. A interpretação de qualquer métrica de risco-retorno deve sempre considerar o **contexto específico do fundo** (estratégia, classe de ativos, objetivo), as **condições de mercado** no período analisado e o **perfil de risco do investidor**. Não há um "número mágico" que sirva para todos os casos.
             """)
 
-        elif not tem_cdi:
+        elif not metrics.get('Tem CDI'):
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar as Métricas de Risco-Retorno.")
         else:
             st.warning("⚠️ Não há dados suficientes para calcular as Métricas de Risco-Retorno (mínimo de 1 ano de dados).")
-
 
     with tab3:
         st.subheader("Patrimônio e Captação Líquida")
@@ -1262,7 +1272,6 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig6, use_container_width=True)
 
@@ -1280,7 +1289,10 @@ try:
                 name='Captação Líquida Mensal',
                 marker_color=colors,
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
-                customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']]
+                customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
+                text=df_monthly['Captacao_Liquida'].apply(format_brl), # Adiciona texto nas barras
+                textposition='outside',
+                textfont=dict(color='black', size=10)
             )
         ])
 
@@ -1290,13 +1302,13 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Inter, sans-serif"),
+            yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.2, df_monthly['Captacao_Liquida'].max() * 1.2]) # Ajusta range para texto
         )
-        # Ajusta o range do eixo X para os dados de df_monthly
         if not df_monthly.empty:
             fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
         else:
-            fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
+            fig7 = add_watermark_and_style(fig7, logo_base64)
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -1331,7 +1343,6 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
-        # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig8, use_container_width=True)
 
@@ -1348,14 +1359,13 @@ try:
 
         df_returns = df.copy()
         for nome, dias in janelas.items():
-            # Certifica-se de que há dados suficientes para a janela
             if len(df_returns) > dias:
                 df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
-                if tem_cdi:
+                if metrics.get('Tem CDI'):
                     df_returns[f'CDI_{nome}'] = df_returns['CDI_COTA'] / df_returns['CDI_COTA'].shift(dias) - 1
             else:
                 df_returns[f'FUNDO_{nome}'] = np.nan
-                if tem_cdi:
+                if metrics.get('Tem CDI'):
                     df_returns[f'CDI_{nome}'] = np.nan
 
         janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
@@ -1363,7 +1373,6 @@ try:
         if not df_returns[f'FUNDO_{janela_selecionada}'].dropna().empty:
             fig9 = go.Figure()
 
-            # Retorno do Fundo
             fig9.add_trace(go.Scatter(
                 x=df_returns['DT_COMPTC'],
                 y=df_returns[f'FUNDO_{janela_selecionada}'],
@@ -1375,8 +1384,7 @@ try:
                 hovertemplate="<b>Retorno do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
-            # Retorno do CDI (se disponível)
-            if tem_cdi:
+            if metrics.get('Tem CDI'):
                 fig9.add_trace(go.Scatter(
                     x=df_returns['DT_COMPTC'],
                     y=df_returns[f'CDI_{janela_selecionada}'],
@@ -1402,20 +1410,18 @@ try:
                     x=1
                 )
             )
-            # Ajusta o range do eixo X para os dados de df_returns
             df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
             if not df_plot_returns.empty:
                 fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
             else:
-                fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
+                fig9 = add_watermark_and_style(fig9, logo_base64)
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
-        # GRÁFICO: Consistência em Janelas Móveis
         st.subheader("Consistência em Janelas Móveis")
 
-        if tem_cdi:
+        if metrics.get('Tem CDI'):
             consistency_data = []
             for nome, dias in janelas.items():
                 fund_col = f'FUNDO_{nome}'
@@ -1443,10 +1449,9 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    # Adiciona o texto nas barras
                     text=df_consistency['Consistencia'].apply(lambda x: f'{x:.2f}%'),
-                    textposition='outside', # Posição do texto fora da barra
-                    textfont=dict(color='black', size=12), # Cor e tamanho da fonte do texto
+                    textposition='outside',
+                    textfont=dict(color='black', size=12),
                     hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
                 ))
 
@@ -1457,7 +1462,7 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 110], ticksuffix="%") # Aumenta o range superior para dar mais espaço ao texto
+                    yaxis=dict(range=[0, 110], ticksuffix="%")
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency, use_container_width=True)
@@ -1466,10 +1471,103 @@ try:
         else:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar a Consistência em Janelas Móveis.")
 
+# Se múltiplos fundos forem selecionados, exibir a tabela de métricas de risco-retorno
+elif len(st.session_state.cnpjs_list) > 1:
+    st.markdown("<h2>Comparativo de Fundos</h2>", unsafe_allow_html=True)
+    st.warning("⚠️ Para análise detalhada e gráficos individuais, selecione apenas um CNPJ.")
 
-except Exception as e:
-    st.error(f"❌ Erro ao carregar os dados: {str(e)}")
-    st.info("💡 Verifique se o CNPJ está correto e se há dados disponíveis para o período selecionado.")
+    if st.session_state.fund_metrics_summary:
+        # Coletar métricas para a tabela
+        table_data = {}
+        metric_names = [
+            'Sharpe Ratio', 'Sortino Ratio', 'Information Ratio',
+            'Calmar Ratio', 'Sterling Ratio', 'Ulcer Index', 'Martin Ratio'
+        ]
+
+        for metric in metric_names:
+            table_data[metric] = {
+                cnpj: st.session_state.fund_metrics_summary[cnpj].get(metric)
+                for cnpj in st.session_state.cnpjs_list
+                if cnpj in st.session_state.fund_metrics_summary
+            }
+
+        df_metrics_table = pd.DataFrame(table_data).T
+        df_metrics_table.index.name = "Métrica"
+
+        # Formatar os valores da tabela
+        def format_metric_value(value):
+            if pd.isna(value):
+                return "N/A"
+            return f"{value:.2f}".replace('.', ',')
+
+        st.subheader("Métricas de Risco-Retorno Comparativas")
+        st.dataframe(df_metrics_table.applymap(format_metric_value), use_container_width=True)
+
+        # Explicações das métricas em um expander
+        with st.expander("Clique para ver as explicações das Métricas de Risco-Retorno"):
+            st.markdown("#### RISCO MEDIDO PELA VOLATILIDADE:")
+            st.info("""
+            **Sharpe Ratio:** Mede o excesso de retorno do fundo (acima do CDI) por unidade de **volatilidade total** (risco). Quanto maior o Sharpe, melhor o retorno para o nível de risco assumido.
+            *   **Interpretação Geral:**
+                *   **< 1.0:** Subótimo, o retorno não compensa adequadamente o risco.
+                *   **1.0 - 1.99:** Bom, o fundo gera um bom retorno para o risco.
+                *   **2.0 - 2.99:** Muito Bom, excelente retorno ajustado ao risco.
+                *   **≥ 3.0:** Excepcional, performance muito consistente.
+            """)
+            st.info("""
+            **Sortino Ratio:** Similar ao Sharpe, mas foca apenas na **volatilidade de baixa** (downside volatility). Ele mede o excesso de retorno por unidade de risco de queda. É útil para investidores que se preocupam mais com perdas do que com a volatilidade geral.
+            *   **Interpretação Geral:**
+                *   **< 0.0:** Retorno não cobre o risco de queda.
+                *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de queda.
+                *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de perdas.
+            """)
+            st.info("""
+            **Information Ratio:** Mede a capacidade do gestor de gerar retornos acima de um benchmark (aqui, o CDI), ajustado pelo **tracking error** (risco de desvio em relação ao benchmark). Um valor alto indica que o gestor consistentemente superou o benchmark com um risco de desvio razoável.
+            *   **Interpretação Geral:**
+                *   **< 0.0:** O fundo está consistentemente abaixo do benchmark.
+                *   **0.0 - 0.5:** Habilidade modesta em superar o benchmark.
+                *   **0.5 - 1.0:** Boa habilidade e consistência em superar o benchmark.
+                *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
+            """)
+            st.info("""
+            **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
+            *   **Interpretação:** Um valor mais alto é preferível. É mais útil para comparar fundos com Betas semelhantes.
+            *   **Observação:** *Não é possível calcular este índice sem dados de um índice de mercado (benchmark) para determinar o Beta do fundo.*
+            """)
+
+            st.markdown("#### RISCO MEDIDO PELO DRAWDOWN:")
+            st.info("""
+            **Calmar Ratio:** Mede o retorno ajustado ao risco, comparando o **CAGR** (retorno anualizado) do fundo com o seu **maior drawdown** (maior queda). Um valor mais alto indica que o fundo gerou bons retornos sem grandes perdas.
+            *   **Interpretação Geral:**
+                *   **< 0.0:** Retorno negativo ou drawdown muito grande.
+                *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
+                *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
+                *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
+            """)
+            st.info("""
+            **Sterling Ratio:** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
+            *   **Interpretação Geral:**
+                *   **< 0.0:** Retorno negativo ou drawdown muito grande.
+                *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
+                *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
+                *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
+            """)
+            st.info("""
+            **Ulcer Index:** Mede a profundidade e a duração dos drawdowns (quedas). Quanto menor o índice, menos dolorosas e mais curtas foram as quedas do fundo. É uma medida de risco que foca na "dor" do investidor.
+            *   **Interpretação Geral:**
+                *   **< 1.0:** Baixo risco, fundo relativamente estável.
+                *   **1.0 - 2.0:** Risco moderado, com quedas mais frequentes ou profundas.
+                *   **> 2.0:** Alto risco, fundo com quedas significativas e/ou duradouras.
+            """)
+            st.info("""
+            **Martin Ratio:** Avalia o retorno ajustado ao risco dividindo o excesso de retorno anualizado (acima do CDI) pelo **Ulcer Index**. Um valor mais alto indica um melhor desempenho em relação ao risco de drawdown.
+            *   **Interpretação Geral:**
+                *   **< 0.0:** O fundo não compensa o risco de drawdown.
+                *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de drawdown.
+                *   **> 1.0:** Bom, o fundo entrega um bom retorno considerando a "dor" dos drawdowns.
+            """)
+    else:
+        st.warning("⚠️ Não há dados disponíveis para nenhum dos fundos selecionados para comparação.")
 
 # Footer
 st.markdown("---")
