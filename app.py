@@ -1248,7 +1248,7 @@ try:
             # --- Cálculos para CDI ---
             if tem_cdi:
                 total_cdi_return = (df['CDI_COTA'].iloc[-1] / df['CDI_COTA'].iloc[0]) - 1
-                annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
+                annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_period / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs CDI)
                 tracking_error_cdi = np.nan
@@ -1276,7 +1276,7 @@ try:
             # --- Cálculos para Ibovespa ---
             if tem_ibovespa:
                 total_ibovespa_return = (df['IBOVESPA_COTA'].iloc[-1] / df['IBOVESPA_COTA'].iloc[0]) - 1
-                annualized_ibovespa_return = (1 + total_ibovespa_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
+                annualized_ibovespa_return = (1 + total_ibovespa_return)**(trading_days_in_period / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs Ibovespa)
                 tracking_error_ibov = np.nan
@@ -1453,7 +1453,7 @@ try:
                         *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
                         *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
                     """)
-                with col_dd_ibov_2:
+                with col_dd_2:
                     st.metric("Sterling Ratio (vs. Ibovespa)", f"{sterling_ratio_ibov:.2f}" if not pd.isna(sterling_ratio_ibov) else "N/A")
                     st.info("""
                     **Sterling Ratio (vs. Ibovespa):** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
@@ -1736,4 +1736,81 @@ try:
                 fig_consistency_cdi = add_watermark_and_style(fig_consistency_cdi, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency_cdi, use_container_width=True)
             else:
-                st.warning("
+                st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis (vs. CDI).")
+        elif st.session_state.mostrar_cdi:
+            st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis (vs. CDI).")
+        else:
+            st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar a Consistência em Janelas Móveis (vs. CDI).")
+
+        # GRÁFICO: Consistência em Janelas Móveis (vs Ibovespa)
+        st.subheader("Consistência em Janelas Móveis (vs. Ibovespa)")
+
+        if tem_ibovespa:
+            consistency_data_ibovespa = []
+            for nome, dias in janelas.items():
+                fund_col = f'FUNDO_{nome}'
+                ibovespa_col = f'IBOVESPA_{nome}'
+
+                if fund_col in df_returns.columns and ibovespa_col in df_returns.columns:
+                    temp_df = df_returns[[fund_col, ibovespa_col]].dropna()
+
+                    if not temp_df.empty:
+                        outperformed_count = (temp_df[fund_col] > temp_df[ibovespa_col]).sum()
+                        total_comparisons = len(temp_df)
+                        consistency_percentage = (outperformed_count / total_comparisons) * 100 if total_comparisons > 0 else 0
+                        consistency_data_ibovespa.append({'Janela': nome.split(' ')[0], 'Consistencia': consistency_percentage})
+                    else:
+                        consistency_data_ibovespa.append({'Janela': nome.split(' ')[0], 'Consistencia': np.nan})
+                else:
+                    consistency_data_ibovespa.append({'Janela': nome.split(' ')[0], 'Consistencia': np.nan})
+
+            df_consistency_ibovespa = pd.DataFrame(consistency_data_ibovespa)
+            df_consistency_ibovespa.dropna(subset=['Consistencia'], inplace=True)
+
+            if not df_consistency_ibovespa.empty:
+                fig_consistency_ibovespa = go.Figure()
+                fig_consistency_ibovespa.add_trace(go.Bar(
+                    x=df_consistency_ibovespa['Janela'],
+                    y=df_consistency_ibovespa['Consistencia'],
+                    marker_color=color_ibovespa, # Cor do Ibovespa
+                    text=df_consistency_ibovespa['Consistencia'].apply(lambda x: f'{x:.2f}%'),
+                    textposition='outside',
+                    textfont=dict(color='black', size=12),
+                    hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
+                ))
+
+                fig_consistency_ibovespa.update_layout(
+                    xaxis_title="Janela (meses)",
+                    yaxis_title="Percentual de Superação do Ibovespa (%)",
+                    template="plotly_white",
+                    hovermode="x unified",
+                    height=500,
+                    font=dict(family="Inter, sans-serif"),
+                    yaxis=dict(range=[0, 110], ticksuffix="%")
+                )
+                fig_consistency_ibovespa = add_watermark_and_style(fig_consistency_ibovespa, logo_base64, x_autorange=True)
+                st.plotly_chart(fig_consistency_ibovespa, use_container_width=True)
+            else:
+                st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis (vs. Ibovespa).")
+        elif st.session_state.mostrar_ibovespa:
+            st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis (vs. Ibovespa).")
+        else:
+            st.info("ℹ️ Selecione a opção 'Comparar com Ibovespa' na barra lateral para visualizar a Consistência em Janelas Móveis (vs. Ibovespa).")
+
+
+except Exception as e:
+    st.error(f"❌ Erro ao carregar os dados: {str(e)}")
+    st.info("💡 Verifique se o CNPJ está correto e se há dados disponíveis para o período selecionado.")
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
+    <p style='margin: 0; font-size: 0.9rem;'>
+        <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
+    </p>
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem;'>
+        Análise de Fundos de Investimentos • Copaíba Invest • 2025
+    </p>
+</div>
+""", unsafe_allow_html=True)
