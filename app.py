@@ -500,7 +500,7 @@ with col2_sidebar:
     )
 
 # Opção para mostrar CDI
-st.sidebar.markdown("#### 📈 Indicadores de Comparação")
+st.sidebar.markdown("#### Indicadores de Comparação")
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
 
 st.sidebar.markdown("---")
@@ -537,10 +537,10 @@ if data_inicial_input and data_final_input:
             st.sidebar.error("❌ Erro ao processar datas")
 
 # Botão para carregar dados
-carregar_button = st.sidebar.button("🔄 Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
+carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
 
 # Título principal
-st.markdown("<h1>📊 Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Função para carregar dados
@@ -765,19 +765,19 @@ try:
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        st.metric("💰 Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
+        st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
     with col2:
-        st.metric("📈 Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
+        st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
     with col3:
-        st.metric("📊 CAGR Médio", fmt_pct_port(mean_cagr / 100))
+        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
     with col4:
-        st.metric("📉 Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
     with col5:
-        st.metric(" Vol. Histórica", fmt_pct_port(vol_hist))
+        st.metric("Vol. Histórica", fmt_pct_port(vol_hist/100))
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📈 Rentabilidade", "📉 Risco", "💰 Patrimônio e Captação",
-        "👥 Cotistas", "🎯 Janelas Móveis"
+        "Rentabilidade", "Risco", "Patrimônio e Captação",
+        "Cotistas", "Janelas Móveis"
     ])
 
     with tab1:
@@ -824,7 +824,7 @@ try:
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig1, use_container_width=True)
 
-        st.subheader("📊 CAGR Anual por Dia de Aplicação")
+        st.subheader("CAGR Anual por Dia de Aplicação")
 
         fig2 = go.Figure()
 
@@ -1266,7 +1266,7 @@ try:
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig6, use_container_width=True)
 
-        st.subheader("📊 Captação Líquida Mensal")
+        st.subheader("Captação Líquida Mensal")
 
         df_monthly = df.groupby(pd.Grouper(key='DT_COMPTC', freq='M'))[['CAPTC_DIA', 'RESG_DIA']].sum()
         df_monthly['Captacao_Liquida'] = df_monthly['CAPTC_DIA'] - df_monthly['RESG_DIA']
