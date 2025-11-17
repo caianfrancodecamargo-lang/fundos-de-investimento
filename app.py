@@ -455,7 +455,7 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# FUNÇÃO PARA OBTER DADOS REAIS DO IBOVESPA
+# FUNÇÃO PARA OBTER DADOS REAIS DO IBOVESPA (COM FALLBACK PARA 'Close')
 @st.cache_data
 def obter_dados_ibovespa_real(data_inicio: datetime, data_fim: datetime):
     """
@@ -471,17 +471,22 @@ def obter_dados_ibovespa_real(data_inicio: datetime, data_fim: datetime):
         ibovespa_diario = yf.download("^BVSP", start=data_inicio, end=data_fim, progress=False)
 
         if ibovespa_diario.empty:
-            st.warning(f"⚠️ Nenhum dado encontrado para o Ibovespa no período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}.")
+            st.warning(f"⚠️ Nenhum dado encontrado para o Ibovespa no período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}. Retornando DataFrame vazio para Ibovespa.")
             return pd.DataFrame()
 
         ibovespa_diario = ibovespa_diario.reset_index()
 
-        # Adiciona verificação para 'Adj Close' antes de renomear
-        if 'Adj Close' not in ibovespa_diario.columns:
-            st.warning(f"⚠️ Coluna 'Adj Close' não encontrada nos dados do Ibovespa para o período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}. Retornando DataFrame vazio para Ibovespa.")
+        # Tenta usar 'Adj Close', se não existir, tenta 'Close'
+        price_column = None
+        if 'Adj Close' in ibovespa_diario.columns:
+            price_column = 'Adj Close'
+        elif 'Close' in ibovespa_diario.columns:
+            price_column = 'Close'
+        else:
+            st.warning(f"⚠️ Nenhuma coluna de preço ('Adj Close' ou 'Close') encontrada nos dados do Ibovespa para o período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}. Colunas disponíveis: {ibovespa_diario.columns.tolist()}. Retornando DataFrame vazio para Ibovespa.")
             return pd.DataFrame()
 
-        ibovespa_diario = ibovespa_diario.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'VL_IBOVESPA'})
+        ibovespa_diario = ibovespa_diario.rename(columns={'Date': 'DT_COMPTC', price_column: 'VL_IBOVESPA'})
 
         # Adiciona verificação para 'VL_IBOVESPA' após renomear
         if 'VL_IBOVESPA' not in ibovespa_diario.columns:
@@ -933,6 +938,7 @@ try:
                 x=1
             )
         )
+        # Ajusta o range do eixo X para os dados de df
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig1, use_container_width=True)
 
@@ -940,12 +946,14 @@ try:
 
         fig2 = go.Figure()
 
+        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
         df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
 
         if not df_plot_cagr.empty:
+            # CAGR do Fundo
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
-                y=df_plot_cagr['CAGR_Fundo'],
+                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de CAGR
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
@@ -953,13 +961,14 @@ try:
             ))
 
             fig2.add_trace(go.Scatter(
-                x=df_plot_cagr['DT_COMPTC'],
+                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
                 y=[mean_cagr] * len(df_plot_cagr),
                 mode='lines',
                 line=dict(dash='dash', color=color_secondary, width=2),
                 name=f'CAGR Médio ({mean_cagr:.2f}%)'
             ))
 
+            # CAGR do CDI (se disponível)
             if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
@@ -970,7 +979,8 @@ try:
                     hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
 
-            if tem_ibovespa and 'CAGR_Ibovespa' in df_plot_cagr.columns: # Adiciona CAGR Ibovespa
+            # CAGR do Ibovespa (se disponível)
+            if tem_ibovespa and 'CAGR_Ibovespa' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
                     y=df_plot_cagr['CAGR_Ibovespa'],
@@ -979,50 +989,10 @@ try:
                     line=dict(color=color_ibovespa, width=2.5),
                     hovertemplate='<b>CAGR do Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
-        else:
-            st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano de dados).")
 
-        fig2.update_layout(
-            xaxis_title="Data",
-            yaxis_title="CAGR (% a.a)",
-            template="plotly_white",
-            hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
-        )
-        if not df_plot_cagr.empty:
-            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
-        else:
-            fig2 = add_watermark_and_style(fig2, logo_base64)
-        st.plotly_chart(fig2, use_container_width=True)
-
-        # NOVO GRÁFICO: Excesso de Retorno Anualizado (vs CDI)
-        st.subheader("Excesso de Retorno Anualizado (vs. CDI)")
-
-        if tem_cdi and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_CDI']).empty:
-            fig_excesso_retorno_cdi = go.Figure()
-
-            fig_excesso_retorno_cdi.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['EXCESSO_RETORNO_ANUALIZADO_CDI'],
-                mode='lines',
-                name='Excesso de Retorno Anualizado (vs. CDI)',
-                line=dict(color=color_primary, width=2.5),
-                hovertemplate='<b>Excesso de Retorno (vs. CDI)</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
-            ))
-
-            fig_excesso_retorno_cdi.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
-
-            fig_excesso_retorno_cdi.update_layout(
-                xaxis_title="Data",
-                yaxis_title="Excesso de Retorno (% a.a)",
+            fig2.update_layout(
+                xaxis_title="Data de Início da Aplicação",
+                yaxis_title="CAGR Anualizado (%)",
                 template="plotly_white",
                 hovermode="x unified",
                 height=500,
@@ -1035,54 +1005,67 @@ try:
                     x=1
                 )
             )
-            df_plot_excess_cdi = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_CDI']).copy()
-            if not df_plot_excess_cdi.empty:
-                fig_excesso_retorno_cdi = add_watermark_and_style(fig_excesso_retorno_cdi, logo_base64, x_range=[df_plot_excess_cdi['DT_COMPTC'].min(), df_plot_excess_cdi['DT_COMPTC'].max()], x_autorange=False)
-            else:
-                fig_excesso_retorno_cdi = add_watermark_and_style(fig_excesso_retorno_cdi, logo_base64)
+            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano de dados).")
+
+        st.subheader("Excesso de Retorno Anualizado (vs. CDI)")
+
+        df_plot_excesso_cdi = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_CDI']).copy()
+        if tem_cdi and not df_plot_excesso_cdi.empty:
+            fig_excesso_retorno_cdi = go.Figure()
+            fig_excesso_retorno_cdi.add_trace(go.Scatter(
+                x=df_plot_excesso_cdi['DT_COMPTC'],
+                y=df_plot_excesso_cdi['EXCESSO_RETORNO_ANUALIZADO_CDI'],
+                mode='lines',
+                name='Excesso de Retorno vs. CDI',
+                line=dict(color=color_primary, width=2.5),
+                fill='tozeroy',
+                fillcolor='rgba(26, 95, 63, 0.1)',
+                hovertemplate='<b>Excesso de Retorno vs. CDI</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
+            ))
+            fig_excesso_retorno_cdi.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+            fig_excesso_retorno_cdi.update_layout(
+                xaxis_title="Data de Início da Aplicação",
+                yaxis_title="Excesso de Retorno Anualizado (%)",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                font=dict(family="Inter, sans-serif")
+            )
+            fig_excesso_retorno_cdi = add_watermark_and_style(fig_excesso_retorno_cdi, logo_base64, x_range=[df_plot_excesso_cdi['DT_COMPTC'].min(), df_plot_excesso_cdi['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig_excesso_retorno_cdi, use_container_width=True)
         elif st.session_state.mostrar_cdi:
             st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (vs. CDI). Verifique se há dados de CDI e CAGR para o período.")
         else:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado (vs. CDI).")
 
-        # NOVO GRÁFICO: Excesso de Retorno Anualizado (vs Ibovespa)
         st.subheader("Excesso de Retorno Anualizado (vs. Ibovespa)")
 
-        if tem_ibovespa and not df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_IBOVESPA']).empty:
+        df_plot_excesso_ibovespa = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_IBOVESPA']).copy()
+        if tem_ibovespa and not df_plot_excesso_ibovespa.empty:
             fig_excesso_retorno_ibovespa = go.Figure()
-
             fig_excesso_retorno_ibovespa.add_trace(go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['EXCESSO_RETORNO_ANUALIZADO_IBOVESPA'],
+                x=df_plot_excesso_ibovespa['DT_COMPTC'],
+                y=df_plot_excesso_ibovespa['EXCESSO_RETORNO_ANUALIZADO_IBOVESPA'],
                 mode='lines',
-                name='Excesso de Retorno Anualizado (vs. Ibovespa)',
-                line=dict(color=color_ibovespa, width=2.5),
-                hovertemplate='<b>Excesso de Retorno (vs. Ibovespa)</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
+                name='Excesso de Retorno vs. Ibovespa',
+                line=dict(color=color_primary, width=2.5),
+                fill='tozeroy',
+                fillcolor='rgba(26, 95, 63, 0.1)',
+                hovertemplate='<b>Excesso de Retorno vs. Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
             ))
-
             fig_excesso_retorno_ibovespa.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
-
             fig_excesso_retorno_ibovespa.update_layout(
-                xaxis_title="Data",
-                yaxis_title="Excesso de Retorno (% a.a)",
+                xaxis_title="Data de Início da Aplicação",
+                yaxis_title="Excesso de Retorno Anualizado (%)",
                 template="plotly_white",
                 hovermode="x unified",
                 height=500,
-                font=dict(family="Inter, sans-serif"),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
+                font=dict(family="Inter, sans-serif")
             )
-            df_plot_excess_ibovespa = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO_IBOVESPA']).copy()
-            if not df_plot_excess_ibovespa.empty:
-                fig_excesso_retorno_ibovespa = add_watermark_and_style(fig_excesso_retorno_ibovespa, logo_base64, x_range=[df_plot_excess_ibovespa['DT_COMPTC'].min(), df_plot_excess_ibovespa['DT_COMPTC'].max()], x_autorange=False)
-            else:
-                fig_excesso_retorno_ibovespa = add_watermark_and_style(fig_excesso_retorno_ibovespa, logo_base64)
+            fig_excesso_retorno_ibovespa = add_watermark_and_style(fig_excesso_retorno_ibovespa, logo_base64, x_range=[df_plot_excesso_ibovespa['DT_COMPTC'].min(), df_plot_excesso_ibovespa['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig_excesso_retorno_ibovespa, use_container_width=True)
         elif st.session_state.mostrar_ibovespa:
             st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (vs. Ibovespa). Verifique se há dados de Ibovespa e CAGR para o período.")
@@ -1095,6 +1078,7 @@ try:
 
         fig3 = go.Figure()
 
+        # Drawdown do Fundo (APENAS - SEM CDI)
         fig3.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Drawdown'],
@@ -1116,6 +1100,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
+        # Ajusta o range do eixo X para os dados de df
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig3, use_container_width=True)
 
@@ -1123,6 +1108,7 @@ try:
 
         fig4 = go.Figure()
 
+        # Volatilidade do Fundo (APENAS - SEM CDI)
         fig4.add_trace(go.Scatter(
             x=df['DT_COMPTC'],
             y=df['Volatilidade'],
@@ -1148,6 +1134,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
+        # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig4, use_container_width=True)
 
@@ -1190,7 +1177,8 @@ try:
                 mode='lines',
                 name='ES 99%',
                 line=dict(dash='dash', color='red', width=2)
-            ))
+            )
+            )
 
             fig5.update_layout(
                 xaxis_title="Data",
@@ -1200,6 +1188,7 @@ try:
                 height=600,
                 font=dict(family="Inter, sans-serif")
             )
+            # Ajusta o range do eixo X para os dados de df_plot_var
             fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig5, use_container_width=True)
 
@@ -1217,9 +1206,10 @@ try:
 
         st.subheader("Métricas de Risco-Retorno")
 
-        # --- Cálculos dos Novos Indicadores ---
-        # Inicializa todas as variáveis para evitar NameError
+        # --- Inicialização dos Novos Indicadores para CDI ---
         calmar_ratio_cdi, sterling_ratio_cdi, ulcer_index, martin_ratio_cdi, sharpe_ratio_cdi, sortino_ratio_cdi, information_ratio_cdi = [np.nan] * 7
+
+        # --- Inicialização dos Novos Indicadores para Ibovespa ---
         calmar_ratio_ibov, sterling_ratio_ibov, martin_ratio_ibov, sharpe_ratio_ibov, sortino_ratio_ibov, information_ratio_ibov = [np.nan] * 6
 
 
@@ -1227,7 +1217,7 @@ try:
             # Retorno total do fundo no período
             total_fund_return = (df['VL_QUOTA'].iloc[-1] / df['VL_QUOTA'].iloc[0]) - 1
 
-            # Anualização dos retornos totais para consistência
+            # Anualização do retorno total do fundo
             num_days_in_period = len(df)
             if num_days_in_period > 0:
                 annualized_fund_return = (1 + total_fund_return)**(trading_days_in_year / num_days_in_period) - 1
@@ -1261,7 +1251,6 @@ try:
             # --- Cálculos para CDI ---
             if tem_cdi:
                 total_cdi_return = (df['CDI_COTA'].iloc[-1] / df['CDI_COTA'].iloc[0]) - 1
-                # CORREÇÃO: Usar trading_days_in_year
                 annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs CDI)
@@ -1290,7 +1279,6 @@ try:
             # --- Cálculos para Ibovespa ---
             if tem_ibovespa:
                 total_ibovespa_return = (df['IBOVESPA_COTA'].iloc[-1] / df['IBOVESPA_COTA'].iloc[0]) - 1
-                # CORREÇÃO: Usar trading_days_in_year
                 annualized_ibovespa_return = (1 + total_ibovespa_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs Ibovespa)
@@ -1356,9 +1344,9 @@ try:
                         *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
                     """)
                 with col_vol_4:
-                    st.metric("Treynor Ratio", "Não Calculável" if not tem_cdi else "N/A")
+                    st.metric("Treynor Ratio (vs. CDI)", "Não Calculável" if not tem_cdi else "N/A")
                     st.info("""
-                    **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
+                    **Treynor Ratio (vs. CDI):** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
                     *   **Interpretação:** Um valor mais alto é preferível. É mais útil para comparar fundos com Betas semelhantes.
                     *   **Observação:** *Não é possível calcular este índice sem dados de um índice de mercado (benchmark) para determinar o Beta do fundo.*
                     """)
@@ -1468,7 +1456,7 @@ try:
                         *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
                         *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
                     """)
-                with col_dd_2:
+                with col_dd_ibov_2:
                     st.metric("Sterling Ratio (vs. Ibovespa)", f"{sterling_ratio_ibov:.2f}" if not pd.isna(sterling_ratio_ibov) else "N/A")
                     st.info("""
                     **Sterling Ratio (vs. Ibovespa):** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
@@ -1545,6 +1533,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
+        # Ajusta o range do eixo X para os dados de df
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig6, use_container_width=True)
 
@@ -1574,10 +1563,11 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
+        # Ajusta o range do eixo X para os dados de df_monthly
         if not df_monthly.empty:
             fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
         else:
-            fig7 = add_watermark_and_style(fig7, logo_base64)
+            fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
         st.plotly_chart(fig7, use_container_width=True)
 
     with tab4:
@@ -1612,6 +1602,7 @@ try:
             height=500,
             font=dict(family="Inter, sans-serif")
         )
+        # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig8, use_container_width=True)
 
@@ -1628,6 +1619,7 @@ try:
 
         df_returns = df.copy()
         for nome, dias in janelas.items():
+            # Certifica-se de que há dados suficientes para a janela
             if len(df_returns) > dias:
                 df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
                 if tem_cdi:
@@ -1646,6 +1638,7 @@ try:
         if not df_returns[f'FUNDO_{janela_selecionada}'].dropna().empty:
             fig9 = go.Figure()
 
+            # Retorno do Fundo
             fig9.add_trace(go.Scatter(
                 x=df_returns['DT_COMPTC'],
                 y=df_returns[f'FUNDO_{janela_selecionada}'],
@@ -1657,6 +1650,7 @@ try:
                 hovertemplate="<b>Retorno do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
 
+            # Retorno do CDI (se disponível)
             if tem_cdi:
                 fig9.add_trace(go.Scatter(
                     x=df_returns['DT_COMPTC'],
@@ -1667,7 +1661,8 @@ try:
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
-            if tem_ibovespa: # Adiciona Ibovespa
+            # Retorno do Ibovespa (se disponível)
+            if tem_ibovespa:
                 fig9.add_trace(go.Scatter(
                     x=df_returns['DT_COMPTC'],
                     y=df_returns[f'IBOVESPA_{janela_selecionada}'],
@@ -1693,11 +1688,12 @@ try:
                     x=1
                 )
             )
+            # Ajusta o range do eixo X para os dados de df_returns
             df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
             if not df_plot_returns.empty:
                 fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
             else:
-                fig9 = add_watermark_and_style(fig9, logo_base64)
+                fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
@@ -1733,9 +1729,10 @@ try:
                     x=df_consistency_cdi['Janela'],
                     y=df_consistency_cdi['Consistencia'],
                     marker_color=color_primary,
+                    # Adiciona o texto nas barras
                     text=df_consistency_cdi['Consistencia'].apply(lambda x: f'{x:.2f}%'),
-                    textposition='outside',
-                    textfont=dict(color='black', size=12),
+                    textposition='outside', # Posição do texto fora da barra
+                    textfont=dict(color='black', size=12), # Cor e tamanho da fonte do texto
                     hovertemplate='<b>Janela:</b> %{x}<br><b>Consistência:</b> %{y:.2f}%<extra></extra>'
                 ))
 
@@ -1746,7 +1743,7 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 110], ticksuffix="%")
+                    yaxis=dict(range=[0, 110], ticksuffix="%") # Aumenta o range superior para dar mais espaço ao texto
                 )
                 fig_consistency_cdi = add_watermark_and_style(fig_consistency_cdi, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency_cdi, use_container_width=True)
