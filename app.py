@@ -471,10 +471,23 @@ def obter_dados_ibovespa_real(data_inicio: datetime, data_fim: datetime):
         ibovespa_diario = yf.download("^BVSP", start=data_inicio, end=data_fim, progress=False)
 
         if ibovespa_diario.empty:
+            st.warning(f"⚠️ Nenhum dado encontrado para o Ibovespa no período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}.")
             return pd.DataFrame()
 
         ibovespa_diario = ibovespa_diario.reset_index()
+
+        # Adiciona verificação para 'Adj Close' antes de renomear
+        if 'Adj Close' not in ibovespa_diario.columns:
+            st.warning(f"⚠️ Coluna 'Adj Close' não encontrada nos dados do Ibovespa para o período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}. Retornando DataFrame vazio para Ibovespa.")
+            return pd.DataFrame()
+
         ibovespa_diario = ibovespa_diario.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'VL_IBOVESPA'})
+
+        # Adiciona verificação para 'VL_IBOVESPA' após renomear
+        if 'VL_IBOVESPA' not in ibovespa_diario.columns:
+            st.warning(f"⚠️ Erro inesperado: 'VL_IBOVESPA' não encontrada após renomear. Dados do Ibovespa podem estar incompletos para o período {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}. Retornando DataFrame vazio para Ibovespa.")
+            return pd.DataFrame()
+
         ibovespa_diario = ibovespa_diario[['DT_COMPTC', 'VL_IBOVESPA']] # Manter apenas colunas relevantes
 
         # Preencher valores ausentes com o último valor válido (pode ocorrer em feriados, etc.)
@@ -1248,7 +1261,8 @@ try:
             # --- Cálculos para CDI ---
             if tem_cdi:
                 total_cdi_return = (df['CDI_COTA'].iloc[-1] / df['CDI_COTA'].iloc[0]) - 1
-                annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_period / num_days_in_period) - 1 if num_days_in_period > 0 else 0
+                # CORREÇÃO: Usar trading_days_in_year
+                annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs CDI)
                 tracking_error_cdi = np.nan
@@ -1276,7 +1290,8 @@ try:
             # --- Cálculos para Ibovespa ---
             if tem_ibovespa:
                 total_ibovespa_return = (df['IBOVESPA_COTA'].iloc[-1] / df['IBOVESPA_COTA'].iloc[0]) - 1
-                annualized_ibovespa_return = (1 + total_ibovespa_return)**(trading_days_in_period / num_days_in_period) - 1 if num_days_in_period > 0 else 0
+                # CORREÇÃO: Usar trading_days_in_year
+                annualized_ibovespa_return = (1 + total_ibovespa_return)**(trading_days_in_year / num_days_in_period) - 1 if num_days_in_period > 0 else 0
 
                 # Tracking Error (vs Ibovespa)
                 tracking_error_ibov = np.nan
