@@ -496,8 +496,20 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
         # Transforma o índice em coluna
         df_ibovespa = df_ibovespa.reset_index()
 
-        # Altera o nome da coluna para DT_COMPTC e usa a coluna 'Close' para os cálculos
-        df_ibovespa = df_ibovespa.rename(columns={'Date': 'DT_COMPTC', 'Close': 'IBOV'})
+        # NOVO: Lógica para identificar a coluna de fechamento, seja 'Close' ou 'Close_^BVSP'
+        close_col_options = ['Close', 'Close_^BVSP']
+        selected_close_col = None
+        for col_option in close_col_options:
+            if col_option in df_ibovespa.columns:
+                selected_close_col = col_option
+                break
+
+        if selected_close_col is None:
+            st.error("❌ Não foi possível encontrar a coluna de fechamento do Ibovespa ('Close' ou 'Close_^BVSP').")
+            return pd.DataFrame()
+
+        # Altera o nome da coluna para DT_COMPTC e usa a coluna de fechamento identificada
+        df_ibovespa = df_ibovespa.rename(columns={'Date': 'DT_COMPTC', selected_close_col: 'IBOV'})
 
         # Garante tipo datetime
         df_ibovespa['DT_COMPTC'] = pd.to_datetime(df_ibovespa['DT_COMPTC'])
@@ -813,6 +825,7 @@ try:
             if tem_ibov and 'IBOV_COTA' in df.columns: # NOVO
                 initial_value_ibov = df['IBOV_COTA'].iloc[i]
                 if initial_value_ibov > 0 and num_intervals > 0:
+                    end_value_ibov = df['IBOV_COTA'].iloc[-1]
                     df.loc[i, 'CAGR_IBOV'] = ((end_value_ibov / initial_value_ibov) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
