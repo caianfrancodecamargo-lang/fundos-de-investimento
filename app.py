@@ -17,10 +17,11 @@ import os # Para gerenciar arquivos temporários
 try:
     from fpdf import FPDF
     from PIL import Image # Usado para converter SVG para imagem para FPDF
+    import plotly.io as pio # Para exportar gráficos como imagem
     PDF_DISPONIVEL = True
 except ImportError:
     PDF_DISPONIVEL = False
-    st.warning("⚠️ Bibliotecas 'fpdf2' e/ou 'Pillow' não encontradas. Instale com: pip install fpdf2 Pillow")
+    st.warning("⚠️ Bibliotecas 'fpdf2', 'Pillow' e/ou 'plotly' não encontradas. Instale com: pip install fpdf2 Pillow plotly")
 
 # Importar biblioteca para obter dados do CDI
 try:
@@ -550,13 +551,14 @@ if data_inicial_input and data_final_input:
 # Botão para carregar dados
 carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
 
-# Título principal
+# Título principal e botão de relatório
 title_col, report_button_col = st.columns([0.7, 0.3])
 with title_col:
     st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
 with report_button_col:
-    st.markdown("<div style='height: 4.5rem;'></div>", unsafe_allow_html=True) # Espaçamento para alinhar
+    st.markdown("<div style='margin-top: 2.5rem;'>", unsafe_allow_html=True) # Ajuste de margem para alinhar
     gerar_relatorio_button = st.button("Gerar Relatório PDF 📄", disabled=not st.session_state.get('dados_carregados', False))
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -602,6 +604,9 @@ def fmt_pct_port(x):
 
 # --- Funções de Análise Interpretativa ---
 def analisar_rentabilidade_acumulada(rent_acum, rent_cdi_acum):
+    if pd.isna(rent_acum):
+        return "Não foi possível calcular a Rentabilidade Acumulada do fundo."
+
     analise = f"A rentabilidade acumulada do fundo no período é de {fmt_pct_port(rent_acum/100)}. "
     if pd.isna(rent_cdi_acum):
         analise += "Não foi possível comparar com o CDI."
@@ -624,6 +629,9 @@ def analisar_rentabilidade_acumulada(rent_acum, rent_cdi_acum):
     return analise
 
 def analisar_cagr(cagr_fundo, cagr_cdi):
+    if pd.isna(cagr_fundo):
+        return "Não foi possível calcular o CAGR do fundo."
+
     analise = f"O CAGR (Taxa de Crescimento Anual Composta) médio do fundo é de {fmt_pct_port(cagr_fundo/100)}. "
     if pd.isna(cagr_cdi):
         analise += "Não foi possível comparar com o CDI."
@@ -849,324 +857,296 @@ def analisar_martin_ratio(martin_ratio):
         analise += "\n\n**Pontos Positivos:** O fundo ainda gera retorno positivo."
         analise += "\n**Pontos Negativos:** O risco de drawdown pode ser elevado em relação ao retorno gerado."
     else: # martin_ratio < 0.0
-        analise += "O Martin Ratio é **negativo**, indicando que o fundo não conseguiu gerar um retorno superior ao CDI que justificasse a 'dor' dos drawdowns, ou até mesmo teve um retorno inferior ao CDI."
+        analise += "O Martin Ratio é **negativo**, indicando que o fundo teve retorno negativo ou um drawdown muito grande, o que é um **ponto de atenção**."
         analise += "\n\n**Pontos Positivos:** N/A."
         analise += "\n**Pontos Negativos:** O fundo não está compensando o risco de drawdown, sugerindo uma performance subótima."
     return analise
 
 def analisar_var_es(VaR_95, VaR_99, ES_95, ES_99):
     if pd.isna(VaR_95) or pd.isna(VaR_99) or pd.isna(ES_95) or pd.isna(ES_99):
-        return "Não foi possível calcular VaR e ES devido à falta de dados."
+        return "Não foi possível calcular VaR e ES."
 
     analise = f"""
-    **Análise de Risco de Cauda (VaR e ES) para 1 mês:**
+    **Este gráfico mostra que, em um período de 1 mês:**
 
-    • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR 99%)** em um mês. Caso essa queda ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES 99%)**.
-    • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR 95%)** em um mês. Caso essa queda ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES 95%)**.
+    • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
+    e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
 
-    **Pontos Positivos:**
-    *   Fornece uma estimativa quantitativa das perdas potenciais em cenários adversos, auxiliando na gestão de risco.
-    *   O Expected Shortfall (ES) oferece uma visão mais completa do risco de cauda, indicando a perda média esperada em cenários extremos.
+    • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
+    e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
 
-    **Pontos Negativos:**
-    *   VaR e ES são estimativas baseadas em dados históricos e podem não prever eventos de "cisne negro" ou mudanças abruptas no mercado.
-    *   A interpretação deve ser feita com cautela, pois não garantem que as perdas não excederão esses valores.
+    **Interpretação:** O VaR (Value at Risk) indica a perda máxima esperada com um determinado nível de confiança. O ES (Expected Shortfall) vai além, estimando a perda média caso o VaR seja excedido. Ambos são ferramentas cruciais para entender o risco de cauda (perdas extremas) do fundo.
     """
     return analise
 
-def analisar_patrimonio_captacao(patrimonio_liq, captacao_liquida_acum):
-    analise = f"O Patrimônio Líquido atual do fundo é de {format_brl(patrimonio_liq)} e a Captação Líquida acumulada no período é de {format_brl(captacao_liquida_acum)}. "
+def analisar_retornos_janelas_moveis(df_returns, tem_cdi):
+    if df_returns.empty:
+        return "Não há dados suficientes para analisar os retornos em janelas móveis."
 
-    if captacao_liquida_acum > 0:
-        analise += "A **captação líquida positiva** indica que o fundo tem atraído mais recursos do que resgatado, o que é um **ponto positivo** para o crescimento e a sustentabilidade do fundo."
-        analise += "\n\n**Pontos Positivos:** Crescimento da base de ativos, confiança dos investidores, potencial para maiores economias de escala."
-        analise += "\n**Pontos Negativos:** N/A."
-    elif captacao_liquida_acum < 0:
-        analise += "A **captação líquida negativa** indica que o fundo tem sofrido mais resgates do que novas aplicações, o que é um **ponto de atenção** para a gestão e a estabilidade do fundo."
-        analise += "\n\n**Pontos Positivos:** N/A."
-        analise += "\n**Pontos Negativos:** Redução da base de ativos, possível perda de confiança dos investidores, desafios na gestão de liquidez."
-    else:
-        analise += "A captação líquida é neutra, sugerindo um equilíbrio entre aplicações e resgates no período."
-        analise += "\n\n**Pontos Positivos:** Estabilidade na base de ativos."
-        analise += "\n**Pontos Negativos:** Não há crescimento orgânico claro."
+    analise = "A análise de retornos em janelas móveis permite observar a performance do fundo em diferentes horizontes de tempo, suavizando flutuações de curto prazo. "
+
+    janelas = {
+        "12 meses (252 dias)": 252,
+        "24 meses (504 dias)": 504,
+        "36 meses (756 dias)": 756,
+        "48 meses (1008 dias)": 1008,
+        "60 meses (1260 dias)": 1260
+    }
+
+    for nome, dias in janelas.items():
+        fund_col = f'FUNDO_{nome}'
+        cdi_col = f'CDI_{nome}'
+
+        if fund_col in df_returns.columns and not df_returns[fund_col].dropna().empty:
+            retorno_fundo_medio = df_returns[fund_col].mean()
+            analise += f"\n\nPara a janela de **{nome}**, o retorno médio do fundo foi de {fmt_pct_port(retorno_fundo_medio)}. "
+
+            if tem_cdi and cdi_col in df_returns.columns and not df_returns[cdi_col].dropna().empty:
+                retorno_cdi_medio = df_returns[cdi_col].mean()
+                analise += f"O CDI médio foi de {fmt_pct_port(retorno_cdi_medio)}. "
+                if retorno_fundo_medio > retorno_cdi_medio:
+                    analise += "**O fundo superou o CDI** nesta janela, indicando uma boa performance relativa."
+                elif retorno_fundo_medio < retorno_cdi_medio:
+                    analise += "**O fundo ficou abaixo do CDI** nesta janela, o que é um ponto de atenção."
+                else:
+                    analise += "O fundo teve performance similar ao CDI nesta janela."
+            else:
+                analise += "Não foi possível comparar com o CDI nesta janela."
+        else:
+            analise += f"\n\nNão há dados suficientes para a janela de **{nome}**."
+
+    analise += "\n\n**Pontos Positivos:** Permite identificar a consistência do fundo em diferentes ciclos de mercado. Uma superação consistente do CDI em diversas janelas é um forte indicador de qualidade."
+    analise += "\n**Pontos Negativos:** Retornos passados não garantem retornos futuros. A performance em janelas específicas pode ser influenciada por eventos pontuais."
     return analise
 
-def analisar_captacao_mensal(df_monthly):
-    if df_monthly.empty:
-        return "Não há dados suficientes para analisar a Captação Líquida Mensal."
-
-    total_captacao = df_monthly['Captacao_Liquida'].sum()
-    num_meses = len(df_monthly)
-    meses_positivos = (df_monthly['Captacao_Liquida'] > 0).sum()
-    meses_negativos = (df_monthly['Captacao_Liquida'] < 0).sum()
-
-    analise = f"No período analisado ({num_meses} meses), o fundo teve uma captação líquida total de {format_brl(total_captacao)}. "
-    analise += f"Houve {meses_positivos} meses de captação positiva e {meses_negativos} meses de captação negativa. "
-
-    if meses_positivos > meses_negativos:
-        analise += "A **predominância de meses com captação positiva** é um **ponto positivo**, indicando uma tendência de crescimento e atratividade do fundo para novos investidores."
-        analise += "\n\n**Pontos Positivos:** Crescimento sustentado, boa percepção do mercado sobre o fundo."
-        analise += "\n**Pontos Negativos:** N/A."
-    elif meses_negativos > meses_positivos:
-        analise += "A **predominância de meses com captação negativa** é um **ponto de atenção**, sugerindo uma possível perda de interesse ou confiança dos investidores no fundo."
-        analise += "\n\n**Pontos Positivos:** N/A."
-        analise += "\n**Pontos Negativos:** Desafios na manutenção da base de ativos, possível impacto na liquidez."
-    else:
-        analise += "A captação mensal tem sido equilibrada, com um número similar de meses positivos e negativos."
-        analise += "\n\n**Pontos Positivos:** Estabilidade na captação."
-        analise += "\n**Pontos Negativos:** Ausência de uma tendência clara de crescimento ou retração."
-    return analise
-
-def analisar_cotistas(patrimonio_medio, num_cotistas):
-    if pd.isna(patrimonio_medio) or pd.isna(num_cotistas):
-        return "Não há dados suficientes para analisar o Patrimônio Médio e o Número de Cotistas."
-
-    analise = f"O Patrimônio Médio por Cotista é de {format_brl(patrimonio_medio)} e o Número de Cotistas atual é de {int(num_cotistas)}. "
-
-    if num_cotistas > 1000: # Exemplo de limiar para um fundo grande
-        analise += "Um **alto número de cotistas** é um **ponto positivo**, indicando que o fundo é bem distribuído e acessível a um grande público, o que pode trazer maior estabilidade ao patrimônio."
-        analise += "\n\n**Pontos Positivos:** Ampla aceitação no mercado, menor concentração de risco em poucos investidores."
-        analise += "\n**Pontos Negativos:** N/A."
-    elif num_cotistas > 100:
-        analise += "Um **número moderado de cotistas** é um **ponto neutro**, comum para fundos de nicho ou em fase de crescimento."
-        analise += "\n\n**Pontos Positivos:** Potencial de crescimento da base de cotistas."
-        analise += "\n**Pontos Negativos:** Pode haver maior sensibilidade a grandes resgates de poucos cotistas."
-    else:
-        analise += "Um **baixo número de cotistas** é um **ponto de atenção**, sugerindo que o fundo pode ser mais concentrado e sensível a resgates de poucos investidores."
-        analise += "\n\n**Pontos Positivos:** N/A."
-        analise += "\n**Pontos Negativos:** Maior risco de liquidez e volatilidade do patrimônio líquido devido à concentração."
-    return analise
-
-def analisar_consistencia(df_consistency):
+def analisar_consistencia_janelas_moveis(df_consistency):
     if df_consistency.empty:
-        return "Não há dados suficientes para analisar a Consistência em Janelas Móveis."
+        return "Não há dados suficientes para analisar a consistência em janelas móveis."
 
-    analise = "A consistência do fundo em superar o CDI em diferentes janelas móveis é um indicador importante da sua performance relativa. "
+    analise = "A consistência em janelas móveis mede a frequência com que o fundo superou o CDI em diferentes períodos. "
 
     for index, row in df_consistency.iterrows():
         janela = row['Janela']
         consistencia = row['Consistencia']
-        analise += f"\n\nNa janela de **{janela} meses**, o fundo superou o CDI em **{consistencia:.2f}%** do tempo. "
-        if consistencia >= 70:
-            analise += "Isso demonstra uma **alta consistência**, um **ponto positivo** forte."
-        elif consistencia >= 50:
-            analise += "Isso indica uma **consistência moderada**, um **ponto neutro**."
+        if not pd.isna(consistencia):
+            analise += f"\n\nNa janela de **{janela} meses**, o fundo superou o CDI em **{consistencia:.2f}%** das vezes. "
+            if consistencia >= 70:
+                analise += "Isso demonstra uma **alta consistência** na superação do benchmark, um **ponto positivo**."
+            elif consistencia >= 50:
+                analise += "Isso indica uma **consistência moderada**, com o fundo superando o CDI na maioria das vezes."
+            else:
+                analise += "Isso sugere uma **baixa consistência** na superação do CDI, um **ponto de atenção**."
         else:
-            analise += "Isso sugere uma **baixa consistência**, um **ponto de atenção**."
+            analise += f"\n\nNão há dados de consistência para a janela de **{janela} meses**."
 
-    analise += "\n\n**Pontos Positivos:** Alta consistência em janelas maiores indica uma estratégia robusta e capacidade de gerar alfa no longo prazo."
-    analise += "\n**Pontos Negativos:** Baixa consistência pode indicar que o fundo tem dificuldade em superar o benchmark de forma consistente, ou que sua estratégia é mais volátil em relação ao CDI."
+    analise += "\n\n**Pontos Positivos:** Uma alta porcentagem de superação indica que o gestor tem uma habilidade consistente em gerar alfa."
+    analise "\n**Pontos Negativos:** Baixa consistência pode indicar que o fundo não está entregando valor superior ao benchmark de forma regular."
     return analise
 
-# --- Função de Geração de Relatório PDF ---
+# --- FUNÇÃO DE GERAÇÃO DE RELATÓRIO PDF ---
 def gerar_relatorio_pdf(
     cnpj_fundo, nome_fundo, dt_ini_user, dt_fim_user,
-    metrics,
-    fig1, fig2, fig_excesso_retorno, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig_consistency,
+    metrics, # Este é o dicionário metrics_display
+    fig1, fig2, fig_excesso_retorno, fig3, fig4, fig5,
+    fig6, fig7, fig8, fig9, fig_consistency,
     tem_cdi, logo_base64,
-    df_plot_cagr, df_plot_var, df_monthly, df_returns, df_consistency,
-    sharpe_ratio, sortino_ratio, information_ratio, calmar_ratio, sterling_ratio, ulcer_index, martin_ratio,
-    VaR_95, VaR_99, ES_95, ES_99
+    df_plot_cagr, df_plot_var, df_monthly,
+    df_returns, df_consistency,
+    sharpe_ratio, sortino_ratio, information_ratio,
+    calmar_ratio, sterling_ratio, ulcer_index, martin_ratio,
+    VaR_95, VaR_99, ES_95, ES_99,
+    metrics_values # Adicionado para ter acesso aos valores brutos
 ):
-    if not PDF_DISPONIVEL:
-        st.error("As bibliotecas 'fpdf2' e 'Pillow' não estão instaladas. Não é possível gerar o PDF.")
-        return None
-
-    pdf = FPDF()
+    pdf = FPDF('P', 'mm', 'A4') # 'P' para retrato, 'mm' para milímetros, 'A4' para tamanho da página
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
+
+    # Configurações de fonte
+    pdf.set_font('Arial', '', 12)
 
     # Título do Relatório
-    pdf.set_font("Arial", 'B', 24)
-    pdf.set_text_color(26, 95, 63) # Cor primária
-    pdf.cell(0, 10, "Relatório de Análise de Fundo de Investimento", 0, 1, 'C')
+    pdf.set_font('Arial', 'B', 18)
+    pdf.set_text_color(26, 95, 63) # Cor verde escura
+    pdf.cell(0, 10, 'Relatório de Análise de Fundo de Investimento', 0, 1, 'C')
     pdf.ln(5)
 
-    pdf.set_font("Arial", '', 12)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 7, f"Fundo: {nome_fundo} (CNPJ: {cnpj_fundo})", 0, 1, 'C')
-    pdf.cell(0, 7, f"Período de Análise: {dt_ini_user.strftime('%d/%m/%Y')} a {dt_fim_user.strftime('%d/%m/%Y')}", 0, 1, 'C')
+    # Informações do Fundo
+    pdf.set_font('Arial', 'B', 14)
+    pdf.set_text_color(0, 0, 0) # Preto
+    pdf.cell(0, 8, f'Fundo: {nome_fundo}', 0, 1, 'L')
+    pdf.cell(0, 8, f'CNPJ: {cnpj_fundo}', 0, 1, 'L')
+    pdf.cell(0, 8, f'Período: {dt_ini_user.strftime("%d/%m/%Y")} a {dt_fim_user.strftime("%d/%m/%Y")}', 0, 1, 'L')
     pdf.ln(10)
 
-    # --- Sumário Executivo ---
-    pdf.set_font("Arial", 'B', 16)
+    # --- Seção de Métricas Principais ---
+    pdf.set_font('Arial', 'B', 16)
     pdf.set_text_color(26, 95, 63)
-    pdf.cell(0, 10, "1. Sumário Executivo", 0, 1, 'L')
+    pdf.cell(0, 10, 'Métricas de Desempenho', 0, 1, 'L')
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(0, 6, f"""
-    Este relatório apresenta uma análise detalhada do fundo {nome_fundo} (CNPJ: {cnpj_fundo}) no período de {dt_ini_user.strftime('%d/%m/%Y')} a {dt_fim_user.strftime('%d/%m/%Y')}.
-    Foram avaliadas métricas de rentabilidade, risco, patrimônio, captação e consistência, com comparações ao CDI quando aplicável.
+    pdf.set_font('Arial', '', 12)
+    pdf.ln(2)
 
-    **Principais Métricas:**
-    - Patrimônio Líquido: {metrics['Patrimonio_Liq']}
-    - Rentabilidade Acumulada: {metrics['Rentabilidade_Acumulada']}
-    - CAGR Médio: {metrics['CAGR_Medio']}
-    - Max Drawdown: {metrics['Max_Drawdown']}
-    - Volatilidade Histórica: {metrics['Vol_Historica']}
-    """, 0, 'L')
-    pdf.ln(5)
-
-    # Conclusão geral (a ser aprimorada com base nas análises individuais)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.multi_cell(0, 6, "Conclusão Geral:", 0, 'L')
-    pdf.set_font("Arial", '', 10)
-
-    # Geração da conclusão geral baseada nas análises individuais
-    conclusao_geral_texto = ""
-
-    # Rentabilidade
-    if metrics['Rentabilidade_Acumulada_Val'] is not None and metrics['CDI_Acumulada_Val'] is not None:
-        if metrics['Rentabilidade_Acumulada_Val'] > metrics['CDI_Acumulada_Val']:
-            conclusao_geral_texto += "O fundo demonstrou uma **sólida performance de rentabilidade**, superando o CDI no período. "
-        elif metrics['Rentabilidade_Acumulada_Val'] < metrics['CDI_Acumulada_Val']:
-            conclusao_geral_texto += "A rentabilidade do fundo ficou **abaixo do CDI**, indicando um desempenho não competitivo. "
-        else:
-            conclusao_geral_texto += "A rentabilidade do fundo foi similar ao CDI. "
-
-    # Risco (Sharpe e Max Drawdown)
-    if not pd.isna(sharpe_ratio) and sharpe_ratio >= 1.0:
-        conclusao_geral_texto += "Com um **Sharpe Ratio favorável**, o fundo tem sido eficiente em gerar retorno ajustado ao risco. "
-    elif not pd.isna(sharpe_ratio) and sharpe_ratio < 0.0:
-        conclusao_geral_texto += "O **Sharpe Ratio negativo** sugere que o fundo não compensou o risco assumido. "
-
-    if not pd.isna(metrics['Max_Drawdown_Val']) and metrics['Max_Drawdown_Val'] > -10.0:
-        conclusao_geral_texto += "O **Max Drawdown foi contido**, indicando boa gestão de perdas. "
-    elif not pd.isna(metrics['Max_Drawdown_Val']) and metrics['Max_Drawdown_Val'] <= -10.0:
-        conclusao_geral_texto += "O **Max Drawdown foi significativo**, apontando para períodos de maior volatilidade de baixa. "
-
-    # Captação
-    if metrics['Captacao_Liquida_Acum_Val'] is not None:
-        if metrics['Captacao_Liquida_Acum_Val'] > 0:
-            conclusao_geral_texto += "A **captação líquida positiva** reflete a confiança dos investidores. "
-        elif metrics['Captacao_Liquida_Acum_Val'] < 0:
-            conclusao_geral_texto += "A **captação líquida negativa** indica desafios na atração/retenção de recursos. "
-
-    if not conclusao_geral_texto:
-        conclusao_geral_texto = "Não foi possível gerar uma conclusão geral devido à falta de dados ou métricas insuficientes."
-
-    pdf.multi_cell(0, 6, conclusao_geral_texto, 0, 'L')
-    pdf.ln(10)
-
-    # --- Seções Detalhadas ---
-    sections = [
-        ("2. Rentabilidade Histórica", fig1, "Rentabilidade Acumulada", analisar_rentabilidade_acumulada(metrics['Rentabilidade_Acumulada_Val'], metrics['CDI_Acumulada_Val'])),
-        ("3. CAGR Anual por Dia de Aplicação", fig2, "CAGR Anual por Dia de Aplicação", analisar_cagr(metrics['CAGR_Medio_Val'], metrics['CAGR_CDI_Medio_Val'])),
-        ("4. Excesso de Retorno Anualizado", fig_excesso_retorno, "Excesso de Retorno Anualizado", "O Excesso de Retorno Anualizado mede a capacidade do fundo de gerar retornos acima do CDI, ajustado pelo tempo. Valores positivos indicam superação do benchmark."),
-        ("5. Drawdown Histórico", fig3, "Drawdown Histórico", analisar_max_drawdown(metrics['Max_Drawdown_Val'])),
-        ("6. Volatilidade Móvel", fig4, "Volatilidade Móvel", analisar_volatilidade_historica(metrics['Vol_Historica_Val'])),
-        ("7. Value at Risk (VaR) e Expected Shortfall (ES)", fig5, "VaR e ES", analisar_var_es(VaR_95, VaR_99, ES_95, ES_99)),
-        ("8. Patrimônio e Captação Líquida", fig6, "Patrimônio e Captação Líquida", analisar_patrimonio_captacao(metrics['Patrimonio_Liq_Val'], metrics['Captacao_Liquida_Acum_Val'])),
-        ("9. Captação Líquida Mensal", fig7, "Captação Líquida Mensal", analisar_captacao_mensal(df_monthly)),
-        ("10. Patrimônio Médio e Nº de Cotistas", fig8, "Patrimônio Médio e Nº de Cotistas", analisar_cotistas(metrics['Patrimonio_Medio_Cotista_Val'], metrics['Num_Cotistas_Val'])),
-        ("11. Retornos em Janelas Móveis", fig9, "Retornos em Janelas Móveis", "Este gráfico mostra a performance do fundo em diferentes janelas de tempo, permitindo avaliar a consistência dos retornos ao longo do tempo."),
-        ("12. Consistência em Janelas Móveis", fig_consistency, "Consistência em Janelas Móveis", analisar_consistencia(df_consistency))
-    ]
-
-    # Adicionar métricas de risco-retorno como texto
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.set_text_color(26, 95, 63)
-    pdf.cell(0, 10, "13. Métricas de Risco-Retorno", 0, 1, 'L')
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", '', 10)
-    pdf.ln(5)
-
+    # Usar metrics_display para os valores formatados
+    pdf.multi_cell(0, 7, f"• Patrimônio Líquido: {metrics['Patrimonio_Liq']}")
+    pdf.multi_cell(0, 7, f"• Rentabilidade Acumulada: {metrics['Rentabilidade_Acumulada']}")
+    pdf.multi_cell(0, 7, f"• CAGR Médio: {metrics['CAGR_Medio']}")
+    pdf.multi_cell(0, 7, f"• Max Drawdown: {metrics['Max_Drawdown']}")
+    pdf.multi_cell(0, 7, f"• Volatilidade Histórica: {metrics['Vol_Historica']}")
     if tem_cdi:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.multi_cell(0, 6, "RISCO MEDIDO PELA VOLATILIDADE:", 0, 'L')
-        pdf.set_font("Arial", '', 10)
-        pdf.multi_cell(0, 6, f"Sharpe Ratio: {sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "Sharpe Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_sharpe_ratio(sharpe_ratio), 0, 'L')
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, f"Sortino Ratio: {sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "Sortino Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_sortino_ratio(sortino_ratio), 0, 'L')
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, f"Information Ratio: {information_ratio:.2f}" if not pd.isna(information_ratio) else "Information Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_information_ratio(information_ratio), 0, 'L')
-        pdf.ln(5)
-
-        pdf.set_font("Arial", 'B', 12)
-        pdf.multi_cell(0, 6, "RISCO MEDIDO PELO DRAWDOWN:", 0, 'L')
-        pdf.set_font("Arial", '', 10)
-        pdf.multi_cell(0, 6, f"Calmar Ratio: {calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "Calmar Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_calmar_ratio(calmar_ratio), 0, 'L')
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, f"Sterling Ratio: {sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "Sterling Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_sterling_ratio(sterling_ratio), 0, 'L')
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, f"Ulcer Index: {ulcer_index:.2f}" if not pd.isna(ulcer_index) else "Ulcer Index: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_ulcer_index(ulcer_index), 0, 'L')
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, f"Martin Ratio: {martin_ratio:.2f}" if not pd.isna(martin_ratio) else "Martin Ratio: N/A", 0, 'L')
-        pdf.multi_cell(0, 6, analisar_martin_ratio(martin_ratio), 0, 'L')
-        pdf.ln(5)
-    else:
-        pdf.multi_cell(0, 6, "As Métricas de Risco-Retorno requerem a comparação com o CDI.", 0, 'L')
-    pdf.ln(10)
-
-    # Adicionar gráficos e análises
-    for i, (section_title, fig, chart_title, analysis_text) in enumerate(sections):
-        if fig is None: # Pula se o gráfico não foi gerado (ex: falta de dados)
-            continue
-
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.set_text_color(26, 95, 63)
-        pdf.cell(0, 10, section_title, 0, 1, 'L')
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", '', 10)
-        pdf.ln(5)
-
-        # Salvar gráfico como SVG temporário
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".svg") as tmp_svg:
-            fig.write_image(tmp_svg.name, format='svg', width=1000, height=500) # Aumenta a resolução para PDF
-            svg_path = tmp_svg.name
-
-        # Converter SVG para PNG para FPDF (FPDF não suporta SVG diretamente)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
-            img = Image.open(svg_path)
-            img.save(tmp_png.name, format='PNG')
-            png_path = tmp_png.name
-
-        # Adicionar imagem ao PDF
-        pdf.image(png_path, x=10, w=pdf.w - 20) # Ajusta largura para caber na página
-        pdf.ln(5)
-
-        # Adicionar análise
-        pdf.set_font("Arial", 'B', 12)
-        pdf.multi_cell(0, 6, f"Análise de {chart_title}:", 0, 'L')
-        pdf.set_font("Arial", '', 10)
-        pdf.multi_cell(0, 6, analysis_text, 0, 'L')
-        pdf.ln(10)
-
-        # Limpar arquivos temporários
-        os.remove(svg_path)
-        os.remove(png_path)
-
-    # Conclusão Final do Relatório
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.set_text_color(26, 95, 63)
-    pdf.cell(0, 10, "14. Conclusão Final", 0, 1, 'L')
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", '', 10)
+        pdf.multi_cell(0, 7, f"• CDI Acumulado: {metrics['CDI_Acumulada']}")
     pdf.ln(5)
-    pdf.multi_cell(0, 6, conclusao_geral_texto, 0, 'L') # Reutiliza a conclusão geral
+
+    # --- Análises Interpretativas das Métricas Principais ---
+    pdf.set_font('Arial', 'B', 14)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Análise Interpretativa das Métricas', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', '', 10) # Fonte menor para as análises detalhadas
+    pdf.ln(2)
+
+    # Usar metrics_values para os valores brutos nas funções de análise
+    pdf.multi_cell(0, 5, analisar_rentabilidade_acumulada(metrics_values['Rentabilidade_Acumulada_Val'], metrics_values['CDI_Acumulada_Val']))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, analisar_cagr(metrics_values['CAGR_Medio_Val'], metrics_values['CAGR_CDI_Medio_Val']))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, analisar_max_drawdown(metrics_values['Max_Drawdown_Val']))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, analisar_volatilidade_historica(metrics_values['Vol_Historica_Val']))
+    pdf.ln(5)
+
+    # --- Seção de Gráficos ---
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Gráficos de Desempenho', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    # Função auxiliar para adicionar gráfico ao PDF
+    def add_plotly_figure_to_pdf(pdf_obj, fig, title, width=180, height=100):
+        if fig is None:
+            pdf_obj.set_font('Arial', 'I', 10)
+            pdf_obj.multi_cell(0, 5, f"Não foi possível gerar o gráfico: {title}")
+            pdf_obj.ln(5)
+            return
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+            file_path = tmpfile.name
+            pio.write_image(fig, file_path, format='png', width=1000, height=500, scale=2.0) # Alta resolução
+            pdf_obj.set_font('Arial', 'B', 12)
+            pdf_obj.multi_cell(0, 7, title, 0, 'L')
+            pdf_obj.image(file_path, x=pdf_obj.get_x() + 5, w=width, h=height)
+            pdf_obj.ln(5)
+        os.remove(file_path)
+
+    add_plotly_figure_to_pdf(pdf, fig1, "Rentabilidade Histórica")
+    add_plotly_figure_to_pdf(pdf, fig2, "CAGR Anual por Dia de Aplicação")
+    if tem_cdi and fig_excesso_retorno:
+        add_plotly_figure_to_pdf(pdf, fig_excesso_retorno, "Excesso de Retorno Anualizado")
+    add_plotly_figure_to_pdf(pdf, fig3, "Drawdown Histórico")
+    add_plotly_figure_to_pdf(pdf, fig4, "Volatilidade Móvel")
+    if fig5: # VaR e ES
+        add_plotly_figure_to_pdf(pdf, fig5, "Value at Risk (VaR) e Expected Shortfall (ES)")
+        pdf.set_font('Arial', '', 10)
+        pdf.multi_cell(0, 5, analisar_var_es(VaR_95, VaR_99, ES_95, ES_99))
+        pdf.ln(5)
+
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Métricas de Risco-Retorno Detalhadas', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    # --- Métricas de Risco-Retorno ---
+    pdf.set_font('Arial', 'B', 12)
+    pdf.multi_cell(0, 7, "RISCO MEDIDO PELA VOLATILIDADE:")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, f"Sharpe Ratio: {sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "Sharpe Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_sharpe_ratio(sharpe_ratio))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, f"Sortino Ratio: {sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "Sortino Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_sortino_ratio(sortino_ratio))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, f"Information Ratio: {information_ratio:.2f}" if not pd.isna(information_ratio) else "Information Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_information_ratio(information_ratio))
+    pdf.ln(5)
+
+    pdf.set_font('Arial', 'B', 12)
+    pdf.multi_cell(0, 7, "RISCO MEDIDO PELO DRAWDOWN:")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, f"Calmar Ratio: {calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "Calmar Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_calmar_ratio(calmar_ratio))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, f"Sterling Ratio: {sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "Sterling Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_sterling_ratio(sterling_ratio))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, f"Ulcer Index: {ulcer_index:.2f}" if not pd.isna(ulcer_index) else "Ulcer Index: N/A")
+    pdf.multi_cell(0, 5, analisar_ulcer_index(ulcer_index))
+    pdf.ln(3)
+    pdf.multi_cell(0, 5, f"Martin Ratio: {martin_ratio:.2f}" if not pd.isna(martin_ratio) else "Martin Ratio: N/A")
+    pdf.multi_cell(0, 5, analisar_martin_ratio(martin_ratio))
+    pdf.ln(5)
+
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Patrimônio, Captação e Cotistas', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    add_plotly_figure_to_pdf(pdf, fig6, "Patrimônio e Captação Líquida")
+    add_plotly_figure_to_pdf(pdf, fig7, "Captação Líquida Mensal")
+    add_plotly_figure_to_pdf(pdf, fig8, "Patrimônio Médio e Nº de Cotistas")
+    pdf.ln(5)
+
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Análise em Janelas Móveis', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    add_plotly_figure_to_pdf(pdf, fig9, "Retornos em Janelas Móveis")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, analisar_retornos_janelas_moveis(df_returns, tem_cdi))
+    pdf.ln(5)
+
+    if tem_cdi and fig_consistency:
+        add_plotly_figure_to_pdf(pdf, fig_consistency, "Consistência em Janelas Móveis")
+        pdf.set_font('Arial', '', 10)
+        pdf.multi_cell(0, 5, analisar_consistencia_janelas_moveis(df_consistency))
+        pdf.ln(5)
+
+    # Conclusão
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, 'Conclusão Geral', 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.ln(5)
+    pdf.multi_cell(0, 7, """
+    Este relatório apresenta uma análise abrangente do fundo de investimento selecionado, cobrindo aspectos de rentabilidade, risco, patrimônio e captação, e perfil de cotistas. As métricas e gráficos fornecem uma visão detalhada do desempenho do fundo no período analisado, com interpretações baseadas em literatura financeira para auxiliar na compreensão.
+
+    É fundamental lembrar que o desempenho passado não é garantia de resultados futuros. A decisão de investimento deve sempre considerar o perfil de risco do investidor, os objetivos financeiros e uma análise aprofundada das características do fundo e do cenário econômico.
+    """)
     pdf.ln(10)
 
-    # Rodapé
-    pdf.set_y(-20)
-    pdf.set_font("Arial", 'I', 8)
-    pdf.set_text_color(108, 117, 125)
-    pdf.cell(0, 10, f"Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} - Copaíba Invest", 0, 0, 'C')
+    # Footer
+    pdf.set_font('Arial', 'I', 8)
+    pdf.set_text_color(108, 117, 125) # Cinza
+    pdf.cell(0, 10, f'Relatório gerado em {datetime.now().strftime("%d/%m/%Y %H:%M:%S")} • Copaíba Invest', 0, 0, 'C')
 
     return pdf.output(dest='S').encode('latin-1') # Retorna o PDF como bytes
 
 # Verificar se deve carregar os dados
 if 'dados_carregados' not in st.session_state:
     st.session_state.dados_carregados = False
+if 'pdf_gerado_data' not in st.session_state: # Inicializa para o botão de download
+    st.session_state.pdf_gerado_data = None
+if 'pdf_file_name' not in st.session_state: # Inicializa para o botão de download
+    st.session_state.pdf_file_name = None
 
 if carregar_button and cnpj_valido and datas_validas:
     st.session_state.dados_carregados = True
@@ -1174,6 +1154,10 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
     st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
+    # Resetar o PDF gerado ao carregar novos dados
+    st.session_state.pdf_gerado_data = None
+    st.session_state.pdf_file_name = None
+
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
@@ -1199,22 +1183,21 @@ if not st.session_state.dados_carregados:
 
     st.stop()
 
-# Inicializa variáveis para os gráficos e métricas para evitar NameError
-# quando o botão de relatório é clicado antes de carregar os dados
+# Inicializa variáveis para evitar NameError se a seção try/except falhar
 df = pd.DataFrame()
-df_plot_cagr = pd.DataFrame()
-df_plot_var = pd.DataFrame()
-df_monthly = pd.DataFrame()
-df_returns = pd.DataFrame()
-df_consistency = pd.DataFrame()
-
+nome_fundo = "Fundo de Investimento"
 fig1, fig2, fig_excesso_retorno, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig_consistency = [None] * 11
 metrics_display = {}
 metrics_values = {}
 sharpe_ratio, sortino_ratio, information_ratio, calmar_ratio, sterling_ratio, ulcer_index, martin_ratio = [np.nan] * 7
 VaR_95, VaR_99, ES_95, ES_99 = [np.nan] * 4
+df_plot_cagr = pd.DataFrame()
+df_plot_var = pd.DataFrame()
+df_monthly = pd.DataFrame()
+df_returns = pd.DataFrame()
+df_consistency = pd.DataFrame()
 tem_cdi = False
-nome_fundo = "Fundo Não Identificado" # Default
+
 
 try:
     with st.spinner('🔄 Carregando dados...'):
@@ -1230,6 +1213,7 @@ try:
         )
         df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
 
+        # Tenta obter o nome do fundo
         if not df_fundo_completo.empty and 'DENOM_SOCIAL' in df_fundo_completo.columns:
             nome_fundo = df_fundo_completo['DENOM_SOCIAL'].iloc[0]
         else:
@@ -1335,13 +1319,13 @@ try:
                     df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
-    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else 0
+    mean_cagr = df['CAGR_Fundo'].mean() if 'CAGR_Fundo' in df.columns else np.nan
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
-        mean_cagr = 0
+        mean_cagr = np.nan
 
-    mean_cagr_cdi = df['CAGR_CDI'].mean() if 'CAGR_CDI' in df.columns else 0
+    mean_cagr_cdi = df['CAGR_CDI'].mean() if 'CAGR_CDI' in df.columns else np.nan
     if pd.isna(mean_cagr_cdi):
-        mean_cagr_cdi = 0
+        mean_cagr_cdi = np.nan
 
     # Excesso de Retorno Anualizado
     df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
@@ -1376,15 +1360,15 @@ try:
     col1, col2, col3, col4, col5 = st.columns(5)
 
     # Coleta de valores para o PDF
-    patrimonio_liq_val = df['VL_PATRIM_LIQ'].iloc[-1]
-    rent_acum_val = df['VL_QUOTA_NORM'].iloc[-1]
+    patrimonio_liq_val = df['VL_PATRIM_LIQ'].iloc[-1] if not df.empty and 'VL_PATRIM_LIQ' in df.columns else np.nan
+    rent_acum_val = df['VL_QUOTA_NORM'].iloc[-1] if not df.empty and 'VL_QUOTA_NORM' in df.columns else np.nan
     cagr_medio_val = mean_cagr
-    max_drawdown_val = df['Drawdown'].min()
+    max_drawdown_val = df['Drawdown'].min() if not df.empty and 'Drawdown' in df.columns else np.nan
     vol_hist_val = vol_hist
-    cdi_acum_val = df['CDI_NORM'].iloc[-1] if tem_cdi else np.nan
-    captacao_liquida_acum_val = df['Soma_Acumulada'].iloc[-1]
-    patrimonio_medio_cotista_val = df['Patrimonio_Liq_Medio'].iloc[-1]
-    num_cotistas_val = df['NR_COTST'].iloc[-1]
+    cdi_acum_val = df['CDI_NORM'].iloc[-1] if tem_cdi and not df.empty and 'CDI_NORM' in df.columns else np.nan
+    captacao_liquida_acum_val = df['Soma_Acumulada'].iloc[-1] if not df.empty and 'Soma_Acumulada' in df.columns else np.nan
+    patrimonio_medio_cotista_val = df['Patrimonio_Liq_Medio'].iloc[-1] if not df.empty and 'Patrimonio_Liq_Medio' in df.columns else np.nan
+    num_cotistas_val = df['NR_COTST'].iloc[-1] if not df.empty and 'NR_COTST' in df.columns else np.nan
 
     metrics_display = {
         "Patrimonio_Liq": format_brl(patrimonio_liq_val),
@@ -1395,7 +1379,7 @@ try:
         "CDI_Acumulada": fmt_pct_port(cdi_acum_val / 100) if tem_cdi else "N/A",
         "Captacao_Liquida_Acum": format_brl(captacao_liquida_acum_val),
         "Patrimonio_Medio_Cotista": format_brl(patrimonio_medio_cotista_val),
-        "Num_Cotistas": f"{int(num_cotistas_val):,}".replace(',', '.')
+        "Num_Cotistas": f"{int(num_cotistas_val):,}".replace(',', '.') if not pd.isna(num_cotistas_val) else "N/A"
     }
 
     metrics_values = {
@@ -1489,13 +1473,14 @@ try:
                 hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
             ))
 
-            fig2.add_trace(go.Scatter(
-                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
-                y=[mean_cagr] * len(df_plot_cagr),
-                mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2),
-                name=f'CAGR Médio ({mean_cagr:.2f}%)'
-            ))
+            if not pd.isna(mean_cagr): # Adiciona a linha de CAGR Médio apenas se for calculável
+                fig2.add_trace(go.Scatter(
+                    x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
+                    y=[mean_cagr] * len(df_plot_cagr),
+                    mode='lines',
+                    line=dict(dash='dash', color=color_secondary, width=2),
+                    name=f'CAGR Médio ({mean_cagr:.2f}%)'
+                ))
 
             # CAGR do CDI (se disponível)
             if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
@@ -1727,17 +1712,17 @@ try:
                 annualized_fund_return = (1 + total_fund_return)**(trading_days_in_year / num_days_in_period) - 1
                 annualized_cdi_return = (1 + total_cdi_return)**(trading_days_in_year / num_days_in_period) - 1
             else:
-                annualized_fund_return = 0
-                annualized_cdi_return = 0
+                annualized_fund_return = np.nan
+                annualized_cdi_return = np.nan
 
             # Volatilidade anualizada do fundo (já calculada como vol_hist, convertida para decimal)
-            annualized_fund_volatility = vol_hist / 100 if vol_hist else np.nan
+            annualized_fund_volatility = vol_hist / 100 if not pd.isna(vol_hist) else np.nan
 
             # Max Drawdown (já calculada como df['Drawdown'].min(), convertida para decimal)
             max_drawdown_value = df['Drawdown'].min() / 100 if not df['Drawdown'].empty else np.nan
 
             # CAGR do fundo (já calculada como mean_cagr, convertida para decimal)
-            cagr_fund_decimal = mean_cagr / 100 if mean_cagr else np.nan
+            cagr_fund_decimal = mean_cagr / 100 if not pd.isna(mean_cagr) else np.nan
 
             # Ulcer Index
             drawdown_series = (df['VL_QUOTA'] / df['Max_VL_QUOTA'] - 1)
@@ -2094,22 +2079,28 @@ if gerar_relatorio_button and st.session_state.get('dados_carregados', False):
                     df_returns=df_returns, df_consistency=df_consistency,
                     sharpe_ratio=sharpe_ratio, sortino_ratio=sortino_ratio, information_ratio=information_ratio,
                     calmar_ratio=calmar_ratio, sterling_ratio=sterling_ratio, ulcer_index=ulcer_index, martin_ratio=martin_ratio,
-                    VaR_95=VaR_95, VaR_99=VaR_99, ES_95=ES_95, ES_99=ES_99
+                    VaR_95=VaR_95, VaR_99=VaR_99, ES_95=ES_95, ES_99=ES_99,
+                    metrics_values=metrics_values # <--- ADICIONADO AQUI
                 )
                 if pdf_output:
-                    st.download_button(
-                        label="Download Relatório PDF",
-                        data=pdf_output,
-                        file_name=f"Relatorio_Fundo_{st.session_state.cnpj}_{dt_ini_user.strftime('%Y%m%d')}_{dt_fim_user.strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf"
-                    )
-                    st.success("✅ Relatório PDF gerado com sucesso!")
+                    st.session_state.pdf_gerado_data = pdf_output
+                    st.session_state.pdf_file_name = f"Relatorio_Fundo_{st.session_state.cnpj}_{dt_ini_user.strftime('%Y%m%d')}_{dt_fim_user.strftime('%Y%m%d')}.pdf"
+                    st.success("✅ Relatório PDF gerado com sucesso! Clique no botão abaixo para fazer o download.")
                 else:
                     st.error("❌ Falha ao gerar o relatório PDF.")
             except Exception as e:
                 st.error(f"❌ Erro ao gerar o relatório PDF: {e}")
     else:
         st.error("❌ As bibliotecas 'fpdf2' e 'Pillow' são necessárias para gerar o PDF. Por favor, instale-as.")
+
+# Botão de download só aparece se o PDF foi gerado
+if st.session_state.pdf_gerado_data:
+    st.download_button(
+        label="Download Relatório PDF",
+        data=st.session_state.pdf_gerado_data,
+        file_name=st.session_state.pdf_file_name,
+        mime="application/pdf"
+    )
 
 
 # Footer
