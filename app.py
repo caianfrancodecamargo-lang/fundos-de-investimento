@@ -468,28 +468,37 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
 def obter_dados_ibovespa(data_inicio: datetime, data_fim: datetime):
     """
     Obtém dados históricos do Ibovespa (^BVSP) usando yfinance e os normaliza.
+    Prioriza a coluna 'Close' para o Ibovespa, com 'Adj Close' como fallback.
     """
     ticker_ibovespa = "^BVSP"
     try:
-        dados_ibovespa = yf.download(ticker_ibovespa, start=data_inicio, end=data_fim, progress=False)
+        # Adiciona um dia à data final para garantir que o último dia seja incluído
+        # yfinance é exclusivo no 'end' date.
+        dados_ibovespa = yf.download(ticker_ibovespa, start=data_inicio, end=data_fim + timedelta(days=1), progress=False)
+
         if not dados_ibovespa.empty:
-            # Verifica se 'Adj Close' existe antes de prosseguir
-            if 'Adj Close' in dados_ibovespa.columns:
-                dados_ibovespa = dados_ibovespa.reset_index()
-                dados_ibovespa = dados_ibovespa.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'IBOV_Close'})
-                dados_ibovespa = dados_ibovespa[['DT_COMPTC', 'IBOV_Close']]
+            dados_ibovespa = dados_ibovespa.reset_index()
+            dados_ibovespa = dados_ibovespa.rename(columns={'Date': 'DT_COMPTC'})
 
-                # Normalizar para que o primeiro valor da série seja 1.0
-                if not dados_ibovespa.empty:
-                    primeiro_valor_ibov = dados_ibovespa['IBOV_Close'].iloc[0]
-                    dados_ibovespa['VL_IBOV_normalizado'] = dados_ibovespa['IBOV_Close'] / primeiro_valor_ibov
-                else:
-                    dados_ibovespa['VL_IBOV_normalizado'] = pd.Series(dtype='float64') # Garante que a coluna exista
-
-                return dados_ibovespa
+            # Prioriza 'Close' para o Ibovespa, com 'Adj Close' como fallback
+            if 'Close' in dados_ibovespa.columns:
+                dados_ibovespa['IBOV_Close'] = dados_ibovespa['Close']
+            elif 'Adj Close' in dados_ibovespa.columns:
+                dados_ibovespa['IBOV_Close'] = dados_ibovespa['Adj Close']
             else:
-                st.warning(f"⚠️ A coluna 'Adj Close' não foi encontrada nos dados do Ibovespa. Verifique a fonte de dados.")
+                st.warning(f"⚠️ Nenhuma coluna de fechamento ('Close' ou 'Adj Close') encontrada para o Ibovespa. Verifique a fonte de dados.")
                 return pd.DataFrame() # Retorna DataFrame vazio se a coluna essencial não for encontrada
+
+            dados_ibovespa = dados_ibovespa[['DT_COMPTC', 'IBOV_Close']]
+
+            # Normalizar para que o primeiro valor da série seja 1.0
+            if not dados_ibovespa.empty:
+                primeiro_valor_ibov = dados_ibovespa['IBOV_Close'].iloc[0]
+                dados_ibovespa['VL_IBOV_normalizado'] = dados_ibovespa['IBOV_Close'] / primeiro_valor_ibov
+            else:
+                dados_ibovespa['VL_IBOV_normalizado'] = pd.Series(dtype='float64') # Garante que a coluna exista
+
+            return dados_ibovespa
         else:
             st.warning(f"⚠️ Nenhum dado encontrado para o Ibovespa ({ticker_ibovespa}) no período especificado.")
             return pd.DataFrame()
