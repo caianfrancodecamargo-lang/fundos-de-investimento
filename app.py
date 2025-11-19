@@ -19,7 +19,7 @@ except ImportError:
     BCB_DISPONIVEL = False
     st.warning("⚠️ Biblioteca 'python-bcb' não encontrada. Instale com: pip install python-bcb")
 
-# NOVO: Importar biblioteca para obter dados do Ibovespa
+# Importar biblioteca para obter dados do Ibovespa
 try:
     import yfinance as yf
     YF_DISPONIVEL = True
@@ -221,13 +221,13 @@ st.markdown("""
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 700;
-        color: #1a5f3f;
+        color: #1a5f3f; /* Tom esverdeado mais escuro */
     }
 
     [data-testid="stMetricLabel"] {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #6c757d;
+        color: #2d8659; /* Tom esverdeado mais claro */
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -470,7 +470,7 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         st.error(f"❌ Erro ao obter dados do CDI: {str(e)}")
         return pd.DataFrame()
 
-# NOVO: FUNÇÃO PARA OBTER DADOS DO IBOVESPA
+# FUNÇÃO PARA OBTER DADOS DO IBOVESPA
 @st.cache_data
 def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
     """
@@ -492,7 +492,7 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
         if df_ibovespa.empty:
             return pd.DataFrame()
 
-        # NOVO: Achata os cabeçalhos multi-nível, se existirem
+        # Achata os cabeçalhos multi-nível, se existirem
         # Isso garante que teremos apenas um nível de cabeçalho
         if isinstance(df_ibovespa.columns, pd.MultiIndex):
             df_ibovespa.columns = ['_'.join(col).strip() for col in df_ibovespa.columns.values]
@@ -500,7 +500,7 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
         # Transforma o índice em coluna
         df_ibovespa = df_ibovespa.reset_index()
 
-        # NOVO: Lógica para identificar a coluna de fechamento, seja 'Close', 'Close_' ou 'Close_^BVSP'
+        # Lógica para identificar a coluna de fechamento, seja 'Close', 'Close_' ou 'Close_^BVSP'
         close_col_options = ['Close', 'Close_', 'Close_^BVSP'] # Adicionado 'Close_'
         selected_close_col = None
         for col_option in close_col_options:
@@ -570,7 +570,7 @@ with col2_sidebar:
 # Opção para mostrar CDI e Ibovespa
 st.sidebar.markdown("#### Indicadores de Comparação")
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
-mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False) # NOVO
+mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False)
 
 st.sidebar.markdown("---")
 
@@ -658,7 +658,7 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.data_ini = data_inicial_formatada
     st.session_state.data_fim = data_final_formatada
     st.session_state.mostrar_cdi = mostrar_cdi # Salva o estado do checkbox
-    st.session_state.mostrar_ibov = mostrar_ibov # NOVO: Salva o estado do checkbox do Ibovespa
+    st.session_state.mostrar_ibov = mostrar_ibov # Salva o estado do checkbox do Ibovespa
 
 if not st.session_state.dados_carregados:
     st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
@@ -705,7 +705,7 @@ try:
             if not df_cdi_raw.empty:
                 df_cdi_raw = df_cdi_raw.sort_values('DT_COMPTC').reset_index(drop=True)
 
-        # 2b. NOVO: OBTER DADOS DO IBOVESPA para o período EXATO solicitado pelo usuário
+        # 2b. OBTER DADOS DO IBOVESPA para o período EXATO solicitado pelo usuário
         df_ibov_raw = pd.DataFrame()
         if st.session_state.mostrar_ibov and YF_DISPONIVEL:
             df_ibov_raw = obter_dados_ibov(dt_ini_user, dt_fim_user)
@@ -737,7 +737,7 @@ try:
             if col in df_final.columns:
                 df_final[col] = df_final[col].ffill()
 
-        # NOVO: ffill do Ibovespa para manter série contínua nos dias úteis do fundo
+        # ffill do Ibovespa para manter série contínua nos dias úteis do fundo
         if 'IBOV' in df_final.columns:
             df_final['IBOV'] = df_final['IBOV'].ffill()
 
@@ -766,7 +766,7 @@ try:
         else:
             df.drop(columns=[col for col in ['cdi', 'VL_CDI_normalizado', 'CDI_COTA', 'CDI_NORM'] if col in df.columns], errors='ignore', inplace=True)
 
-        # NOVO: Processa e re-normaliza os dados do Ibovespa
+        # Processa e re-normaliza os dados do Ibovespa
         tem_ibov = False
         if st.session_state.mostrar_ibov and 'IBOV' in df.columns and not df['IBOV'].isna().all():
             first_ibov_value = df['IBOV'].iloc[0]
@@ -797,14 +797,14 @@ try:
     df['CAGR_Fundo'] = np.nan
     if tem_cdi:
         df['CAGR_CDI'] = np.nan
-    if tem_ibov: # NOVO
+    if tem_ibov:
         df['CAGR_IBOV'] = np.nan
 
     if not df.empty and len(df) > trading_days_in_year:
         end_value_fundo = df['VL_QUOTA'].iloc[-1]
         if tem_cdi:
             end_value_cdi = df['CDI_COTA'].iloc[-1]
-        if tem_ibov: # NOVO
+        if tem_ibov:
             end_value_ibov = df['IBOV_COTA'].iloc[-1]
 
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
@@ -826,10 +826,9 @@ try:
                 if initial_value_cdi > 0 and num_intervals > 0:
                     df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
-            if tem_ibov and 'IBOV_COTA' in df.columns: # NOVO
+            if tem_ibov and 'IBOV_COTA' in df.columns:
                 initial_value_ibov = df['IBOV_COTA'].iloc[i]
                 if initial_value_ibov > 0 and num_intervals > 0:
-                    end_value_ibov = df['IBOV_COTA'].iloc[-1]
                     df.loc[i, 'CAGR_IBOV'] = ((end_value_ibov / initial_value_ibov) ** (trading_days_in_year / num_intervals) - 1) * 100
 
     # Calcular CAGR médio para o card de métricas (baseado na nova coluna CAGR_Fundo)
@@ -838,10 +837,23 @@ try:
         mean_cagr = 0
 
     # Excesso de Retorno Anualizado
-    # Este cálculo agora será feito em relação ao benchmark selecionado para as métricas de risco-retorno
     df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
-    # A lógica para o excesso de retorno será movida para a seção de métricas de risco-retorno
-    # para ser calculada em relação ao benchmark escolhido (CDI ou Ibovespa)
+    # Lógica para excesso de retorno: se CDI e Ibovespa estiverem marcados, não calcula.
+    # Se apenas um estiver marcado, calcula em relação a ele.
+    if (tem_cdi and not tem_ibov) and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_CDI']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_CDI'] / 100) - 1
+            ) * 100
+    elif (tem_ibov and not tem_cdi) and 'CAGR_Fundo' in df.columns and 'CAGR_IBOV' in df.columns:
+        valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', 'CAGR_IBOV']).index
+        if not valid_excess_return_indices.empty:
+            df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
+                (1 + df.loc[valid_excess_return_indices, 'CAGR_IBOV'] / 100) - 1
+            ) * 100
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -859,8 +871,7 @@ try:
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
     color_secondary = '#6b9b7f'
     color_danger = '#dc3545'
-    color_cdi = '#f0b429'  # Amarelo para o CDI
-    color_ibov = '#007bff' # Azul para o Ibovespa (NOVO)
+    color_cdi_ibov = '#000000'  # NOVO: Preto para CDI e Ibovespa
 
     # Cards de métricas
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -902,17 +913,17 @@ try:
                 y=df['CDI_NORM'],
                 mode='lines',
                 name='CDI',
-                line=dict(color=color_cdi, width=2.5),
+                line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
                 hovertemplate='<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
-        if tem_ibov: # NOVO
+        if tem_ibov:
             fig1.add_trace(go.Scatter(
                 x=df['DT_COMPTC'],
                 y=df['IBOV_NORM'],
                 mode='lines',
                 name='Ibovespa',
-                line=dict(color=color_ibov, width=2.5),
+                line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
                 hovertemplate='<b>Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
@@ -950,6 +961,8 @@ try:
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
+                fill='tozeroy', # NOVO: Preenchimento
+                fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
                 hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
             ))
 
@@ -968,18 +981,18 @@ try:
                     y=df_plot_cagr['CAGR_CDI'], # Usar a nova coluna de CAGR do CDI
                     mode='lines',
                     name='CAGR do CDI',
-                    line=dict(color=color_cdi, width=2.5),
+                    line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
                     hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
 
-            # NOVO: CAGR do Ibovespa (se disponível)
+            # CAGR do Ibovespa (se disponível)
             if tem_ibov and 'CAGR_IBOV' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
                     y=df_plot_cagr['CAGR_IBOV'],
                     mode='lines',
                     name='CAGR do Ibovespa',
-                    line=dict(color=color_ibov, width=2.5),
+                    line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
                     hovertemplate='<b>CAGR do Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
         else:
@@ -1007,39 +1020,24 @@ try:
             fig2 = add_watermark_and_style(fig2, logo_base64) # Sem range específico se não houver dados
         st.plotly_chart(fig2, use_container_width=True)
 
-        # NOVO GRÁFICO: Excesso de Retorno Anualizado
+        # GRÁFICO: Excesso de Retorno Anualizado
         st.subheader("Excesso de Retorno Anualizado")
 
-        # Lógica para o excesso de retorno, agora dependendo do benchmark selecionado
         if (tem_cdi and not tem_ibov) or (tem_ibov and not tem_cdi):
-            benchmark_cagr_col = ''
-            benchmark_name = ''
-            if tem_cdi:
-                benchmark_cagr_col = 'CAGR_CDI'
-                benchmark_name = 'CDI'
-            elif tem_ibov:
-                benchmark_cagr_col = 'CAGR_IBOV'
-                benchmark_name = 'Ibovespa'
-
-            if benchmark_cagr_col and benchmark_cagr_col in df.columns and not df.dropna(subset=['CAGR_Fundo', benchmark_cagr_col]).empty:
-                # Apenas calcula onde ambos os CAGRs estão disponíveis
-                valid_excess_return_indices = df.dropna(subset=['CAGR_Fundo', benchmark_cagr_col]).index
-                if not valid_excess_return_indices.empty:
-                    df.loc[valid_excess_return_indices, 'EXCESSO_RETORNO_ANUALIZADO'] = (
-                        (1 + df.loc[valid_excess_return_indices, 'CAGR_Fundo'] / 100) /
-                        (1 + df.loc[valid_excess_return_indices, benchmark_cagr_col] / 100) - 1
-                    ) * 100 # Multiplica por 100 para exibir em porcentagem
-
+            df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
+            if not df_plot_excess.empty:
                 fig_excesso_retorno = go.Figure()
 
                 # Linha do Excesso de Retorno
                 fig_excesso_retorno.add_trace(go.Scatter(
-                    x=df['DT_COMPTC'],
-                    y=df['EXCESSO_RETORNO_ANUALIZADO'],
+                    x=df_plot_excess['DT_COMPTC'],
+                    y=df_plot_excess['EXCESSO_RETORNO_ANUALIZADO'],
                     mode='lines',
-                    name=f'Excesso de Retorno Anualizado vs {benchmark_name}',
-                    line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
-                    hovertemplate=f'<b>Excesso de Retorno vs {benchmark_name}</b><br>Data: %{{x|%d/%m/%Y}}<br>Excesso: %{{y:.2f}}%<extra></extra>'
+                    name='Excesso de Retorno Anualizado',
+                    line=dict(color=color_primary, width=2.5),
+                    fill='tozeroy', # NOVO: Preenchimento
+                    fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
+                    hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
                 ))
 
                 # Adicionar linha de 0% para referência
@@ -1061,19 +1059,14 @@ try:
                     )
                 )
                 # Ajusta o range do eixo X para os dados de df
-                df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
-                if not df_plot_excess.empty:
-                    fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
-                else:
-                    fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64) # Sem range específico se não houver dados
+                fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
                 st.plotly_chart(fig_excesso_retorno, use_container_width=True)
             else:
-                st.warning(f"⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de {benchmark_name} e CAGR para o período).")
+                st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados do benchmark e CAGR para o período).")
         elif tem_cdi and tem_ibov:
             st.info("ℹ️ Para visualizar o Excesso de Retorno Anualizado, selecione apenas um indicador de comparação (CDI ou Ibovespa) na barra lateral.")
         else:
             st.info("ℹ️ Selecione um indicador de comparação (CDI ou Ibovespa) na barra lateral para visualizar o Excesso de Retorno Anualizado.")
-
 
     with tab2:
         st.subheader("Drawdown Histórico")
@@ -1117,6 +1110,8 @@ try:
             mode='lines',
             name=f'Volatilidade do Fundo ({vol_window} dias)',
             line=dict(color=color_primary, width=2.5),
+            fill='tozeroy', # NOVO: Preenchimento
+            fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
             hovertemplate='<b>Volatilidade do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
         ))
 
@@ -1150,6 +1145,8 @@ try:
                 mode='lines',
                 name='Rentabilidade móvel (1m)',
                 line=dict(color=color_primary, width=2),
+                fill='tozeroy', # NOVO: Preenchimento
+                fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
             ))
             fig5.add_trace(go.Scatter(
@@ -1426,6 +1423,8 @@ try:
                 mode='lines',
                 name='Captação Líquida',
                 line=dict(color=color_primary, width=2.5),
+                fill='tozeroy', # NOVO: Preenchimento
+                fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['Soma_Acumulada']]
             ),
@@ -1435,6 +1434,8 @@ try:
                 mode='lines',
                 name='Patrimônio Líquido',
                 line=dict(color=color_secondary, width=2.5),
+                fill='tozeroy', # NOVO: Preenchimento
+                fillcolor='rgba(45, 134, 89, 0.1)', # NOVO: Cor do preenchimento (tom mais claro)
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
             )
@@ -1467,9 +1468,9 @@ try:
                 marker_color=colors,
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
-                text=df_monthly['Captacao_Liquida'].apply(lambda x: format_brl(x)), # NOVO: Texto nas barras
-                textposition='outside', # NOVO: Posição do texto
-                textfont=dict(color='black', size=12) # NOVO: Estilo do texto
+                # REMOVIDO: text=df_monthly['Captacao_Liquida'].apply(lambda x: format_brl(x)),
+                # REMOVIDO: textposition='outside',
+                # REMOVIDO: textfont=dict(color='black', size=12)
             )
         ])
 
@@ -1480,7 +1481,8 @@ try:
             hovermode="x unified",
             height=500,
             font=dict(family="Inter, sans-serif"),
-            yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.2, df_monthly['Captacao_Liquida'].max() * 1.2]) # Ajusta o range para o texto
+            # Ajusta o range para o texto, mas como o texto foi removido, podemos deixar o padrão ou ajustar se necessário
+            # yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.2, df_monthly['Captacao_Liquida'].max() * 1.2])
         )
         # Ajusta o range do eixo X para os dados de df_monthly
         if not df_monthly.empty:
@@ -1499,6 +1501,8 @@ try:
             mode='lines',
             name='Patrimônio Médio por Cotista',
             line=dict(color=color_primary, width=2.5),
+            fill='tozeroy', # NOVO: Preenchimento
+            fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
         ))
@@ -1509,6 +1513,8 @@ try:
             name='Número de Cotistas',
             line=dict(color=color_secondary, width=2.5),
             yaxis='y2',
+            fill='tozeroy', # NOVO: Preenchimento
+            fillcolor='rgba(45, 134, 89, 0.1)', # NOVO: Cor do preenchimento (tom mais claro)
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
 
@@ -1541,15 +1547,15 @@ try:
             # Certifica-se de que há dados suficientes para a janela
             if len(df_returns) > dias:
                 df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
-                if tem_cdi and 'CDI_COTA' in df_returns.columns: # NOVO: Verifica se a coluna existe
+                if tem_cdi and 'CDI_COTA' in df_returns.columns:
                     df_returns[f'CDI_{nome}'] = df_returns['CDI_COTA'] / df_returns['CDI_COTA'].shift(dias) - 1
-                if tem_ibov and 'IBOV_COTA' in df_returns.columns: # NOVO
+                if tem_ibov and 'IBOV_COTA' in df_returns.columns:
                     df_returns[f'IBOV_{nome}'] = df_returns['IBOV_COTA'] / df_returns['IBOV_COTA'].shift(dias) - 1
             else:
                 df_returns[f'FUNDO_{nome}'] = np.nan
                 if tem_cdi:
                     df_returns[f'CDI_{nome}'] = np.nan
-                if tem_ibov: # NOVO
+                if tem_ibov:
                     df_returns[f'IBOV_{nome}'] = np.nan
 
         janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
@@ -1576,18 +1582,18 @@ try:
                     y=df_returns[f'CDI_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do CDI — {janela_selecionada}",
-                    line=dict(width=2.5, color=color_cdi),
+                    line=dict(width=2.5, color=color_cdi_ibov), # NOVO: Cor preta
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
-            # NOVO: Retorno do Ibovespa (se disponível)
+            # Retorno do Ibovespa (se disponível)
             if tem_ibov:
                 fig9.add_trace(go.Scatter(
                     x=df_returns['DT_COMPTC'],
                     y=df_returns[f'IBOV_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do Ibovespa — {janela_selecionada}",
-                    line=dict(width=2.5, color=color_ibov),
+                    line=dict(width=2.5, color=color_cdi_ibov), # NOVO: Cor preta
                     hovertemplate="<b>Retorno do Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
@@ -1657,10 +1663,9 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    # Adiciona o texto nas barras
-                    text=df_consistency['Consistencia'].apply(lambda x: f'{x:.2f}%'),
-                    textposition='outside', # Posição do texto fora da barra
-                    textfont=dict(color='black', size=12), # Cor e tamanho da fonte do texto
+                    # REMOVIDO: text=df_consistency['Consistencia'].apply(lambda x: f'{x:.2f}%'),
+                    # REMOVIDO: textposition='outside',
+                    # REMOVIDO: textfont=dict(color='black', size=12),
                     hovertemplate=f'<b>Janela:</b> %{{x}}<br><b>Consistência vs {benchmark_name_consistency}:</b> %{{y:.2f}}%<extra></extra>'
                 ))
 
