@@ -10,6 +10,17 @@ import numpy as np
 import re
 from datetime import datetime, timedelta
 import base64
+import tempfile # Para criar arquivos temporários para os SVGs
+import os # Para gerenciar arquivos temporários
+
+# Importar bibliotecas para PDF
+try:
+    from fpdf import FPDF
+    from PIL import Image # Usado para converter SVG para imagem para FPDF
+    PDF_DISPONIVEL = True
+except ImportError:
+    PDF_DISPONIVEL = False
+    st.warning("⚠️ Bibliotecas 'fpdf2' e/ou 'Pillow' não encontradas. Instale com: pip install fpdf2 Pillow")
 
 # Importar biblioteca para obter dados do CDI
 try:
@@ -540,7 +551,13 @@ if data_inicial_input and data_final_input:
 carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
 
 # Título principal
-st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
+title_col, report_button_col = st.columns([0.7, 0.3])
+with title_col:
+    st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
+with report_button_col:
+    st.markdown("<div style='height: 4.5rem;'></div>", unsafe_allow_html=True) # Espaçamento para alinhar
+    gerar_relatorio_button = st.button("Gerar Relatório PDF 📄", disabled=not st.session_state.get('dados_carregados', False))
+
 st.markdown("---")
 
 # Função para carregar dados
@@ -574,10 +591,578 @@ def carregar_dados_api(cnpj, data_ini_str, data_fim_str):
 
 # Funções de formatação
 def format_brl(valor):
+    if pd.isna(valor):
+        return "N/A"
     return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
 def fmt_pct_port(x):
+    if pd.isna(x):
+        return "N/A"
     return f"{x*100:.2f}%".replace('.', ',')
+
+# --- Funções de Análise Interpretativa ---
+def analisar_rentabilidade_acumulada(rent_acum, rent_cdi_acum):
+    analise = f"A rentabilidade acumulada do fundo no período é de {fmt_pct_port(rent_acum/100)}. "
+    if pd.isna(rent_cdi_acum):
+        analise += "Não foi possível comparar com o CDI."
+        return analise
+
+    analise += f"O CDI acumulado no mesmo período foi de {fmt_pct_port(rent_cdi_acum/100)}. "
+
+    if rent_acum > rent_cdi_acum:
+        analise += "O fundo **superou o CDI**, o que é um **ponto positivo** significativo, demonstrando a capacidade do gestor de gerar valor acima do benchmark de renda fixa."
+        analise += "\n\n**Pontos Positivos:** Superação consistente do benchmark, indicando boa gestão e estratégia eficaz."
+        analise += "\n**Pontos Negativos:** N/A (a superação é o foco principal aqui)."
+    elif rent_acum < rent_cdi_acum:
+        analise += "O fundo **ficou abaixo do CDI**, o que é um **ponto de atenção**, sugerindo que o retorno não foi competitivo em relação a uma aplicação de baixo risco."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Performance inferior ao benchmark, o que pode indicar desafios na estratégia ou no ambiente de mercado."
+    else:
+        analise += "O fundo teve uma rentabilidade similar ao CDI, o que pode ser considerado neutro, mas levanta questões sobre o risco assumido para obter o mesmo retorno do benchmark."
+        analise += "\n\n**Pontos Positivos:** Retorno alinhado ao benchmark."
+        analise += "\n**Pontos Negativos:** Risco assumido pode não ter sido recompensado com um retorno superior."
+    return analise
+
+def analisar_cagr(cagr_fundo, cagr_cdi):
+    analise = f"O CAGR (Taxa de Crescimento Anual Composta) médio do fundo é de {fmt_pct_port(cagr_fundo/100)}. "
+    if pd.isna(cagr_cdi):
+        analise += "Não foi possível comparar com o CDI."
+        return analise
+
+    analise += f"O CAGR médio do CDI no mesmo período foi de {fmt_pct_port(cagr_cdi/100)}. "
+
+    if cagr_fundo > cagr_cdi:
+        analise += "O fundo **superou o CDI em termos de crescimento anual composto**, o que é um **ponto positivo** forte, indicando uma capacidade consistente de valorização ao longo do tempo."
+        analise += "\n\n**Pontos Positivos:** Crescimento robusto e consistente, superando o benchmark."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif cagr_fundo < cagr_cdi:
+        analise += "O fundo **ficou abaixo do CDI em termos de crescimento anual composto**, o que é um **ponto de atenção**, sugerindo que o fundo não tem gerado valor de forma competitiva no longo prazo."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Crescimento inferior ao benchmark, o que pode impactar a rentabilidade de longo prazo."
+    else:
+        analise += "O fundo teve um CAGR similar ao CDI, o que pode ser neutro, mas sugere que o fundo não tem agregado valor significativo acima do benchmark."
+        analise += "\n\n**Pontos Positivos:** Crescimento alinhado ao benchmark."
+        analise += "\n**Pontos Negativos:** Não há superação clara do benchmark no longo prazo."
+    return analise
+
+def analisar_max_drawdown(max_drawdown):
+    if pd.isna(max_drawdown):
+        return "Não foi possível calcular o Max Drawdown."
+
+    analise = f"O Max Drawdown do fundo foi de {fmt_pct_port(max_drawdown/100)}. "
+
+    if max_drawdown > -5.0: # Quedas menores que 5%
+        analise += "Este é um **Max Drawdown relativamente baixo**, indicando que o fundo tem demonstrado boa resiliência a quedas significativas no período analisado. É um **ponto positivo** para a gestão de risco."
+        analise += "\n\n**Pontos Positivos:** Baixa exposição a perdas substanciais, indicando boa gestão de risco e estabilidade."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif max_drawdown > -15.0: # Quedas entre 5% e 15%
+        analise += "Este é um **Max Drawdown moderado**, o que é comum para fundos com exposição a ativos de maior risco. É um **ponto de atenção** que deve ser avaliado em conjunto com a rentabilidade."
+        analise += "\n\n**Pontos Positivos:** O fundo pode estar assumindo um risco calculado para buscar retornos maiores."
+        analise += "\n**Pontos Negativos:** Necessidade de avaliar se o retorno compensou o risco de queda."
+    else: # Quedas maiores que 15%
+        analise += "Este é um **Max Drawdown elevado**, indicando que o fundo experimentou uma queda significativa em seu valor. É um **ponto de atenção** importante que sugere maior risco de perdas para o investidor."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Alta exposição a perdas, o que pode ser preocupante para investidores com menor tolerância ao risco."
+    return analise
+
+def analisar_volatilidade_historica(vol_hist):
+    if pd.isna(vol_hist):
+        return "Não foi possível calcular a Volatilidade Histórica."
+
+    analise = f"A Volatilidade Histórica anualizada do fundo é de {fmt_pct_port(vol_hist/100)}. "
+
+    if vol_hist < 5.0:
+        analise += "Esta é uma **volatilidade muito baixa**, indicando que o fundo é bastante estável e com poucas oscilações de preço. É um **ponto positivo** para investidores conservadores."
+        analise += "\n\n**Pontos Positivos:** Estabilidade e previsibilidade, menor risco de grandes oscilações."
+        analise += "\n**Pontos Negativos:** Pode indicar menor potencial de retorno em comparação com ativos mais voláteis."
+    elif vol_hist < 15.0:
+        analise += "Esta é uma **volatilidade moderada**, comum para fundos com exposição a ativos de renda variável com gestão mais conservadora. É um **ponto neutro** que deve ser avaliado em relação ao retorno."
+        analise += "\n\n**Pontos Positivos:** Equilíbrio entre risco e potencial de retorno."
+        analise += "\n**Pontos Negativos:** O fundo pode ter oscilações que exigem alguma tolerância ao risco."
+    else:
+        analise += "Esta é uma **volatilidade elevada**, indicando que o fundo apresenta grandes oscilações de preço. É um **ponto de atenção** para investidores que buscam maior estabilidade, mas pode ser esperado para fundos com estratégias mais agressivas."
+        analise += "\n\n**Pontos Positivos:** Potencial de retornos mais altos em períodos de alta."
+        analise += "\n**Pontos Negativos:** Maior risco de perdas e maior imprevisibilidade nos retornos."
+    return analise
+
+def analisar_sharpe_ratio(sharpe_ratio):
+    if pd.isna(sharpe_ratio):
+        return "Não foi possível calcular o Sharpe Ratio."
+
+    analise = f"O Sharpe Ratio do fundo é de {sharpe_ratio:.2f}. "
+
+    if sharpe_ratio >= 3.0:
+        analise += "Este é um resultado **excepcional**, indicando que o fundo tem gerado retornos muito consistentes e ajustados ao risco, superando significativamente o CDI."
+        analise += "\n\n**Pontos Positivos:** Performance robusta e alta eficiência na geração de retorno por unidade de risco."
+        analise += "\n**Pontos Negativos:** Manter um Sharpe tão alto pode ser desafiador em períodos de alta volatilidade de mercado."
+    elif sharpe_ratio >= 2.0:
+        analise += "Este é um resultado **muito bom**, mostrando que o fundo tem um excelente retorno ajustado ao risco em relação ao CDI."
+        analise += "\n\n**Pontos Positivos:** Forte capacidade de gerar retornos superiores ao risco assumido."
+        analise += "\n**Pontos Negativos:** Necessidade de monitoramento contínuo para garantir a manutenção dessa performance."
+    elif sharpe_ratio >= 1.0:
+        analise += "Este é um **bom resultado**, indicando que o fundo gera um bom retorno para o nível de risco assumido, superando o CDI de forma satisfatória."
+        analise += "\n\n**Pontos Positivos:** O fundo compensa bem o risco que assume."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar ainda mais a relação risco-retorno."
+    elif sharpe_ratio >= 0.0:
+        analise += "O Sharpe Ratio é **positivo, mas abaixo de 1.0**, sugerindo que o retorno do fundo, embora superior ao CDI, não compensa de forma ideal o risco total assumido."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda supera o CDI."
+        analise += "\n**Pontos Negativos:** A eficiência na geração de retorno por unidade de risco pode ser melhorada."
+    else: # sharpe_ratio < 0.0
+        analise += "O Sharpe Ratio é **negativo**, indicando que o fundo não conseguiu gerar um retorno superior ao CDI que justificasse o risco assumido, ou até mesmo teve um retorno inferior ao CDI."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está compensando o risco, sugerindo uma performance subótima em relação ao benchmark."
+
+    return analise
+
+def analisar_sortino_ratio(sortino_ratio):
+    if pd.isna(sortino_ratio):
+        return "Não foi possível calcular o Sortino Ratio."
+
+    analise = f"O Sortino Ratio do fundo é de {sortino_ratio:.2f}. "
+
+    if sortino_ratio >= 2.0:
+        analise += "Este é um resultado **excepcional**, indicando que o fundo tem gerado retornos muito consistentes e ajustados ao risco de queda, com excelente proteção contra perdas."
+        analise += "\n\n**Pontos Positivos:** Alta eficiência na geração de retorno por unidade de risco de queda, excelente gestão de perdas."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif sortino_ratio >= 1.0:
+        analise += "Este é um **bom resultado**, mostrando que o fundo tem um bom retorno ajustado ao risco de queda, superando o CDI de forma satisfatória considerando apenas as perdas."
+        analise += "\n\n**Pontos Positivos:** O fundo compensa bem o risco de queda que assume."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar ainda mais a relação risco-retorno de queda."
+    elif sortino_ratio >= 0.0:
+        analise += "O Sortino Ratio é **positivo, mas abaixo de 1.0**, sugerindo que o retorno do fundo, embora superior ao CDI, não compensa de forma ideal o risco de queda."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda supera o CDI."
+        analise += "\n**Pontos Negativos:** A eficiência na geração de retorno por unidade de risco de queda pode ser melhorada."
+    else: # sortino_ratio < 0.0
+        analise += "O Sortino Ratio é **negativo**, indicando que o fundo não conseguiu gerar um retorno superior ao CDI que justificasse o risco de queda assumido, ou até mesmo teve um retorno inferior ao CDI."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está compensando o risco de queda, sugerindo uma performance subótima em relação ao benchmark."
+    return analise
+
+def analisar_information_ratio(information_ratio):
+    if pd.isna(information_ratio):
+        return "Não foi possível calcular o Information Ratio."
+
+    analise = f"O Information Ratio do fundo é de {information_ratio:.2f}. "
+
+    if information_ratio >= 1.0:
+        analise += "Este é um resultado **excelente**, indicando que o gestor tem uma forte habilidade e consistência em superar o benchmark (CDI) com um risco de desvio razoável."
+        analise += "\n\n**Pontos Positivos:** Forte capacidade de gerar alfa e gerenciar o risco relativo ao benchmark."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif information_ratio >= 0.5:
+        analise += "Este é um **bom resultado**, mostrando que o gestor tem uma boa habilidade e consistência em superar o benchmark (CDI)."
+        analise += "\n\n**Pontos Positivos:** Habilidade consistente em superar o benchmark."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar ainda mais a superação do benchmark."
+    elif information_ratio >= 0.0:
+        analise += "O Information Ratio é **positivo, mas abaixo de 0.5**, sugerindo uma habilidade modesta em superar o benchmark (CDI)."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda supera o CDI."
+        analise += "\n**Pontos Negativos:** A capacidade de gerar alfa pode ser melhorada."
+    else: # information_ratio < 0.0
+        analise += "O Information Ratio é **negativo**, indicando que o fundo está consistentemente abaixo do benchmark (CDI), o que é um **ponto de atenção**."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está superando o benchmark, sugerindo uma performance subótima em relação ao benchmark."
+    return analise
+
+def analisar_calmar_ratio(calmar_ratio):
+    if pd.isna(calmar_ratio):
+        return "Não foi possível calcular o Calmar Ratio."
+
+    analise = f"O Calmar Ratio do fundo é de {calmar_ratio:.2f}. "
+
+    if calmar_ratio >= 1.0:
+        analise += "Este é um resultado **muito bom**, indicando que o fundo gerou bons retornos anuais em relação ao seu maior drawdown. O fundo gerencia bem o risco de grandes quedas."
+        analise += "\n\n**Pontos Positivos:** Excelente retorno ajustado ao risco de drawdown, boa resiliência a quedas."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif calmar_ratio >= 0.5:
+        analise += "Este é um **bom resultado**, mostrando que o fundo gerou retornos razoáveis em relação ao seu maior drawdown."
+        analise += "\n\n**Pontos Positivos:** O fundo consegue se recuperar de quedas de forma satisfatória."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar a relação retorno/drawdown."
+    elif calmar_ratio >= 0.0:
+        analise += "O Calmar Ratio é **positivo, mas abaixo de 0.5**, sugerindo que o retorno do fundo, embora positivo, não compensa de forma ideal o risco de grandes quedas."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda gera retorno positivo."
+        analise += "\n**Pontos Negativos:** O risco de drawdown pode ser elevado em relação ao retorno gerado."
+    else: # calmar_ratio < 0.0
+        analise += "O Calmar Ratio é **negativo**, indicando que o fundo teve retorno negativo ou um drawdown muito grande, o que é um **ponto de atenção**."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está compensando o risco de drawdown, sugerindo uma performance subótima."
+    return analise
+
+def analisar_sterling_ratio(sterling_ratio):
+    if pd.isna(sterling_ratio):
+        return "Não foi possível calcular o Sterling Ratio."
+
+    analise = f"O Sterling Ratio do fundo é de {sterling_ratio:.2f}. "
+
+    if sterling_ratio >= 1.0:
+        analise += "Este é um resultado **muito bom**, indicando que o fundo gerou bons retornos anuais em relação ao seu maior drawdown. O fundo gerencia bem o risco de grandes quedas."
+        analise += "\n\n**Pontos Positivos:** Excelente retorno ajustado ao risco de drawdown, boa resiliência a quedas."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif sterling_ratio >= 0.5:
+        analise += "Este é um **bom resultado**, mostrando que o fundo gerou retornos razoáveis em relação ao seu maior drawdown."
+        analise += "\n\n**Pontos Positivos:** O fundo consegue se recuperar de quedas de forma satisfatória."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar a relação retorno/drawdown."
+    elif sterling_ratio >= 0.0:
+        analise += "O Sterling Ratio é **positivo, mas abaixo de 0.5**, sugerindo que o retorno do fundo, embora positivo, não compensa de forma ideal o risco de grandes quedas."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda gera retorno positivo."
+        analise += "\n**Pontos Negativos:** O risco de drawdown pode ser elevado em relação ao retorno gerado."
+    else: # sterling_ratio < 0.0
+        analise += "O Sterling Ratio é **negativo**, indicando que o fundo teve retorno negativo ou um drawdown muito grande, o que é um **ponto de atenção**."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está compensando o risco de drawdown, sugerindo uma performance subótima."
+    return analise
+
+def analisar_ulcer_index(ulcer_index):
+    if pd.isna(ulcer_index):
+        return "Não foi possível calcular o Ulcer Index."
+
+    analise = f"O Ulcer Index do fundo é de {ulcer_index:.2f}. "
+
+    if ulcer_index < 1.0:
+        analise += "Este é um **Ulcer Index baixo**, indicando que o fundo teve quedas menos profundas e/ou de menor duração. É um **ponto positivo** para a estabilidade e conforto do investidor."
+        analise += "\n\n**Pontos Positivos:** Baixa 'dor' para o investidor, boa gestão de risco de drawdown."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif ulcer_index < 2.0:
+        analise += "Este é um **Ulcer Index moderado**, sugerindo que o fundo teve quedas de profundidade e/ou duração razoáveis. É um **ponto neutro** que deve ser avaliado em relação ao retorno."
+        analise += "\n\n**Pontos Positivos:** O fundo pode estar assumindo um risco calculado para buscar retornos maiores."
+        analise += "\n**Pontos Negativos:** O fundo pode ter períodos de quedas que exigem tolerância ao risco."
+    else: # ulcer_index >= 2.0
+        analise += "Este é um **Ulcer Index elevado**, indicando que o fundo teve quedas significativas e/ou duradouras. É um **ponto de atenção** importante que sugere maior risco de perdas e desconforto para o investidor."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Alta 'dor' para o investidor, sugerindo maior risco de perdas e volatilidade de baixa."
+    return analise
+
+def analisar_martin_ratio(martin_ratio):
+    if pd.isna(martin_ratio):
+        return "Não foi possível calcular o Martin Ratio."
+
+    analise = f"O Martin Ratio do fundo é de {martin_ratio:.2f}. "
+
+    if martin_ratio >= 1.0:
+        analise += "Este é um resultado **muito bom**, indicando que o fundo entrega um bom retorno considerando a 'dor' dos drawdowns (Ulcer Index). O fundo é eficiente em gerar retorno em relação ao risco de perdas."
+        analise += "\n\n**Pontos Positivos:** Excelente retorno ajustado ao risco de drawdown, boa eficiência na gestão de perdas."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif martin_ratio >= 0.5:
+        analise += "Este é um **bom resultado**, mostrando que o fundo gera um retorno razoável em relação à 'dor' dos drawdowns."
+        analise += "\n\n**Pontos Positivos:** O fundo consegue gerar retorno positivo considerando as quedas."
+        analise += "\n**Pontos Negativos:** Pode haver oportunidades para otimizar a relação retorno/Ulcer Index."
+    elif martin_ratio >= 0.0:
+        analise += "O Martin Ratio é **positivo, mas abaixo de 0.5**, sugerindo que o retorno do fundo, embora positivo, não compensa de forma ideal a 'dor' dos drawdowns."
+        analise += "\n\n**Pontos Positivos:** O fundo ainda gera retorno positivo."
+        analise += "\n**Pontos Negativos:** O risco de drawdown pode ser elevado em relação ao retorno gerado."
+    else: # martin_ratio < 0.0
+        analise += "O Martin Ratio é **negativo**, indicando que o fundo não conseguiu gerar um retorno superior ao CDI que justificasse a 'dor' dos drawdowns, ou até mesmo teve um retorno inferior ao CDI."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** O fundo não está compensando o risco de drawdown, sugerindo uma performance subótima."
+    return analise
+
+def analisar_var_es(VaR_95, VaR_99, ES_95, ES_99):
+    if pd.isna(VaR_95) or pd.isna(VaR_99) or pd.isna(ES_95) or pd.isna(ES_99):
+        return "Não foi possível calcular VaR e ES devido à falta de dados."
+
+    analise = f"""
+    **Análise de Risco de Cauda (VaR e ES) para 1 mês:**
+
+    • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR 99%)** em um mês. Caso essa queda ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES 99%)**.
+    • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR 95%)** em um mês. Caso essa queda ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES 95%)**.
+
+    **Pontos Positivos:**
+    *   Fornece uma estimativa quantitativa das perdas potenciais em cenários adversos, auxiliando na gestão de risco.
+    *   O Expected Shortfall (ES) oferece uma visão mais completa do risco de cauda, indicando a perda média esperada em cenários extremos.
+
+    **Pontos Negativos:**
+    *   VaR e ES são estimativas baseadas em dados históricos e podem não prever eventos de "cisne negro" ou mudanças abruptas no mercado.
+    *   A interpretação deve ser feita com cautela, pois não garantem que as perdas não excederão esses valores.
+    """
+    return analise
+
+def analisar_patrimonio_captacao(patrimonio_liq, captacao_liquida_acum):
+    analise = f"O Patrimônio Líquido atual do fundo é de {format_brl(patrimonio_liq)} e a Captação Líquida acumulada no período é de {format_brl(captacao_liquida_acum)}. "
+
+    if captacao_liquida_acum > 0:
+        analise += "A **captação líquida positiva** indica que o fundo tem atraído mais recursos do que resgatado, o que é um **ponto positivo** para o crescimento e a sustentabilidade do fundo."
+        analise += "\n\n**Pontos Positivos:** Crescimento da base de ativos, confiança dos investidores, potencial para maiores economias de escala."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif captacao_liquida_acum < 0:
+        analise += "A **captação líquida negativa** indica que o fundo tem sofrido mais resgates do que novas aplicações, o que é um **ponto de atenção** para a gestão e a estabilidade do fundo."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Redução da base de ativos, possível perda de confiança dos investidores, desafios na gestão de liquidez."
+    else:
+        analise += "A captação líquida é neutra, sugerindo um equilíbrio entre aplicações e resgates no período."
+        analise += "\n\n**Pontos Positivos:** Estabilidade na base de ativos."
+        analise += "\n**Pontos Negativos:** Não há crescimento orgânico claro."
+    return analise
+
+def analisar_captacao_mensal(df_monthly):
+    if df_monthly.empty:
+        return "Não há dados suficientes para analisar a Captação Líquida Mensal."
+
+    total_captacao = df_monthly['Captacao_Liquida'].sum()
+    num_meses = len(df_monthly)
+    meses_positivos = (df_monthly['Captacao_Liquida'] > 0).sum()
+    meses_negativos = (df_monthly['Captacao_Liquida'] < 0).sum()
+
+    analise = f"No período analisado ({num_meses} meses), o fundo teve uma captação líquida total de {format_brl(total_captacao)}. "
+    analise += f"Houve {meses_positivos} meses de captação positiva e {meses_negativos} meses de captação negativa. "
+
+    if meses_positivos > meses_negativos:
+        analise += "A **predominância de meses com captação positiva** é um **ponto positivo**, indicando uma tendência de crescimento e atratividade do fundo para novos investidores."
+        analise += "\n\n**Pontos Positivos:** Crescimento sustentado, boa percepção do mercado sobre o fundo."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif meses_negativos > meses_positivos:
+        analise += "A **predominância de meses com captação negativa** é um **ponto de atenção**, sugerindo uma possível perda de interesse ou confiança dos investidores no fundo."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Desafios na manutenção da base de ativos, possível impacto na liquidez."
+    else:
+        analise += "A captação mensal tem sido equilibrada, com um número similar de meses positivos e negativos."
+        analise += "\n\n**Pontos Positivos:** Estabilidade na captação."
+        analise += "\n**Pontos Negativos:** Ausência de uma tendência clara de crescimento ou retração."
+    return analise
+
+def analisar_cotistas(patrimonio_medio, num_cotistas):
+    if pd.isna(patrimonio_medio) or pd.isna(num_cotistas):
+        return "Não há dados suficientes para analisar o Patrimônio Médio e o Número de Cotistas."
+
+    analise = f"O Patrimônio Médio por Cotista é de {format_brl(patrimonio_medio)} e o Número de Cotistas atual é de {int(num_cotistas)}. "
+
+    if num_cotistas > 1000: # Exemplo de limiar para um fundo grande
+        analise += "Um **alto número de cotistas** é um **ponto positivo**, indicando que o fundo é bem distribuído e acessível a um grande público, o que pode trazer maior estabilidade ao patrimônio."
+        analise += "\n\n**Pontos Positivos:** Ampla aceitação no mercado, menor concentração de risco em poucos investidores."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif num_cotistas > 100:
+        analise += "Um **número moderado de cotistas** é um **ponto neutro**, comum para fundos de nicho ou em fase de crescimento."
+        analise += "\n\n**Pontos Positivos:** Potencial de crescimento da base de cotistas."
+        analise += "\n**Pontos Negativos:** Pode haver maior sensibilidade a grandes resgates de poucos cotistas."
+    else:
+        analise += "Um **baixo número de cotistas** é um **ponto de atenção**, sugerindo que o fundo pode ser mais concentrado e sensível a resgates de poucos investidores."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Maior risco de liquidez e volatilidade do patrimônio líquido devido à concentração."
+    return analise
+
+def analisar_consistencia(df_consistency):
+    if df_consistency.empty:
+        return "Não há dados suficientes para analisar a Consistência em Janelas Móveis."
+
+    analise = "A consistência do fundo em superar o CDI em diferentes janelas móveis é um indicador importante da sua performance relativa. "
+
+    for index, row in df_consistency.iterrows():
+        janela = row['Janela']
+        consistencia = row['Consistencia']
+        analise += f"\n\nNa janela de **{janela} meses**, o fundo superou o CDI em **{consistencia:.2f}%** do tempo. "
+        if consistencia >= 70:
+            analise += "Isso demonstra uma **alta consistência**, um **ponto positivo** forte."
+        elif consistencia >= 50:
+            analise += "Isso indica uma **consistência moderada**, um **ponto neutro**."
+        else:
+            analise += "Isso sugere uma **baixa consistência**, um **ponto de atenção**."
+
+    analise += "\n\n**Pontos Positivos:** Alta consistência em janelas maiores indica uma estratégia robusta e capacidade de gerar alfa no longo prazo."
+    analise += "\n**Pontos Negativos:** Baixa consistência pode indicar que o fundo tem dificuldade em superar o benchmark de forma consistente, ou que sua estratégia é mais volátil em relação ao CDI."
+    return analise
+
+# --- Função de Geração de Relatório PDF ---
+def gerar_relatorio_pdf(
+    cnpj_fundo, nome_fundo, dt_ini_user, dt_fim_user,
+    metrics,
+    fig1, fig2, fig_excesso_retorno, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig_consistency,
+    tem_cdi, logo_base64,
+    df_plot_cagr, df_plot_var, df_monthly, df_returns, df_consistency,
+    sharpe_ratio, sortino_ratio, information_ratio, calmar_ratio, sterling_ratio, ulcer_index, martin_ratio,
+    VaR_95, VaR_99, ES_95, ES_99
+):
+    if not PDF_DISPONIVEL:
+        st.error("As bibliotecas 'fpdf2' e 'Pillow' não estão instaladas. Não é possível gerar o PDF.")
+        return None
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Título do Relatório
+    pdf.set_font("Arial", 'B', 24)
+    pdf.set_text_color(26, 95, 63) # Cor primária
+    pdf.cell(0, 10, "Relatório de Análise de Fundo de Investimento", 0, 1, 'C')
+    pdf.ln(5)
+
+    pdf.set_font("Arial", '', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 7, f"Fundo: {nome_fundo} (CNPJ: {cnpj_fundo})", 0, 1, 'C')
+    pdf.cell(0, 7, f"Período de Análise: {dt_ini_user.strftime('%d/%m/%Y')} a {dt_fim_user.strftime('%d/%m/%Y')}", 0, 1, 'C')
+    pdf.ln(10)
+
+    # --- Sumário Executivo ---
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, "1. Sumário Executivo", 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", '', 10)
+    pdf.multi_cell(0, 6, f"""
+    Este relatório apresenta uma análise detalhada do fundo {nome_fundo} (CNPJ: {cnpj_fundo}) no período de {dt_ini_user.strftime('%d/%m/%Y')} a {dt_fim_user.strftime('%d/%m/%Y')}.
+    Foram avaliadas métricas de rentabilidade, risco, patrimônio, captação e consistência, com comparações ao CDI quando aplicável.
+
+    **Principais Métricas:**
+    - Patrimônio Líquido: {metrics['Patrimonio_Liq']}
+    - Rentabilidade Acumulada: {metrics['Rentabilidade_Acumulada']}
+    - CAGR Médio: {metrics['CAGR_Medio']}
+    - Max Drawdown: {metrics['Max_Drawdown']}
+    - Volatilidade Histórica: {metrics['Vol_Historica']}
+    """, 0, 'L')
+    pdf.ln(5)
+
+    # Conclusão geral (a ser aprimorada com base nas análises individuais)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.multi_cell(0, 6, "Conclusão Geral:", 0, 'L')
+    pdf.set_font("Arial", '', 10)
+
+    # Geração da conclusão geral baseada nas análises individuais
+    conclusao_geral_texto = ""
+
+    # Rentabilidade
+    if metrics['Rentabilidade_Acumulada_Val'] is not None and metrics['CDI_Acumulada_Val'] is not None:
+        if metrics['Rentabilidade_Acumulada_Val'] > metrics['CDI_Acumulada_Val']:
+            conclusao_geral_texto += "O fundo demonstrou uma **sólida performance de rentabilidade**, superando o CDI no período. "
+        elif metrics['Rentabilidade_Acumulada_Val'] < metrics['CDI_Acumulada_Val']:
+            conclusao_geral_texto += "A rentabilidade do fundo ficou **abaixo do CDI**, indicando um desempenho não competitivo. "
+        else:
+            conclusao_geral_texto += "A rentabilidade do fundo foi similar ao CDI. "
+
+    # Risco (Sharpe e Max Drawdown)
+    if not pd.isna(sharpe_ratio) and sharpe_ratio >= 1.0:
+        conclusao_geral_texto += "Com um **Sharpe Ratio favorável**, o fundo tem sido eficiente em gerar retorno ajustado ao risco. "
+    elif not pd.isna(sharpe_ratio) and sharpe_ratio < 0.0:
+        conclusao_geral_texto += "O **Sharpe Ratio negativo** sugere que o fundo não compensou o risco assumido. "
+
+    if not pd.isna(metrics['Max_Drawdown_Val']) and metrics['Max_Drawdown_Val'] > -10.0:
+        conclusao_geral_texto += "O **Max Drawdown foi contido**, indicando boa gestão de perdas. "
+    elif not pd.isna(metrics['Max_Drawdown_Val']) and metrics['Max_Drawdown_Val'] <= -10.0:
+        conclusao_geral_texto += "O **Max Drawdown foi significativo**, apontando para períodos de maior volatilidade de baixa. "
+
+    # Captação
+    if metrics['Captacao_Liquida_Acum_Val'] is not None:
+        if metrics['Captacao_Liquida_Acum_Val'] > 0:
+            conclusao_geral_texto += "A **captação líquida positiva** reflete a confiança dos investidores. "
+        elif metrics['Captacao_Liquida_Acum_Val'] < 0:
+            conclusao_geral_texto += "A **captação líquida negativa** indica desafios na atração/retenção de recursos. "
+
+    if not conclusao_geral_texto:
+        conclusao_geral_texto = "Não foi possível gerar uma conclusão geral devido à falta de dados ou métricas insuficientes."
+
+    pdf.multi_cell(0, 6, conclusao_geral_texto, 0, 'L')
+    pdf.ln(10)
+
+    # --- Seções Detalhadas ---
+    sections = [
+        ("2. Rentabilidade Histórica", fig1, "Rentabilidade Acumulada", analisar_rentabilidade_acumulada(metrics['Rentabilidade_Acumulada_Val'], metrics['CDI_Acumulada_Val'])),
+        ("3. CAGR Anual por Dia de Aplicação", fig2, "CAGR Anual por Dia de Aplicação", analisar_cagr(metrics['CAGR_Medio_Val'], metrics['CAGR_CDI_Medio_Val'])),
+        ("4. Excesso de Retorno Anualizado", fig_excesso_retorno, "Excesso de Retorno Anualizado", "O Excesso de Retorno Anualizado mede a capacidade do fundo de gerar retornos acima do CDI, ajustado pelo tempo. Valores positivos indicam superação do benchmark."),
+        ("5. Drawdown Histórico", fig3, "Drawdown Histórico", analisar_max_drawdown(metrics['Max_Drawdown_Val'])),
+        ("6. Volatilidade Móvel", fig4, "Volatilidade Móvel", analisar_volatilidade_historica(metrics['Vol_Historica_Val'])),
+        ("7. Value at Risk (VaR) e Expected Shortfall (ES)", fig5, "VaR e ES", analisar_var_es(VaR_95, VaR_99, ES_95, ES_99)),
+        ("8. Patrimônio e Captação Líquida", fig6, "Patrimônio e Captação Líquida", analisar_patrimonio_captacao(metrics['Patrimonio_Liq_Val'], metrics['Captacao_Liquida_Acum_Val'])),
+        ("9. Captação Líquida Mensal", fig7, "Captação Líquida Mensal", analisar_captacao_mensal(df_monthly)),
+        ("10. Patrimônio Médio e Nº de Cotistas", fig8, "Patrimônio Médio e Nº de Cotistas", analisar_cotistas(metrics['Patrimonio_Medio_Cotista_Val'], metrics['Num_Cotistas_Val'])),
+        ("11. Retornos em Janelas Móveis", fig9, "Retornos em Janelas Móveis", "Este gráfico mostra a performance do fundo em diferentes janelas de tempo, permitindo avaliar a consistência dos retornos ao longo do tempo."),
+        ("12. Consistência em Janelas Móveis", fig_consistency, "Consistência em Janelas Móveis", analisar_consistencia(df_consistency))
+    ]
+
+    # Adicionar métricas de risco-retorno como texto
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, "13. Métricas de Risco-Retorno", 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", '', 10)
+    pdf.ln(5)
+
+    if tem_cdi:
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(0, 6, "RISCO MEDIDO PELA VOLATILIDADE:", 0, 'L')
+        pdf.set_font("Arial", '', 10)
+        pdf.multi_cell(0, 6, f"Sharpe Ratio: {sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "Sharpe Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_sharpe_ratio(sharpe_ratio), 0, 'L')
+        pdf.ln(2)
+        pdf.multi_cell(0, 6, f"Sortino Ratio: {sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "Sortino Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_sortino_ratio(sortino_ratio), 0, 'L')
+        pdf.ln(2)
+        pdf.multi_cell(0, 6, f"Information Ratio: {information_ratio:.2f}" if not pd.isna(information_ratio) else "Information Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_information_ratio(information_ratio), 0, 'L')
+        pdf.ln(5)
+
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(0, 6, "RISCO MEDIDO PELO DRAWDOWN:", 0, 'L')
+        pdf.set_font("Arial", '', 10)
+        pdf.multi_cell(0, 6, f"Calmar Ratio: {calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "Calmar Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_calmar_ratio(calmar_ratio), 0, 'L')
+        pdf.ln(2)
+        pdf.multi_cell(0, 6, f"Sterling Ratio: {sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "Sterling Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_sterling_ratio(sterling_ratio), 0, 'L')
+        pdf.ln(2)
+        pdf.multi_cell(0, 6, f"Ulcer Index: {ulcer_index:.2f}" if not pd.isna(ulcer_index) else "Ulcer Index: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_ulcer_index(ulcer_index), 0, 'L')
+        pdf.ln(2)
+        pdf.multi_cell(0, 6, f"Martin Ratio: {martin_ratio:.2f}" if not pd.isna(martin_ratio) else "Martin Ratio: N/A", 0, 'L')
+        pdf.multi_cell(0, 6, analisar_martin_ratio(martin_ratio), 0, 'L')
+        pdf.ln(5)
+    else:
+        pdf.multi_cell(0, 6, "As Métricas de Risco-Retorno requerem a comparação com o CDI.", 0, 'L')
+    pdf.ln(10)
+
+    # Adicionar gráficos e análises
+    for i, (section_title, fig, chart_title, analysis_text) in enumerate(sections):
+        if fig is None: # Pula se o gráfico não foi gerado (ex: falta de dados)
+            continue
+
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        pdf.set_text_color(26, 95, 63)
+        pdf.cell(0, 10, section_title, 0, 1, 'L')
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("Arial", '', 10)
+        pdf.ln(5)
+
+        # Salvar gráfico como SVG temporário
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".svg") as tmp_svg:
+            fig.write_image(tmp_svg.name, format='svg', width=1000, height=500) # Aumenta a resolução para PDF
+            svg_path = tmp_svg.name
+
+        # Converter SVG para PNG para FPDF (FPDF não suporta SVG diretamente)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
+            img = Image.open(svg_path)
+            img.save(tmp_png.name, format='PNG')
+            png_path = tmp_png.name
+
+        # Adicionar imagem ao PDF
+        pdf.image(png_path, x=10, w=pdf.w - 20) # Ajusta largura para caber na página
+        pdf.ln(5)
+
+        # Adicionar análise
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(0, 6, f"Análise de {chart_title}:", 0, 'L')
+        pdf.set_font("Arial", '', 10)
+        pdf.multi_cell(0, 6, analysis_text, 0, 'L')
+        pdf.ln(10)
+
+        # Limpar arquivos temporários
+        os.remove(svg_path)
+        os.remove(png_path)
+
+    # Conclusão Final do Relatório
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_text_color(26, 95, 63)
+    pdf.cell(0, 10, "14. Conclusão Final", 0, 1, 'L')
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", '', 10)
+    pdf.ln(5)
+    pdf.multi_cell(0, 6, conclusao_geral_texto, 0, 'L') # Reutiliza a conclusão geral
+    pdf.ln(10)
+
+    # Rodapé
+    pdf.set_y(-20)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.set_text_color(108, 117, 125)
+    pdf.cell(0, 10, f"Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} - Copaíba Invest", 0, 0, 'C')
+
+    return pdf.output(dest='S').encode('latin-1') # Retorna o PDF como bytes
 
 # Verificar se deve carregar os dados
 if 'dados_carregados' not in st.session_state:
@@ -614,6 +1199,23 @@ if not st.session_state.dados_carregados:
 
     st.stop()
 
+# Inicializa variáveis para os gráficos e métricas para evitar NameError
+# quando o botão de relatório é clicado antes de carregar os dados
+df = pd.DataFrame()
+df_plot_cagr = pd.DataFrame()
+df_plot_var = pd.DataFrame()
+df_monthly = pd.DataFrame()
+df_returns = pd.DataFrame()
+df_consistency = pd.DataFrame()
+
+fig1, fig2, fig_excesso_retorno, fig3, fig4, fig5, fig6, fig7, fig8, fig9, fig_consistency = [None] * 11
+metrics_display = {}
+metrics_values = {}
+sharpe_ratio, sortino_ratio, information_ratio, calmar_ratio, sterling_ratio, ulcer_index, martin_ratio = [np.nan] * 7
+VaR_95, VaR_99, ES_95, ES_99 = [np.nan] * 4
+tem_cdi = False
+nome_fundo = "Fundo Não Identificado" # Default
+
 try:
     with st.spinner('🔄 Carregando dados...'):
         # Converte as datas de input do usuário para objetos datetime
@@ -627,6 +1229,11 @@ try:
             st.session_state.data_fim
         )
         df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
+
+        if not df_fundo_completo.empty and 'DENOM_SOCIAL' in df_fundo_completo.columns:
+            nome_fundo = df_fundo_completo['DENOM_SOCIAL'].iloc[0]
+        else:
+            nome_fundo = f"Fundo CNPJ: {st.session_state.cnpj}"
 
         # 2. OBTER DADOS DO CDI para o período EXATO solicitado pelo usuário
         df_cdi_raw = pd.DataFrame()
@@ -732,6 +1339,10 @@ try:
     if pd.isna(mean_cagr): # Lida com casos onde todos os CAGRs são NaN por falta de dados
         mean_cagr = 0
 
+    mean_cagr_cdi = df['CAGR_CDI'].mean() if 'CAGR_CDI' in df.columns else 0
+    if pd.isna(mean_cagr_cdi):
+        mean_cagr_cdi = 0
+
     # Excesso de Retorno Anualizado
     df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
     if tem_cdi and 'CAGR_Fundo' in df.columns and 'CAGR_CDI' in df.columns:
@@ -746,7 +1357,7 @@ try:
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
     df_plot_var = df.dropna(subset=['Retorno_21d']).copy()
-    VaR_95, VaR_99, ES_95, ES_99 = 0, 0, 0, 0 # Inicializa com 0 para evitar erros se df_plot_var estiver vazio
+    VaR_95, VaR_99, ES_95, ES_99 = np.nan, np.nan, np.nan, np.nan # Inicializa com NaN
     if not df_plot_var.empty:
         VaR_95 = np.percentile(df_plot_var['Retorno_21d'], 5)
         VaR_99 = np.percentile(df_plot_var['Retorno_21d'], 1)
@@ -764,16 +1375,52 @@ try:
     # Cards de métricas
     col1, col2, col3, col4, col5 = st.columns(5)
 
+    # Coleta de valores para o PDF
+    patrimonio_liq_val = df['VL_PATRIM_LIQ'].iloc[-1]
+    rent_acum_val = df['VL_QUOTA_NORM'].iloc[-1]
+    cagr_medio_val = mean_cagr
+    max_drawdown_val = df['Drawdown'].min()
+    vol_hist_val = vol_hist
+    cdi_acum_val = df['CDI_NORM'].iloc[-1] if tem_cdi else np.nan
+    captacao_liquida_acum_val = df['Soma_Acumulada'].iloc[-1]
+    patrimonio_medio_cotista_val = df['Patrimonio_Liq_Medio'].iloc[-1]
+    num_cotistas_val = df['NR_COTST'].iloc[-1]
+
+    metrics_display = {
+        "Patrimonio_Liq": format_brl(patrimonio_liq_val),
+        "Rentabilidade_Acumulada": fmt_pct_port(rent_acum_val / 100),
+        "CAGR_Medio": fmt_pct_port(cagr_medio_val / 100),
+        "Max_Drawdown": fmt_pct_port(max_drawdown_val / 100),
+        "Vol_Historica": fmt_pct_port(vol_hist_val / 100),
+        "CDI_Acumulada": fmt_pct_port(cdi_acum_val / 100) if tem_cdi else "N/A",
+        "Captacao_Liquida_Acum": format_brl(captacao_liquida_acum_val),
+        "Patrimonio_Medio_Cotista": format_brl(patrimonio_medio_cotista_val),
+        "Num_Cotistas": f"{int(num_cotistas_val):,}".replace(',', '.')
+    }
+
+    metrics_values = {
+        "Patrimonio_Liq_Val": patrimonio_liq_val,
+        "Rentabilidade_Acumulada_Val": rent_acum_val,
+        "CAGR_Medio_Val": cagr_medio_val,
+        "Max_Drawdown_Val": max_drawdown_val,
+        "Vol_Historica_Val": vol_hist_val,
+        "CDI_Acumulada_Val": cdi_acum_val,
+        "CAGR_CDI_Medio_Val": mean_cagr_cdi,
+        "Captacao_Liquida_Acum_Val": captacao_liquida_acum_val,
+        "Patrimonio_Medio_Cotista_Val": patrimonio_medio_cotista_val,
+        "Num_Cotistas_Val": num_cotistas_val
+    }
+
     with col1:
-        st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
+        st.metric("Patrimônio Líquido", metrics_display["Patrimonio_Liq"])
     with col2:
-        st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
+        st.metric("Rentabilidade Acumulada", metrics_display["Rentabilidade_Acumulada"])
     with col3:
-        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
+        st.metric("CAGR Médio", metrics_display["CAGR_Medio"])
     with col4:
-        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+        st.metric("Max Drawdown", metrics_display["Max_Drawdown"])
     with col5:
-        st.metric("Vol. Histórica", fmt_pct_port(vol_hist/100))
+        st.metric("Vol. Histórica", metrics_display["Vol_Historica"])
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Rentabilidade", "Risco", "Patrimônio e Captação",
@@ -928,8 +1575,10 @@ try:
             st.plotly_chart(fig_excesso_retorno, use_container_width=True)
         elif st.session_state.mostrar_cdi:
             st.warning("⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de CDI e CAGR para o período).")
+            fig_excesso_retorno = None # Garante que a variável seja None se o gráfico não for gerado
         else:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar o Excesso de Retorno Anualizado.")
+            fig_excesso_retorno = None # Garante que a variável seja None se o gráfico não for gerado
 
     with tab2:
         st.subheader("Drawdown Histórico")
@@ -1060,6 +1709,7 @@ try:
             """)
         else:
             st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
+            fig5 = None # Garante que a variável seja None se o gráfico não for gerado
 
         st.subheader("Métricas de Risco-Retorno")
 
@@ -1137,35 +1787,15 @@ try:
 
             with col_vol_1:
                 st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}" if not pd.isna(sharpe_ratio) else "N/A")
-                st.info("""
-                **Sharpe Ratio:** Mede o excesso de retorno do fundo (acima do CDI) por unidade de **volatilidade total** (risco). Quanto maior o Sharpe, melhor o retorno para o nível de risco assumido.
-                *   **Interpretação Geral:**
-                    *   **< 1.0:** Subótimo, o retorno não compensa adequadamente o risco.
-                    *   **1.0 - 1.99:** Bom, o fundo gera um bom retorno para o risco.
-                    *   **2.0 - 2.99:** Muito Bom, excelente retorno ajustado ao risco.
-                    *   **≥ 3.0:** Excepcional, performance muito consistente.
-                """)
+                st.info(analisar_sharpe_ratio(sharpe_ratio))
             with col_vol_2:
                 st.metric("Sortino Ratio", f"{sortino_ratio:.2f}" if not pd.isna(sortino_ratio) else "N/A")
-                st.info("""
-                **Sortino Ratio:** Similar ao Sharpe, mas foca apenas na **volatilidade de baixa** (downside volatility). Ele mede o excesso de retorno por unidade de risco de queda. É útil para investidores que se preocupam mais com perdas do que com a volatilidade geral.
-                *   **Interpretação Geral:**
-                    *   **< 0.0:** Retorno não cobre o risco de queda.
-                    *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de queda.
-                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de perdas.
-                """)
+                st.info(analisar_sortino_ratio(sortino_ratio))
 
             col_vol_3, col_vol_4 = st.columns(2)
             with col_vol_3:
                 st.metric("Information Ratio", f"{information_ratio:.2f}" if not pd.isna(information_ratio) else "N/A")
-                st.info("""
-                **Information Ratio:** Mede a capacidade do gestor de gerar retornos acima de um benchmark (aqui, o CDI), ajustado pelo **tracking error** (risco de desvio em relação ao benchmark). Um valor alto indica que o gestor consistentemente superou o benchmark com um risco de desvio razoável.
-                *   **Interpretação Geral:**
-                    *   **< 0.0:** O fundo está consistentemente abaixo do benchmark.
-                    *   **0.0 - 0.5:** Habilidade modesta em superar o benchmark.
-                    *   **0.5 - 1.0:** Boa habilidade e consistência em superar o benchmark.
-                    *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
-                """)
+                st.info(analisar_information_ratio(information_ratio))
             with col_vol_4:
                 st.metric("Treynor Ratio", "Não Calculável" if not tem_cdi else "N/A")
                 st.info("""
@@ -1179,44 +1809,18 @@ try:
 
             with col_dd_1:
                 st.metric("Calmar Ratio", f"{calmar_ratio:.2f}" if not pd.isna(calmar_ratio) else "N/A")
-                st.info("""
-                **Calmar Ratio:** Mede o retorno ajustado ao risco, comparando o **CAGR** (retorno anualizado) do fundo com o seu **maior drawdown** (maior queda). Um valor mais alto indica que o fundo gerou bons retornos sem grandes perdas.
-                *   **Interpretação Geral:**
-                    *   **< 0.0:** Retorno negativo ou drawdown muito grande.
-                    *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
-                    *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
-                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
-                """)
+                st.info(analisar_calmar_ratio(calmar_ratio))
             with col_dd_2:
                 st.metric("Sterling Ratio", f"{sterling_ratio:.2f}" if not pd.isna(sterling_ratio) else "N/A")
-                st.info("""
-                **Sterling Ratio:** Similar ao Calmar, avalia o retorno ajustado ao risco em relação ao drawdown. Geralmente, compara o retorno anualizado com a média dos piores drawdowns. *Nesta análise, para simplificar, utilizamos o maior drawdown como referência.* Um valor mais alto é preferível.
-                *   **Interpretação Geral:**
-                    *   **< 0.0:** Retorno negativo ou drawdown muito grande.
-                    *   **0.0 - 0.5:** Aceitável, mas com espaço para melhoria.
-                    *   **0.5 - 1.0:** Bom, o fundo gerencia bem o risco de drawdown.
-                    *   **> 1.0:** Muito Bom, excelente retorno em relação ao risco de grandes quedas.
-                """)
+                st.info(analisar_sterling_ratio(sterling_ratio))
 
             col_dd_3, col_dd_4 = st.columns(2)
             with col_dd_3:
                 st.metric("Ulcer Index", f"{ulcer_index:.2f}" if not pd.isna(ulcer_index) else "N/A")
-                st.info("""
-                **Ulcer Index:** Mede a profundidade e a duração dos drawdowns (quedas). Quanto menor o índice, menos dolorosas e mais curtas foram as quedas do fundo. É uma medida de risco que foca na "dor" do investidor.
-                *   **Interpretação Geral:**
-                    *   **< 1.0:** Baixo risco, fundo relativamente estável.
-                    *   **1.0 - 2.0:** Risco moderado, com quedas mais frequentes ou profundas.
-                    *   **> 2.0:** Alto risco, fundo com quedas significativas e/ou duradouras.
-                """)
+                st.info(analisar_ulcer_index(ulcer_index))
             with col_dd_4:
                 st.metric("Martin Ratio", f"{martin_ratio:.2f}" if not pd.isna(martin_ratio) else "N/A")
-                st.info("""
-                **Martin Ratio:** Avalia o retorno ajustado ao risco dividindo o excesso de retorno anualizado (acima do CDI) pelo **Ulcer Index**. Um valor mais alto indica um melhor desempenho em relação ao risco de drawdown.
-                *   **Interpretação Geral:**
-                    *   **< 0.0:** O fundo não compensa o risco de drawdown.
-                    *   **0.0 - 1.0:** Aceitável, o fundo gera retorno positivo para o risco de drawdown.
-                    *   **> 1.0:** Bom, o fundo entrega um bom retorno considerando a "dor" dos drawdowns.
-                """)
+                st.info(analisar_martin_ratio(martin_ratio))
 
             st.markdown("""
             ---
@@ -1228,7 +1832,6 @@ try:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar as Métricas de Risco-Retorno.")
         else:
             st.warning("⚠️ Não há dados suficientes para calcular as Métricas de Risco-Retorno (mínimo de 1 ano de dados).")
-
 
     with tab3:
         st.subheader("Patrimônio e Captação Líquida")
@@ -1411,6 +2014,7 @@ try:
             st.plotly_chart(fig9, use_container_width=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
+            fig9 = None # Garante que a variável seja None se o gráfico não for gerado
 
         # GRÁFICO: Consistência em Janelas Móveis
         st.subheader("Consistência em Janelas Móveis")
@@ -1463,13 +2067,50 @@ try:
                 st.plotly_chart(fig_consistency, use_container_width=True)
             else:
                 st.warning("⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis.")
+                fig_consistency = None # Garante que a variável seja None se o gráfico não for gerado
         else:
             st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar a Consistência em Janelas Móveis.")
-
+            fig_consistency = None # Garante que a variável seja None se o gráfico não for gerado
 
 except Exception as e:
     st.error(f"❌ Erro ao carregar os dados: {str(e)}")
     st.info("💡 Verifique se o CNPJ está correto e se há dados disponíveis para o período selecionado.")
+
+# --- Lógica do Botão Gerar Relatório PDF ---
+if gerar_relatorio_button and st.session_state.get('dados_carregados', False):
+    if PDF_DISPONIVEL:
+        with st.spinner("Gerando relatório PDF... Isso pode levar alguns segundos."):
+            try:
+                pdf_output = gerar_relatorio_pdf(
+                    cnpj_fundo=st.session_state.cnpj,
+                    nome_fundo=nome_fundo,
+                    dt_ini_user=dt_ini_user,
+                    dt_fim_user=dt_fim_user,
+                    metrics=metrics_display,
+                    fig1=fig1, fig2=fig2, fig_excesso_retorno=fig_excesso_retorno, fig3=fig3, fig4=fig4, fig5=fig5,
+                    fig6=fig6, fig7=fig7, fig8=fig8, fig9=fig9, fig_consistency=fig_consistency,
+                    tem_cdi=tem_cdi, logo_base64=logo_base64,
+                    df_plot_cagr=df_plot_cagr, df_plot_var=df_plot_var, df_monthly=df_monthly,
+                    df_returns=df_returns, df_consistency=df_consistency,
+                    sharpe_ratio=sharpe_ratio, sortino_ratio=sortino_ratio, information_ratio=information_ratio,
+                    calmar_ratio=calmar_ratio, sterling_ratio=sterling_ratio, ulcer_index=ulcer_index, martin_ratio=martin_ratio,
+                    VaR_95=VaR_95, VaR_99=VaR_99, ES_95=ES_95, ES_99=ES_99
+                )
+                if pdf_output:
+                    st.download_button(
+                        label="Download Relatório PDF",
+                        data=pdf_output,
+                        file_name=f"Relatorio_Fundo_{st.session_state.cnpj}_{dt_ini_user.strftime('%Y%m%d')}_{dt_fim_user.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf"
+                    )
+                    st.success("✅ Relatório PDF gerado com sucesso!")
+                else:
+                    st.error("❌ Falha ao gerar o relatório PDF.")
+            except Exception as e:
+                st.error(f"❌ Erro ao gerar o relatório PDF: {e}")
+    else:
+        st.error("❌ As bibliotecas 'fpdf2' e 'Pillow' são necessárias para gerar o PDF. Por favor, instale-as.")
+
 
 # Footer
 st.markdown("---")
