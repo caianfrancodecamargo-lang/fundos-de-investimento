@@ -473,18 +473,23 @@ def obter_dados_ibovespa(data_inicio: datetime, data_fim: datetime):
     try:
         dados_ibovespa = yf.download(ticker_ibovespa, start=data_inicio, end=data_fim, progress=False)
         if not dados_ibovespa.empty:
-            dados_ibovespa = dados_ibovespa.reset_index()
-            dados_ibovespa = dados_ibovespa.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'IBOV_Close'})
-            dados_ibovespa = dados_ibovespa[['DT_COMPTC', 'IBOV_Close']]
+            # Verifica se 'Adj Close' existe antes de prosseguir
+            if 'Adj Close' in dados_ibovespa.columns:
+                dados_ibovespa = dados_ibovespa.reset_index()
+                dados_ibovespa = dados_ibovespa.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'IBOV_Close'})
+                dados_ibovespa = dados_ibovespa[['DT_COMPTC', 'IBOV_Close']]
 
-            # Normalizar para que o primeiro valor da série seja 1.0
-            if not dados_ibovespa.empty:
-                primeiro_valor_ibov = dados_ibovespa['IBOV_Close'].iloc[0]
-                dados_ibovespa['VL_IBOV_normalizado'] = dados_ibovespa['IBOV_Close'] / primeiro_valor_ibov
+                # Normalizar para que o primeiro valor da série seja 1.0
+                if not dados_ibovespa.empty:
+                    primeiro_valor_ibov = dados_ibovespa['IBOV_Close'].iloc[0]
+                    dados_ibovespa['VL_IBOV_normalizado'] = dados_ibovespa['IBOV_Close'] / primeiro_valor_ibov
+                else:
+                    dados_ibovespa['VL_IBOV_normalizado'] = pd.Series(dtype='float64') # Garante que a coluna exista
+
+                return dados_ibovespa
             else:
-                dados_ibovespa['VL_IBOV_normalizado'] = pd.Series(dtype='float64')
-
-            return dados_ibovespa
+                st.warning(f"⚠️ A coluna 'Adj Close' não foi encontrada nos dados do Ibovespa. Verifique a fonte de dados.")
+                return pd.DataFrame() # Retorna DataFrame vazio se a coluna essencial não for encontrada
         else:
             st.warning(f"⚠️ Nenhum dado encontrado para o Ibovespa ({ticker_ibovespa}) no período especificado.")
             return pd.DataFrame()
@@ -952,7 +957,7 @@ try:
                 ))
 
             # CAGR do Ibovespa (se disponível)
-            if tem_ibovespa and 'CAGR_IBOV' in df_plot_cagr.columns:
+            if tem_ibovespa and 'CAGR_IBOV' in df_plot_cagr.columns: # Novo cálculo de CAGR para Ibovespa
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
                     y=df_plot_cagr['CAGR_IBOV'],
