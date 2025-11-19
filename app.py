@@ -48,10 +48,10 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com espaçamentos reduzidos na sidebar
+# CSS customizado com espaçamentos reduzidos na sidebar e nova fonte
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* Variáveis de cores inspiradas no Copaíba */
     :root {
@@ -64,10 +64,10 @@ st.markdown("""
         --text-light: #ffffff;
     }
 
-    /* Fundo geral */
+    /* Fundo geral e fonte Montserrat */
     .stApp {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     /* Sidebar com padding reduzido */
@@ -78,6 +78,7 @@ st.markdown("""
 
     [data-testid="stSidebar"] * {
         color: #ffffff !important;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     /* Logo na sidebar - espaçamento reduzido */
@@ -215,6 +216,7 @@ st.markdown("""
         font-size: 2.5rem;
         margin-bottom: 1rem;
         text-align: center;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     /* Cards de métricas */
@@ -222,6 +224,7 @@ st.markdown("""
         font-size: 1.8rem;
         font-weight: 700;
         color: #1a5f3f; /* Tom esverdeado mais escuro */
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     [data-testid="stMetricLabel"] {
@@ -230,6 +233,7 @@ st.markdown("""
         color: #2d8659; /* Tom esverdeado mais claro */
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     div[data-testid="metric-container"] {
@@ -262,6 +266,7 @@ st.markdown("""
         font-weight: 600;
         padding: 0.75rem 1.5rem;
         transition: all 0.3s ease;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     .stTabs [data-baseweb="tab"]:hover {
@@ -278,6 +283,7 @@ st.markdown("""
     h2, h3 {
         color: #1a5f3f;
         font-weight: 600;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     /* Info boxes */
@@ -343,7 +349,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
         font=dict(
-            family="Inter, sans-serif",
+            family="Montserrat, sans-serif", # Alterado para Montserrat
             size=12,
             color="#2c2c2c"
         ),
@@ -351,7 +357,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         hoverlabel=dict(
             bgcolor="white",
             font_size=13,
-            font_family="Inter, sans-serif",
+            font_family="Montserrat, sans-serif", # Alterado para Montserrat
             bordercolor="#6b9b7f"
         ),
         shapes=[
@@ -377,7 +383,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        title_font=dict(size=13, color="#1a5f3f", family="Montserrat"), # Alterado para Montserrat
         tickfont=dict(size=11, color="#6b9b7f")
     )
 
@@ -396,7 +402,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        title_font=dict(size=13, color="#1a5f3f", family="Montserrat"), # Alterado para Montserrat
         tickfont=dict(size=11, color="#6b9b7f")
     )
 
@@ -869,9 +875,10 @@ try:
 
     # Cores
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
-    color_secondary = '#6b9b7f'
-    color_danger = '#dc3545'
-    color_cdi_ibov = '#000000'  # NOVO: Preto para CDI e Ibovespa
+    color_secondary = '#6b9b7f' # Verde médio
+    color_danger = '#dc3545' # Vermelho
+    color_cdi = '#000000'  # NOVO: Preto para o CDI
+    color_ibov = '#f0b429' # NOVO: Amarelo para o Ibovespa
 
     # Cards de métricas
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -913,7 +920,7 @@ try:
                 y=df['CDI_NORM'],
                 mode='lines',
                 name='CDI',
-                line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
+                line=dict(color=color_cdi, width=2.5), # Cor preta
                 hovertemplate='<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
@@ -923,17 +930,18 @@ try:
                 y=df['IBOV_NORM'],
                 mode='lines',
                 name='Ibovespa',
-                line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
+                line=dict(color=color_ibov, width=2.5), # Cor amarela
                 hovertemplate='<b>Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
             ))
 
         fig1.update_layout(
             xaxis_title="Data",
-            yaxis_title="Rentabilidade (%)",
+            yaxis_title="Rentabilidade Acumulada (%)",
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
+            yaxis=dict(tickformat=".2f%"),
+            font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
@@ -948,16 +956,13 @@ try:
 
         st.subheader("CAGR Anual por Dia de Aplicação")
 
-        fig2 = go.Figure()
-
-        # Usar um dataframe filtrado para o plot do CAGR, removendo NaNs iniciais
         df_plot_cagr = df.dropna(subset=['CAGR_Fundo']).copy()
 
         if not df_plot_cagr.empty:
-            # CAGR do Fundo
+            fig2 = go.Figure()
             fig2.add_trace(go.Scatter(
                 x=df_plot_cagr['DT_COMPTC'],
-                y=df_plot_cagr['CAGR_Fundo'], # Usar a nova coluna de CAGR
+                y=df_plot_cagr['CAGR_Fundo'],
                 mode='lines',
                 name='CAGR do Fundo',
                 line=dict(color=color_primary, width=2.5),
@@ -966,69 +971,55 @@ try:
                 hovertemplate='<b>CAGR do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
             ))
 
-            fig2.add_trace(go.Scatter(
-                x=df_plot_cagr['DT_COMPTC'], # Usar df_plot_cagr para o eixo X
-                y=[mean_cagr] * len(df_plot_cagr),
-                mode='lines',
-                line=dict(dash='dash', color=color_secondary, width=2),
-                name=f'CAGR Médio ({mean_cagr:.2f}%)'
-            ))
-
-            # CAGR do CDI (se disponível)
             if tem_cdi and 'CAGR_CDI' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
-                    y=df_plot_cagr['CAGR_CDI'], # Usar a nova coluna de CAGR do CDI
+                    y=df_plot_cagr['CAGR_CDI'],
                     mode='lines',
                     name='CAGR do CDI',
-                    line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
+                    line=dict(color=color_cdi, width=2.5), # Cor preta
                     hovertemplate='<b>CAGR do CDI</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
 
-            # CAGR do Ibovespa (se disponível)
             if tem_ibov and 'CAGR_IBOV' in df_plot_cagr.columns:
                 fig2.add_trace(go.Scatter(
                     x=df_plot_cagr['DT_COMPTC'],
                     y=df_plot_cagr['CAGR_IBOV'],
                     mode='lines',
                     name='CAGR do Ibovespa',
-                    line=dict(color=color_cdi_ibov, width=2.5), # NOVO: Cor preta
+                    line=dict(color=color_ibov, width=2.5), # Cor amarela
                     hovertemplate='<b>CAGR do Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>CAGR: %{y:.2f}%<extra></extra>'
                 ))
+
+            fig2.update_layout(
+                xaxis_title="Data de Aplicação",
+                yaxis_title="CAGR Anualizado (%)",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                yaxis=dict(tickformat=".2f%"),
+                font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
+            )
+            # Ajusta o range do eixo X para os dados de df_plot_cagr
+            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
+            st.plotly_chart(fig2, use_container_width=True)
         else:
             st.warning("⚠️ Não há dados suficientes para calcular o CAGR (mínimo de 1 ano de dados).")
 
-        fig2.update_layout(
-            xaxis_title="Data",
-            yaxis_title="CAGR (% a.a)",
-            template="plotly_white",
-            hovermode="x unified",
-            height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
-        )
-        # Ajusta o range do eixo X para os dados de df_plot_cagr
-        if not df_plot_cagr.empty:
-            fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
-        else:
-            fig2 = add_watermark_and_style(fig2, logo_base64) # Sem range específico se não houver dados
-        st.plotly_chart(fig2, use_container_width=True)
-
-        # GRÁFICO: Excesso de Retorno Anualizado
         st.subheader("Excesso de Retorno Anualizado")
 
+        df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
+
         if (tem_cdi and not tem_ibov) or (tem_ibov and not tem_cdi):
-            df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
             if not df_plot_excess.empty:
                 fig_excesso_retorno = go.Figure()
-
-                # Linha do Excesso de Retorno
                 fig_excesso_retorno.add_trace(go.Scatter(
                     x=df_plot_excess['DT_COMPTC'],
                     y=df_plot_excess['EXCESSO_RETORNO_ANUALIZADO'],
@@ -1039,17 +1030,15 @@ try:
                     fillcolor='rgba(26, 95, 63, 0.1)', # NOVO: Cor do preenchimento
                     hovertemplate='<b>Excesso de Retorno</b><br>Data: %{x|%d/%m/%Y}<br>Excesso: %{y:.2f}%<extra></extra>'
                 ))
-
-                # Adicionar linha de 0% para referência
                 fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
-
                 fig_excesso_retorno.update_layout(
-                    xaxis_title="Data",
-                    yaxis_title="Excesso de Retorno (% a.a)",
+                    xaxis_title="Data de Aplicação",
+                    yaxis_title="Excesso de Retorno Anualizado (%)",
                     template="plotly_white",
                     hovermode="x unified",
                     height=500,
-                    font=dict(family="Inter, sans-serif"),
+                    yaxis=dict(tickformat=".2f%"),
+                    font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
                     legend=dict(
                         orientation="h",
                         yanchor="bottom",
@@ -1058,7 +1047,6 @@ try:
                         x=1
                     )
                 )
-                # Ajusta o range do eixo X para os dados de df
                 fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
                 st.plotly_chart(fig_excesso_retorno, use_container_width=True)
             else:
@@ -1093,7 +1081,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1129,7 +1117,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1184,7 +1172,7 @@ try:
                 template="plotly_white",
                 hovermode="x unified",
                 height=600,
-                font=dict(family="Inter, sans-serif")
+                font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
             )
             # Ajusta o range do eixo X para os dados de df_plot_var
             fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
@@ -1447,7 +1435,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1480,7 +1468,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
+            font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
             # Ajusta o range para o texto, mas como o texto foi removido, podemos deixar o padrão ou ajustar se necessário
             # yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.2, df_monthly['Captacao_Liquida'].max() * 1.2])
         )
@@ -1525,7 +1513,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -1582,7 +1570,7 @@ try:
                     y=df_returns[f'CDI_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do CDI — {janela_selecionada}",
-                    line=dict(width=2.5, color=color_cdi_ibov), # NOVO: Cor preta
+                    line=dict(width=2.5, color=color_cdi), # Cor preta
                     hovertemplate="<b>Retorno do CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
@@ -1593,7 +1581,7 @@ try:
                     y=df_returns[f'IBOV_{janela_selecionada}'],
                     mode='lines',
                     name=f"Retorno do Ibovespa — {janela_selecionada}",
-                    line=dict(width=2.5, color=color_cdi_ibov), # NOVO: Cor preta
+                    line=dict(width=2.5, color=color_ibov), # Cor amarela
                     hovertemplate="<b>Retorno do Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
                 ))
 
@@ -1604,7 +1592,7 @@ try:
                 hovermode="x unified",
                 height=500,
                 yaxis=dict(tickformat=".2%"),
-                font=dict(family="Inter, sans-serif"),
+                font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
@@ -1675,7 +1663,7 @@ try:
                     template="plotly_white",
                     hovermode="x unified",
                     height=500,
-                    font=dict(family="Inter, sans-serif"),
+                    font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
                     yaxis=dict(range=[0, 110], ticksuffix="%") # Aumenta o range superior para dar mais espaço ao texto
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
@@ -1695,10 +1683,10 @@ except Exception as e:
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
-    <p style='margin: 0; font-size: 0.9rem;'>
+    <p style='margin: 0; font-size: 0.9rem; font-family: "Montserrat", sans-serif;'>
         <strong>Dashboard desenvolvido com Streamlit e Plotly</strong>
     </p>
-    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem;'>
+    <p style='margin: 0.5rem 0 0 0; font-size: 0.8rem; font-family: "Montserrat", sans-serif;'>
         Análise de Fundos de Investimentos • Copaíba Invest • 2025
     </p>
 </div>
