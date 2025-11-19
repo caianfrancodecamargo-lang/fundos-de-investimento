@@ -484,7 +484,6 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
 
     try:
         # yfinance considera 'end' como exclusivo, então somamos 1 dia
-        # Usando o trecho de código fornecido pelo usuário como base
         start_date = data_inicio
         end_date = data_fim + pd.DateOffset(days=1) # Ajuste para yfinance
 
@@ -493,11 +492,16 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
         if df_ibovespa.empty:
             return pd.DataFrame()
 
+        # NOVO: Achata os cabeçalhos multi-nível, se existirem
+        # Isso garante que teremos apenas um nível de cabeçalho
+        if isinstance(df_ibovespa.columns, pd.MultiIndex):
+            df_ibovespa.columns = ['_'.join(col).strip() for col in df_ibovespa.columns.values]
+
         # Transforma o índice em coluna
         df_ibovespa = df_ibovespa.reset_index()
 
-        # NOVO: Lógica para identificar a coluna de fechamento, seja 'Close' ou 'Close_^BVSP'
-        close_col_options = ['Close', 'Close_^BVSP']
+        # NOVO: Lógica para identificar a coluna de fechamento, seja 'Close', 'Close_' ou 'Close_^BVSP'
+        close_col_options = ['Close', 'Close_', 'Close_^BVSP'] # Adicionado 'Close_'
         selected_close_col = None
         for col_option in close_col_options:
             if col_option in df_ibovespa.columns:
@@ -505,7 +509,7 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
                 break
 
         if selected_close_col is None:
-            st.error("❌ Não foi possível encontrar a coluna de fechamento do Ibovespa ('Close' ou 'Close_^BVSP').")
+            st.error("❌ Não foi possível encontrar a coluna de fechamento do Ibovespa ('Close', 'Close_' ou 'Close_^BVSP').")
             return pd.DataFrame()
 
         # Altera o nome da coluna para DT_COMPTC e usa a coluna de fechamento identificada
