@@ -4,4 +4,5 @@ numpy
 plotly
 python-bcb
 yfinance
-fpdf2 Pillow
+fpdf2 
+Pillow
