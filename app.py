@@ -881,6 +881,72 @@ def analisar_var_es(VaR_95, VaR_99, ES_95, ES_99):
     analise += "\n**Pontos Negativos:** São estimativas baseadas em dados históricos e podem não prever eventos de 'cisne negro'. A precisão depende da qualidade e quantidade dos dados."
     return analise
 
+def analisar_patrimonio_captacao(patrimonio_liq, captacao_liquida_acum):
+    if pd.isna(patrimonio_liq) or pd.isna(captacao_liquida_acum):
+        return "Não foi possível calcular o Patrimônio Líquido ou a Captação Líquida acumulada."
+
+    analise = f"O Patrimônio Líquido atual do fundo é de {format_brl(patrimonio_liq)} e a Captação Líquida acumulada no período é de {format_brl(captacao_liquida_acum)}. "
+
+    if captacao_liquida_acum > 0:
+        analise += "A **captação líquida positiva** indica que o fundo tem atraído mais recursos do que resgatado, o que é um **ponto positivo** para o crescimento e a sustentabilidade do fundo."
+        analise += "\n\n**Pontos Positivos:** Crescimento da base de ativos, confiança dos investidores, potencial para maiores economias de escala."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif captacao_liquida_acum < 0:
+        analise += "A **captação líquida negativa** indica que o fundo tem sofrido mais resgates do que novas aplicações, o que é um **ponto de atenção** para a gestão e a estabilidade do fundo."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Redução da base de ativos, possível perda de confiança dos investidores, desafios na gestão de liquidez."
+    else:
+        analise += "A captação líquida é neutra, sugerindo um equilíbrio entre aplicações e resgates no período."
+        analise += "\n\n**Pontos Positivos:** Estabilidade na base de ativos."
+        analise += "\n**Pontos Negativos:** Não há crescimento orgânico claro."
+    return analise
+
+def analisar_captacao_mensal(df_monthly):
+    if df_monthly.empty:
+        return "Não há dados suficientes para analisar a Captação Líquida Mensal."
+
+    total_captacao = df_monthly['Captacao_Liquida'].sum()
+    num_meses = len(df_monthly)
+    meses_positivos = (df_monthly['Captacao_Liquida'] > 0).sum()
+    meses_negativos = (df_monthly['Captacao_Liquida'] < 0).sum()
+
+    analise = f"No período analisado ({num_meses} meses), o fundo teve uma captação líquida total de {format_brl(total_captacao)}. "
+    analise += f"Houve {meses_positivos} meses de captação positiva e {meses_negativos} meses de captação negativa. "
+
+    if meses_positivos > meses_negativos:
+        analise += "A **predominância de meses com captação positiva** é um **ponto positivo**, indicando uma tendência de crescimento e atratividade do fundo para novos investidores."
+        analise += "\n\n**Pontos Positivos:** Crescimento sustentado, boa percepção do mercado sobre o fundo."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif meses_negativos > meses_positivos:
+        analise += "A **predominância de meses com captação negativa** é um **ponto de atenção**, sugerindo uma possível perda de interesse ou confiança dos investidores no fundo."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Desafios na manutenção da base de ativos, possível impacto na liquidez."
+    else:
+        analise += "A captação mensal tem sido equilibrada, com um número similar de meses positivos e negativos."
+        analise += "\n\n**Pontos Positivos:** Estabilidade na captação."
+        analise += "\n**Pontos Negativos:** Ausência de uma tendência clara de crescimento ou retração."
+    return analise
+
+def analisar_cotistas(patrimonio_medio, num_cotistas):
+    if pd.isna(patrimonio_medio) or pd.isna(num_cotistas):
+        return "Não há dados suficientes para analisar o Patrimônio Médio e o Número de Cotistas."
+
+    analise = f"O Patrimônio Médio por Cotista é de {format_brl(patrimonio_medio)} e o Número de Cotistas atual é de {int(num_cotistas)}. "
+
+    if num_cotistas > 1000: # Exemplo de limiar para um fundo grande
+        analise += "Um **alto número de cotistas** é um **ponto positivo**, indicando que o fundo é bem distribuído e acessível a um grande público, o que pode trazer maior estabilidade ao patrimônio."
+        analise += "\n\n**Pontos Positivos:** Ampla aceitação no mercado, menor concentração de risco em poucos investidores."
+        analise += "\n**Pontos Negativos:** N/A."
+    elif num_cotistas > 100:
+        analise += "Um **número moderado de cotistas** é um **ponto neutro**, comum para fundos de nicho ou em fase de crescimento."
+        analise += "\n\n**Pontos Positivos:** Potencial de crescimento da base de cotistas."
+        analise += "\n**Pontos Negativos:** Pode haver maior sensibilidade a grandes resgates de poucos cotistas."
+    else:
+        analise += "Um **baixo número de cotistas** é um **ponto de atenção**, sugerindo que o fundo pode ser mais concentrado e sensível a resgates de poucos investidores."
+        analise += "\n\n**Pontos Positivos:** N/A."
+        analise += "\n**Pontos Negativos:** Maior risco de liquidez e volatilidade do patrimônio líquido devido à concentração."
+    return analise
+
 def analisar_retornos_janelas_moveis(df_returns, tem_cdi):
     if df_returns.empty:
         return "Não há dados suficientes para analisar os retornos em janelas móveis."
@@ -942,7 +1008,7 @@ def analisar_consistencia_janelas_moveis(df_consistency):
             analise += f"\n\nNão há dados de consistência para a janela de **{janela} meses**."
 
     analise += "\n\n**Pontos Positivos:** Uma alta porcentagem de superação indica que o gestor tem uma habilidade consistente em gerar alfa."
-    analise += "\n**Pontos Negativos:** Baixa consistência pode indicar que o fundo não está entregando valor superior ao benchmark de forma regular." # Linha corrigida
+    analise += "\n**Pontos Negativos:** Baixa consistência pode indicar que o fundo não está entregando valor superior ao benchmark de forma regular."
     return analise
 
 # --- FUNÇÃO DE GERAÇÃO DE RELATÓRIO PDF ---
@@ -1100,41 +1166,46 @@ def gerar_relatorio_pdf(
     add_plotly_figure_to_pdf(pdf, fig4, "Volatilidade Móvel")
     if fig5: # VaR e ES
         add_plotly_figure_to_pdf(pdf, fig5, "Value at Risk (VaR) e Expected Shortfall (ES)")
-        pdf.set_font('Arial', '', 10)
-        pdf.multi_cell(0, 5, analisar_var_es(VaR_95, VaR_99, ES_95, ES_99)) # Adiciona a análise textual aqui
+        # A análise textual para VaR e ES já é adicionada na seção de métricas de risco-retorno
         pdf.ln(5)
 
     add_plotly_figure_to_pdf(pdf, fig6, "Patrimônio e Captação Líquida")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, analisar_patrimonio_captacao(metrics_values['Patrimonio_Liq_Val'], metrics_values['Captacao_Liquida_Acum_Val']))
+    pdf.ln(5)
+
     add_plotly_figure_to_pdf(pdf, fig7, "Captação Líquida Mensal")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, analisar_captacao_mensal(df_monthly))
+    pdf.ln(5)
+
     add_plotly_figure_to_pdf(pdf, fig8, "Patrimônio Médio e Nº de Cotistas")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, analisar_cotistas(metrics_values['Patrimonio_Medio_Cotista_Val'], metrics_values['Num_Cotistas_Val']))
+    pdf.ln(5)
+
     add_plotly_figure_to_pdf(pdf, fig9, "Retornos em Janelas Móveis")
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, analisar_retornos_janelas_moveis(df_returns, tem_cdi))
+    pdf.ln(5)
+
     if tem_cdi and fig_consistency:
         add_plotly_figure_to_pdf(pdf, fig_consistency, "Consistência em Janelas Móveis")
-
-    # --- Análises Interpretativas dos Gráficos ---
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_text_color(26, 95, 63)
-    pdf.cell(0, 10, 'Análise Detalhada dos Gráficos', 0, 1, 'L')
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font('Arial', '', 10)
-    pdf.ln(2)
-
-    pdf.multi_cell(0, 5, analisar_retornos_janelas_moveis(df_returns, tem_cdi))
-    pdf.ln(3)
-    if tem_cdi:
+        pdf.set_font('Arial', '', 10)
         pdf.multi_cell(0, 5, analisar_consistencia_janelas_moveis(df_consistency))
-        pdf.ln(3)
+        pdf.ln(5)
 
     # Conclusão
     pdf.add_page()
     pdf.set_font('Arial', 'B', 16)
     pdf.set_text_color(26, 95, 63)
-    pdf.cell(0, 10, 'Conclusão', 0, 1, 'L')
+    pdf.cell(0, 10, 'Conclusão Geral', 0, 1, 'L')
     pdf.set_text_color(0, 0, 0)
     pdf.set_font('Arial', '', 12)
     pdf.ln(5)
-    pdf.multi_cell(0, 7, "Este relatório oferece uma visão abrangente do desempenho e risco do fundo de investimento selecionado. As métricas e gráficos apresentados, juntamente com suas análises interpretativas, visam auxiliar na tomada de decisão, destacando pontos fortes e áreas de atenção. Lembre-se que o desempenho passado não é garantia de resultados futuros e que a decisão de investimento deve sempre considerar o perfil de risco individual e os objetivos financeiros.")
+    pdf.multi_cell(0, 7, """
+    Este relatório oferece uma visão abrangente do desempenho e risco do fundo de investimento selecionado. As métricas e gráficos apresentados, juntamente com suas análises interpretativas, visam auxiliar na tomada de decisão, destacando pontos fortes e áreas de atenção. Lembre-se que o desempenho passado não é garantia de resultados futuros e que a decisão de investimento deve sempre considerar o perfil de risco individual e os objetivos financeiros.
+    """)
     pdf.ln(10)
 
     # Rodapé com logo (marca d'água no rodapé)
@@ -1286,7 +1357,7 @@ if st.session_state.get('dados_carregados', False):
             if not df.empty and len(df) > trading_days_in_year:
                 end_value_fundo = df['VL_QUOTA'].iloc[-1]
                 if tem_cdi:
-                    end_value_cdi = df['CDI_COTA'].iloc[-1] if 'CDI_COTA' in df.columns else np.nan
+                    end_value_cdi = df['CDI_NORM'].iloc[-1] if 'CDI_NORM' in df.columns else np.nan
 
                 # O loop vai até o índice que é 'trading_days_in_year' antes do último.
                 # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
@@ -1302,7 +1373,7 @@ if st.session_state.get('dados_carregados', False):
                     if initial_value_fundo > 0 and num_intervals > 0:
                         df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
-                    if tem_cdi and 'cdi' in df.columns: # Usar 'cdi' para o cálculo do CAGR do CDI
+                    if tem_cdi and 'CDI_NORM' in df.columns: # Usar 'CDI_NORM' para o cálculo do CAGR do CDI
                         initial_value_cdi = df['CDI_NORM'].iloc[i] # Usar a cota normalizada do CDI
                         if initial_value_cdi > 0 and num_intervals > 0:
                             df.loc[i, 'CAGR_CDI'] = ((df['CDI_NORM'].iloc[-1] / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
@@ -2045,10 +2116,6 @@ if st.session_state.get('dados_carregados', False):
                 else:
                     st.info("ℹ️ Selecione a opção 'Comparar com CDI' na barra lateral para visualizar a Consistência em Janelas Móveis.")
                     fig_consistency = None # Garante que a variável seja None se o gráfico não for gerado
-
-except Exception as e:
-    st.error(f"❌ Erro ao carregar os dados: {str(e)}")
-    st.info("💡 Verifique se o CNPJ está correto e se há dados disponíveis para o período selecionado.")
 
 # --- Lógica do Botão Gerar Relatório PDF ---
 if gerar_relatorio_button and st.session_state.get('dados_carregados', False):
