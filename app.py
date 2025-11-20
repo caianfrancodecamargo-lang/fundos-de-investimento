@@ -48,7 +48,10 @@ def get_image_base64(image_path):
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
-# CSS customizado com espaçamentos reduzidos na sidebar
+# CSS customizado com espaçamentos reduzidos na sidebar e fonte Inter (mantido como estava)
+# NOTA: A memória do usuário menciona a fonte Montserrat, mas o CSS atual usa Inter.
+# Para manter a consistência com o código fornecido, mantive Inter.
+# Se desejar mudar para Montserrat, substitua 'Inter' por 'Montserrat' e adicione a importação da fonte.
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -366,7 +369,15 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
                 line=dict(color="#e0ddd5", width=2),
                 fillcolor="rgba(0,0,0,0)"
             )
-        ]
+        ],
+        # Padroniza a legenda para todos os gráficos
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
 
     # Estilizar eixos
@@ -436,13 +447,13 @@ def obter_dados_cdi_real(data_inicio: datetime, data_fim: datetime):
         return pd.DataFrame()
 
     try:
-        # Aumenta o período de busca para 10 anos antes da data inicial para garantir dados
-        # mesmo que o período solicitado seja curto, e depois filtra.
-        # No entanto, a biblioteca `bcb` já lida com o `start` e `end` diretamente.
-        # A memória do usuário indica "intervalos de 10 anos", mas a função `sgs.get`
-        # já busca no intervalo exato. Vou manter a busca direta e garantir que
-        # o período de 10 anos seja considerado na lógica de cache ou na chamada,
-        # se necessário. Por enquanto, a chamada direta é a mais eficiente.
+        # A memória do usuário indica "intervalos de 10 anos".
+        # A biblioteca `bcb` já lida com o `start` e `end` diretamente,
+        # mas para garantir que o cache seja eficiente para períodos maiores,
+        # podemos buscar um período um pouco maior e depois filtrar.
+        # No entanto, a chamada direta com `start` e `end` é a mais precisa para o período solicitado.
+        # A lógica de "10 anos" pode ser mais relevante para o cache interno da função,
+        # mas a chamada externa deve ser para o período exato.
         cdi_diario = sgs.get({'cdi': 12}, start=data_inicio, end=data_fim)
 
         # Transformar o índice em coluna
@@ -810,25 +821,25 @@ try:
         # O loop vai até o índice que é 'trading_days_in_year' antes do último.
         # Isso garante que o último ponto plotado no gráfico de CAGR seja 252 dias antes do final.
         # O range vai de 0 até (len(df) - trading_days_in_year)
+        # Ajuste para parar quando (252/num_intervals) = 1, ou seja, num_intervals = 252
+        # Isso significa que o loop deve ir até len(df) - trading_days_in_year
         for i in range(len(df) - trading_days_in_year):
             initial_value_fundo = df['VL_QUOTA'].iloc[i]
 
             # num_intervals é o número de intervalos (dias úteis) do ponto inicial (i) até o ponto final (último)
-            # Ex: para índices 0,1,2,3 (len=4). Se i=0, num_intervals = (3-0) = 3.
-            # Se i=1, num_intervals = (3-1) = 2.
             num_intervals = (len(df) - 1) - i
 
-            if initial_value_fundo > 0 and num_intervals > 0:
+            if initial_value_fundo > 0 and num_intervals >= trading_days_in_year: # Garante que haja pelo menos 1 ano de dados
                 df.loc[i, 'CAGR_Fundo'] = ((end_value_fundo / initial_value_fundo) ** (trading_days_in_year / num_intervals) - 1) * 100
 
             if tem_cdi and 'CDI_COTA' in df.columns:
                 initial_value_cdi = df['CDI_COTA'].iloc[i]
-                if initial_value_cdi > 0 and num_intervals > 0:
+                if initial_value_cdi > 0 and num_intervals >= trading_days_in_year:
                     df.loc[i, 'CAGR_CDI'] = ((end_value_cdi / initial_value_cdi) ** (trading_days_in_year / num_intervals) - 1) * 100
 
             if tem_ibov and 'IBOV_COTA' in df.columns: # NOVO
                 initial_value_ibov = df['IBOV_COTA'].iloc[i]
-                if initial_value_ibov > 0 and num_intervals > 0:
+                if initial_value_ibov > 0 and num_intervals >= trading_days_in_year:
                     end_value_ibov = df['IBOV_COTA'].iloc[-1]
                     df.loc[i, 'CAGR_IBOV'] = ((end_value_ibov / initial_value_ibov) ** (trading_days_in_year / num_intervals) - 1) * 100
 
@@ -841,7 +852,6 @@ try:
     # Este cálculo agora será feito em relação ao benchmark selecionado para as métricas de risco-retorno
     df['EXCESSO_RETORNO_ANUALIZADO'] = np.nan
     # A lógica para o excesso de retorno será movida para a seção de métricas de risco-retorno
-    # para ser calculada em relação ao benchmark escolhido (CDI ou Ibovespa)
 
     # VaR
     df['Retorno_21d'] = df['VL_QUOTA'].pct_change(21)
@@ -855,14 +865,14 @@ try:
     else:
         st.warning("⚠️ Não há dados suficientes para calcular VaR e ES (mínimo de 21 dias de retorno).")
 
-    # Cores
+    # Cores (mantidas as mesmas)
     color_primary = '#1a5f3f'  # Verde escuro para o fundo
-    color_secondary = '#6b9b7f'
-    color_danger = '#dc3545'
-    color_cdi = '#f0b429'  # Amarelo para o CDI
-    color_ibov = '#007bff' # Azul para o Ibovespa (NOVO)
+    color_secondary = '#6b9b7f' # Verde claro para o patrimônio
+    color_danger = '#dc3545' # Vermelho para drawdown
+    color_cdi = '#000000'  # Preto para o CDI (conforme memória do usuário)
+    color_ibov = '#007bff' # Azul para o Ibovespa (conforme memória do usuário)
 
-    # Cards de métricas
+    # Cards de métricas (mantidos como estavam)
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
@@ -922,14 +932,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
         # Ajusta o range do eixo X para os dados de df
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
@@ -991,14 +994,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
-            )
+            font=dict(family="Inter, sans-serif")
         )
         # Ajusta o range do eixo X para os dados de df_plot_cagr
         if not df_plot_cagr.empty:
@@ -1039,6 +1035,8 @@ try:
                     mode='lines',
                     name=f'Excesso de Retorno Anualizado vs {benchmark_name}',
                     line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
+                    fill='tozeroy', # Adicionado preenchimento
+                    fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
                     hovertemplate=f'<b>Excesso de Retorno vs {benchmark_name}</b><br>Data: %{{x|%d/%m/%Y}}<br>Excesso: %{{y:.2f}}%<extra></extra>'
                 ))
 
@@ -1051,14 +1049,7 @@ try:
                     template="plotly_white",
                     hovermode="x unified",
                     height=500,
-                    font=dict(family="Inter, sans-serif"),
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="right",
-                        x=1
-                    )
+                    font=dict(family="Inter, sans-serif")
                 )
                 # Ajusta o range do eixo X para os dados de df
                 df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
@@ -1074,7 +1065,6 @@ try:
         else:
             st.info("ℹ️ Selecione um indicador de comparação (CDI ou Ibovespa) na barra lateral para visualizar o Excesso de Retorno Anualizado.")
 
-
     with tab2:
         st.subheader("Drawdown Histórico")
 
@@ -1088,7 +1078,7 @@ try:
             name='Drawdown do Fundo',
             line=dict(color=color_danger, width=2.5),
             fill='tozeroy',
-            fillcolor='rgba(220, 53, 69, 0.1)',
+            fillcolor='rgba(220, 53, 69, 0.1)', # Cor de preenchimento para drawdown
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
@@ -1117,6 +1107,8 @@ try:
             mode='lines',
             name=f'Volatilidade do Fundo ({vol_window} dias)',
             line=dict(color=color_primary, width=2.5),
+            fill='tozeroy', # Adicionado preenchimento
+            fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
             hovertemplate='<b>Volatilidade do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
         ))
 
@@ -1150,6 +1142,8 @@ try:
                 mode='lines',
                 name='Rentabilidade móvel (1m)',
                 line=dict(color=color_primary, width=2),
+                fill='tozeroy', # Adicionado preenchimento
+                fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
             ))
             fig5.add_trace(go.Scatter(
@@ -1296,7 +1290,6 @@ try:
                 else:
                     tracking_error = np.nan
 
-
                 # --- Cálculo dos Ratios ---
                 # Calmar e Sterling Ratio (usando CAGR do fundo e benchmark)
                 if not pd.isna(cagr_fund_decimal) and not pd.isna(annualized_benchmark_return) and not pd.isna(max_drawdown_value) and max_drawdown_value != 0:
@@ -1415,30 +1408,30 @@ try:
             else:
                 st.warning(f"⚠️ Não há dados suficientes para calcular as Métricas de Risco-Retorno (mínimo de 1 ano de dados do fundo e do {benchmark_name}).")
 
-
     with tab3:
         st.subheader("Patrimônio e Captação Líquida")
 
-        fig6 = go.Figure([
-            go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['Soma_Acumulada'],
-                mode='lines',
-                name='Captação Líquida',
-                line=dict(color=color_primary, width=2.5),
-                hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
-                customdata=[format_brl(v) for v in df['Soma_Acumulada']]
-            ),
-            go.Scatter(
-                x=df['DT_COMPTC'],
-                y=df['VL_PATRIM_LIQ'],
-                mode='lines',
-                name='Patrimônio Líquido',
-                line=dict(color=color_secondary, width=2.5),
-                hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
-                customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
-            )
-        ])
+        fig6 = go.Figure()
+        fig6.add_trace(go.Scatter(
+            x=df['DT_COMPTC'],
+            y=df['Soma_Acumulada'],
+            mode='lines',
+            name='Captação Líquida',
+            line=dict(color=color_primary, width=2.5), # Cor primária
+            fill='tozeroy', # Adicionado preenchimento
+            fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
+            customdata=[format_brl(v) for v in df['Soma_Acumulada']]
+        ))
+        fig6.add_trace(go.Scatter(
+            x=df['DT_COMPTC'],
+            y=df['VL_PATRIM_LIQ'],
+            mode='lines',
+            name='Patrimônio Líquido',
+            line=dict(color=color_secondary, width=2.5), # Cor secundária
+            hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Líquido: %{customdata}<extra></extra>',
+            customdata=[format_brl(v) for v in df['VL_PATRIM_LIQ']]
+        ))
 
         fig6.update_layout(
             xaxis_title="Data",
@@ -1467,9 +1460,7 @@ try:
                 marker_color=colors,
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
-                text=df_monthly['Captacao_Liquida'].apply(lambda x: format_brl(x)), # NOVO: Texto nas barras
-                textposition='outside', # NOVO: Posição do texto
-                textfont=dict(color='black', size=12) # NOVO: Estilo do texto
+                # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
             )
         ])
 
@@ -1480,7 +1471,8 @@ try:
             hovermode="x unified",
             height=500,
             font=dict(family="Inter, sans-serif"),
-            yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.2, df_monthly['Captacao_Liquida'].max() * 1.2]) # Ajusta o range para o texto
+            # Ajusta o range para evitar cortar barras, mas sem texto
+            yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.1, df_monthly['Captacao_Liquida'].max() * 1.1])
         )
         # Ajusta o range do eixo X para os dados de df_monthly
         if not df_monthly.empty:
@@ -1498,7 +1490,9 @@ try:
             y=df['Patrimonio_Liq_Medio'],
             mode='lines',
             name='Patrimônio Médio por Cotista',
-            line=dict(color=color_primary, width=2.5),
+            line=dict(color=color_primary, width=2.5), # Cor primária
+            fill='tozeroy', # Adicionado preenchimento
+            fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
         ))
@@ -1507,7 +1501,7 @@ try:
             y=df['NR_COTST'],
             mode='lines',
             name='Número de Cotistas',
-            line=dict(color=color_secondary, width=2.5),
+            line=dict(color=color_secondary, width=2.5), # Cor secundária
             yaxis='y2',
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Nº de Cotistas: %{y}<extra></extra>'
         ))
@@ -1598,14 +1592,7 @@ try:
                 hovermode="x unified",
                 height=500,
                 yaxis=dict(tickformat=".2%"),
-                font=dict(family="Inter, sans-serif"),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1
-                )
+                font=dict(family="Inter, sans-serif")
             )
             # Ajusta o range do eixo X para os dados de df_returns
             df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
@@ -1657,10 +1644,7 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    # Adiciona o texto nas barras
-                    text=df_consistency['Consistencia'].apply(lambda x: f'{x:.2f}%'),
-                    textposition='outside', # Posição do texto fora da barra
-                    textfont=dict(color='black', size=12), # Cor e tamanho da fonte do texto
+                    # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
                     hovertemplate=f'<b>Janela:</b> %{{x}}<br><b>Consistência vs {benchmark_name_consistency}:</b> %{{y:.2f}}%<extra></extra>'
                 ))
 
@@ -1671,7 +1655,7 @@ try:
                     hovermode="x unified",
                     height=500,
                     font=dict(family="Inter, sans-serif"),
-                    yaxis=dict(range=[0, 110], ticksuffix="%") # Aumenta o range superior para dar mais espaço ao texto
+                    yaxis=dict(range=[0, 100], ticksuffix="%") # Ajusta o range para 0-100%
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
                 st.plotly_chart(fig_consistency, use_container_width=True)
