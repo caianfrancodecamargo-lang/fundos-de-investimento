@@ -1520,98 +1520,98 @@ try:
         st.plotly_chart(fig8, use_container_width=True)
 
     with tab5:
-    st.subheader("Retornos em Janelas Móveis")
-
-    janelas = {
-        "12 meses (252 dias)": 252,
-        "24 meses (504 dias)": 504,
-        "36 meses (756 dias)": 756,
-        "48 meses (1008 dias)": 1008,
-        "60 meses (1260 dias)": 1260
-    }
-
-    df_returns = df.copy()
-    for nome, dias in janelas.items():
-        if len(df_returns) > dias:
-            df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
-            if tem_cdi:
-                df_returns[f'CDI_{nome}'] = df_returns['CDI_COTA'] / df_returns['CDI_COTA'].shift(dias) - 1
-            if tem_ibov:
-                df_returns[f'IBOV_{nome}'] = df_returns['IBOV_COTA'] / df_returns['IBOV_COTA'].shift(dias) - 1
-        else:
-            df_returns[f'FUNDO_{nome}'] = np.nan
-            if tem_cdi:
-                df_returns[f'CDI_{nome}'] = np.nan
-            if tem_ibov:
-                df_returns[f'IBOV_{nome}'] = np.nan
-
-    janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
-
-    if not df_returns[f'FUNDO_{janela_selecionada}'].dropna().empty:
-        fig9 = go.Figure()
-
-        # Retorno do Fundo (linha)
-        fig9.add_trace(go.Scatter(
-            x=df_returns['DT_COMPTC'],
-            y=df_returns[f'FUNDO_{janela_selecionada}'],
-            mode='lines',
-            name=f"Retorno do Fundo — {janela_selecionada}",
-            line=dict(width=2.5, color=color_primary),
-            fill='tozeroy',
-            fillcolor='rgba(26, 95, 63, 0.1)'
-        ))
-
-        # Retorno do CDI (barra)
-        if tem_cdi:
-            fig9.add_trace(go.Bar(
+        st.subheader("Retornos em Janelas Móveis")
+    
+        janelas = {
+            "12 meses (252 dias)": 252,
+            "24 meses (504 dias)": 504,
+            "36 meses (756 dias)": 756,
+            "48 meses (1008 dias)": 1008,
+            "60 meses (1260 dias)": 1260
+        }
+    
+        df_returns = df.copy()
+        for nome, dias in janelas.items():
+            if len(df_returns) > dias:
+                df_returns[f'FUNDO_{nome}'] = df_returns['VL_QUOTA'] / df_returns['VL_QUOTA'].shift(dias) - 1
+                if tem_cdi:
+                    df_returns[f'CDI_{nome}'] = df_returns['CDI_COTA'] / df_returns['CDI_COTA'].shift(dias) - 1
+                if tem_ibov:
+                    df_returns[f'IBOV_{nome}'] = df_returns['IBOV_COTA'] / df_returns['IBOV_COTA'].shift(dias) - 1
+            else:
+                df_returns[f'FUNDO_{nome}'] = np.nan
+                if tem_cdi:
+                    df_returns[f'CDI_{nome}'] = np.nan
+                if tem_ibov:
+                    df_returns[f'IBOV_{nome}'] = np.nan
+    
+        janela_selecionada = st.selectbox("Selecione o período:", list(janelas.keys()))
+    
+        if not df_returns[f'FUNDO_{janela_selecionada}'].dropna().empty:
+            fig9 = go.Figure()
+    
+            # Retorno do Fundo (linha)
+            fig9.add_trace(go.Scatter(
                 x=df_returns['DT_COMPTC'],
-                y=df_returns[f'CDI_{janela_selecionada}'],
-                name=f"CDI — {janela_selecionada}",
-                marker_color=color_cdi,
-                hovertemplate="<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
+                y=df_returns[f'FUNDO_{janela_selecionada}'],
+                mode='lines',
+                name=f"Retorno do Fundo — {janela_selecionada}",
+                line=dict(width=2.5, color=color_primary),
+                fill='tozeroy',
+                fillcolor='rgba(26, 95, 63, 0.1)'
             ))
-
-        # Retorno do Ibovespa (barra)
-        if tem_ibov:
-            fig9.add_trace(go.Bar(
-                x=df_returns['DT_COMPTC'],
-                y=df_returns[f'IBOV_{janela_selecionada}'],
-                name=f"Ibovespa — {janela_selecionada}",
-                marker_color=color_ibov,
-                hovertemplate="<b>Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
-            ))
-
-        # Configuração para agrupar barras
-        fig9.update_layout(
-            xaxis_title="Data",
-            yaxis_title=f"Retorno {janela_selecionada}",
-            template="plotly_white",
-            hovermode="x unified",
-            height=500,
-            barmode='group',  # Agrupa barras lado a lado
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1
+    
+            # Retorno do CDI (barra)
+            if tem_cdi:
+                fig9.add_trace(go.Bar(
+                    x=df_returns['DT_COMPTC'],
+                    y=df_returns[f'CDI_{janela_selecionada}'],
+                    name=f"CDI — {janela_selecionada}",
+                    marker_color=color_cdi,
+                    hovertemplate="<b>CDI</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
+                ))
+    
+            # Retorno do Ibovespa (barra)
+            if tem_ibov:
+                fig9.add_trace(go.Bar(
+                    x=df_returns['DT_COMPTC'],
+                    y=df_returns[f'IBOV_{janela_selecionada}'],
+                    name=f"Ibovespa — {janela_selecionada}",
+                    marker_color=color_ibov,
+                    hovertemplate="<b>Ibovespa</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
+                ))
+    
+            # Configuração para agrupar barras
+            fig9.update_layout(
+                xaxis_title="Data",
+                yaxis_title=f"Retorno {janela_selecionada}",
+                template="plotly_white",
+                hovermode="x unified",
+                height=500,
+                barmode='group',  # Agrupa barras lado a lado
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1
+                )
             )
-        )
-
-        # Aplica marca d'água
-        df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
-        if not df_plot_returns.empty:
-            fig9 = add_watermark_and_style(fig9,
-                                           logo_base64,
-                                           x_range=[df_plot_returns['DT_COMPTC'].min(),
-                                                    df_plot_returns['DT_COMPTC'].max()],
-                                           x_autorange=False)
+    
+            # Aplica marca d'água
+            df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
+            if not df_plot_returns.empty:
+                fig9 = add_watermark_and_style(fig9,
+                                               logo_base64,
+                                               x_range=[df_plot_returns['DT_COMPTC'].min(),
+                                                        df_plot_returns['DT_COMPTC'].max()],
+                                               x_autorange=False)
+            else:
+                fig9 = add_watermark_and_style(fig9, logo_base64)
+    
+            st.plotly_chart(fig9, use_container_width=True)
         else:
-            fig9 = add_watermark_and_style(fig9, logo_base64)
-
-        st.plotly_chart(fig9, use_container_width=True)
-    else:
-        st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
+            st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
         # GRÁFICO: Consistência em Janelas Móveis
         st.subheader("Consistência em Janelas Móveis")
