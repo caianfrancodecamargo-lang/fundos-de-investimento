@@ -919,7 +919,7 @@ try:
                 font=dict(family="Inter, sans-serif")
             )
             fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig1, use_containerwidth=True)
 
             st.subheader("CAGR Anual por Dia de Aplicação")
 
@@ -978,7 +978,7 @@ try:
                 fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
             else:
                 fig2 = add_watermark_and_style(fig2, logo_base64)
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_containerwidth=True)
 
             # Excesso de Retorno Anualizado
             st.subheader("Excesso de Retorno Anualizado")
@@ -1014,7 +1014,7 @@ try:
                         fillcolor='rgba(26, 95, 63, 0.1)',
                         hovertemplate=f'<b>Excesso de Retorno vs {benchmark_name}</b><br>Data: %{{x|%d/%m/%Y}}<br>Excesso: %{{y:.2f}}%<extra></extra>'
                     ))
-                    fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+                    fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', linewidth=1)
 
                     fig_excesso_retorno.update_layout(
                         xaxis_title="Data",
@@ -1034,7 +1034,7 @@ try:
                         )
                     else:
                         fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64)
-                    st.plotly_chart(fig_excesso_retorno, use_container_width=True)
+                    st.plotly_chart(fig_excesso_retorno, use_containerwidth=True)
                 else:
                     st.warning(f"⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de {benchmark_name} e CAGR para o período).")
             elif tem_cdi and tem_ibov:
@@ -1057,7 +1057,7 @@ try:
                 fillcolor='rgba(220, 53, 69, 0.1)',
                 hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
             ))
-            fig3.add_hline(y=0, line_dash='dash', line_color='gray',_width=1)
+            fig3.add_hline(y=0, line_dash='dash', line_color='gray',width=1)
             fig3.update_layout(
                 xaxis_title="Data",
                 yaxis_title="Drawdown (%)",
@@ -1067,7 +1067,7 @@ try:
                 font=dict(family="Inter, sans-serif")
             )
             fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_containerwidth=True)
 
             st.subheader(f"Volatilidade Móvel ({vol_window} dias úteis)")
 
@@ -1098,7 +1098,7 @@ try:
                 font=dict(family="Inter, sans-serif")
             )
             fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, use_containerwidth=True)
 
             st.subheader("Value at Risk (VaR) e Expected Shortfall (ES)")
 
@@ -1155,7 +1155,7 @@ try:
                     x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                     x_autorange=False
                 )
-                st.plotly_chart(fig5, use_container_width=True)
+                st.plotly_chart(fig5, use_containerwidth=True)
 
                 st.info(f"""
                 **Este gráfico mostra que, em um período de 1 mês:**
@@ -1441,7 +1441,7 @@ try:
         )
         # Ajusta o range do eixo X para os dados de df
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig6, use_container_width=True)
+        st.plotly_chart(fig6, use_containerwidth=True)
 
         st.subheader("Captação Líquida Mensal")
 
@@ -1477,7 +1477,7 @@ try:
             fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
         else:
             fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
-        st.plotly_chart(fig7, use_container_width=True)
+        st.plotly_chart(fig7, use_containerwidth=True)
 
     with tab4:
         st.subheader("Patrimônio Médio e Nº de Cotistas")
@@ -1515,7 +1515,7 @@ try:
         )
         # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig8, use_container_width=True)
+        st.plotly_chart(fig8, use_containerwidth=True)
 
     with tab5:
         st.subheader("Retornos em Janelas Móveis")
@@ -1598,7 +1598,7 @@ try:
                 fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
             else:
                 fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
-            st.plotly_chart(fig9, use_container_width=True)
+            st.plotly_chart(fig9, use_containerwidth=True)
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
@@ -1656,7 +1656,7 @@ try:
                     yaxis=dict(range=[0, 100], ticksuffix="%") # Ajusta o range para 0-100%
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
-                st.plotly_chart(fig_consistency, use_container_width=True)
+                st.plotly_chart(fig_consistency, use_containerwidth=True)
             else:
                 st.warning(f"⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis vs {benchmark_name_consistency}.")
         elif tem_cdi and tem_ibov:
