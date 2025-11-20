@@ -44,7 +44,7 @@ def get_image_base64(image_path):
     except:
         return None
 
-# Caminho da logo (certifique-se de que 'copaiba_logo.png' está no mesmo diretório)
+# Caminho da logo
 LOGO_PATH = "copaiba_logo.png"
 logo_base64 = get_image_base64(LOGO_PATH)
 
@@ -498,7 +498,21 @@ def obter_dados_ibov(data_inicio: datetime, data_fim: datetime):
         if isinstance(df_ibovespa.columns, pd.MultiIndex):
             df_ibovespa.columns = ['_'.join(col).strip() for col in df_ibovespa.columns.values]
 
-        df_ibovespa = df_ibovespa.rename(columns={'Date': 'DT_COMPTC', 'Adj Close': 'IBOV'}) # Ajustado para 'Adj Close'
+        df_ibovespa = df_ibovespa.reset_index()
+
+        # Lógica para identificar a coluna de fechamento, seja 'Close', 'Close_' ou 'Close_^BVSP'
+        close_col_options = ['Close', 'Close_', 'Close_^BVSP']
+        selected_close_col = None
+        for col_option in close_col_options:
+            if col_option in df_ibovespa.columns:
+                selected_close_col = col_option
+                break
+
+        if selected_close_col is None:
+            st.error("❌ Não foi possível encontrar a coluna de fechamento do Ibovespa ('Close', 'Close_' ou 'Close_^BVSP').")
+            return pd.DataFrame()
+
+        df_ibovespa = df_ibovespa.rename(columns={'Date': 'DT_COMPTC', selected_close_col: 'IBOV'})
         df_ibovespa = df_ibovespa[['DT_COMPTC', 'IBOV']].copy()
         df_ibovespa['DT_COMPTC'] = pd.to_datetime(df_ibovespa['DT_COMPTC'])
         df_ibovespa = df_ibovespa.sort_values('DT_COMPTC').reset_index(drop=True)
@@ -678,7 +692,7 @@ try:
         df_fundo_completo = df_fundo_completo.sort_values('DT_COMPTC').reset_index(drop=True)
 
         # Filtrar apenas o período solicitado pelo usuário
-        df = df_fundo_completo[(df_fundo_completo['DT_COMPTC'] >= dt_ini_user) &
+        df = df_fundo_completo[(df_fundo_completo['DT_COMPTC'] >= dt_ini_user) & 
                               (df_fundo_completo['DT_COMPTC'] <= dt_fim_user)].copy()
         df = df.sort_values('DT_COMPTC').reset_index(drop=True)
 
@@ -978,6 +992,7 @@ try:
                 if not pd.isna(ulcer_index) and ulcer_index > 0:
                     martin_ratio = excess_return_anualizado / ulcer_index
 
+
             st.markdown("#### RISCO MEDIDO PELA VOLATILIDADE:")
             col_vol_1, col_vol_2 = st.columns(2)
 
@@ -1179,6 +1194,7 @@ try:
             st.info("ℹ️ Selecione um indicador de comparação (CDI ou Ibovespa) na barra lateral para visualizar as Métricas de Risco-Retorno.")
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular as Métricas de Risco-Retorno (mínimo de 1 ano de dados do fundo e do {benchmark_name}).")
+
 
     with tab3:
         st.subheader("Patrimônio e Captação Líquida")
@@ -1469,20 +1485,6 @@ except Exception as e:
 
 # Footer
 st.markdown("---")
-st.subheader("Exportar Gráficos")
-
-# Para o gráfico de Rentabilidade (fig1)
-if 'fig1' in locals(): # Verifica se fig1 foi criada
-    img_bytes_rentabilidade = fig1.to_image(format="svg")
-    st.download_button(
-        label="Exportar Rentabilidade (SVG)",
-        data=img_bytes_rentabilidade,
-        file_name="rentabilidade_fundo.svg",
-        mime="image/svg+xml"
-    )
-else:
-    st.warning("⚠️ Gráfico de Rentabilidade não disponível para exportação.")
-
 st.markdown("""
 <div style='text-align: center; color: #6c757d; padding: 2rem 0;'>
     <p style='margin: 0; font-size: 0.9rem; font-family: "Montserrat", sans-serif;'>
