@@ -55,6 +55,7 @@ logo_base64 = get_image_base64(LOGO_PATH)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap'); /* Adicionado Montserrat */
 
     /* Variáveis de cores inspiradas no Copaíba */
     :root {
@@ -70,7 +71,7 @@ st.markdown("""
     /* Fundo geral */
     .stApp {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        font-family: 'Inter', sans-serif;
+        font-family: 'Montserrat', sans-serif; /* Alterado para Montserrat */
     }
 
     /* Sidebar com padding reduzido */
@@ -197,7 +198,7 @@ st.markdown("""
 
     [data-testid="stSidebar"] .stAlert [data-testid="stMarkdownContainer"],
     [data-testid="stSidebar"] .stAlert * {
-        color: #000000 !important;
+        color: #000000 !important; /* Texto de validação em preto */
         font-weight: 600 !important;
     }
 
@@ -224,7 +225,7 @@ st.markdown("""
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 700;
-        color: #1a5f3f;
+        color: #1a5f3f; /* Texto dos cards em tons de verde */
     }
 
     [data-testid="stMetricLabel"] {
@@ -346,7 +347,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         plot_bgcolor='rgba(248, 246, 241, 0.5)',
         paper_bgcolor='white',
         font=dict(
-            family="Inter, sans-serif",
+            family="Montserrat, sans-serif", # Alterado para Montserrat
             size=12,
             color="#2c2c2c"
         ),
@@ -354,7 +355,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         hoverlabel=dict(
             bgcolor="white",
             font_size=13,
-            font_family="Inter, sans-serif",
+            font_family="Montserrat, sans-serif", # Alterado para Montserrat
             bordercolor="#6b9b7f"
         ),
         shapes=[
@@ -388,7 +389,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        title_font=dict(size=13, color="#1a5f3f", family="Montserrat"), # Alterado para Montserrat
         tickfont=dict(size=11, color="#6b9b7f")
     )
 
@@ -407,7 +408,7 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
         showline=True,
         linewidth=2,
         linecolor='#e0ddd5',
-        title_font=dict(size=13, color="#1a5f3f", family="Inter"),
+        title_font=dict(size=13, color="#1a5f3f", family="Montserrat"), # Alterado para Montserrat
         tickfont=dict(size=11, color="#6b9b7f")
     )
 
@@ -870,7 +871,7 @@ try:
     color_secondary = '#6b9b7f' # Verde claro para o patrimônio
     color_danger = '#dc3545' # Vermelho para drawdown
     color_cdi = '#000000'  # Preto para o CDI (conforme memória do usuário)
-    color_ibov = '#007bff' # Azul para o Ibovespa (conforme memória do usuário)
+    color_ibov = '#f0b429' # Amarelo para o Ibovespa (conforme memória do usuário)
 
     # Cards de métricas (mantidos como estavam)
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -901,8 +902,9 @@ try:
             mode='lines',
             name='Fundo',
             line=dict(color=color_primary, width=2.5),
+            # Condicional para preenchimento abaixo de zero em vermelho
             fill='tozeroy',
-            fillcolor='rgba(26, 95, 63, 0.1)',
+            fillcolor='rgba(26, 95, 63, 0.1)' if df['VL_QUOTA_NORM'].iloc[-1] >= 0 else 'rgba(220, 53, 69, 0.1)',
             hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
 
@@ -932,11 +934,11 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig1 = add_watermark_and_style(fig1, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
         st.subheader("CAGR Anual por Dia de Aplicação")
 
@@ -994,14 +996,14 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df_plot_cagr
         if not df_plot_cagr.empty:
             fig2 = add_watermark_and_style(fig2, logo_base64, x_range=[df_plot_cagr['DT_COMPTC'].min(), df_plot_cagr['DT_COMPTC'].max()], x_autorange=False)
         else:
             fig2 = add_watermark_and_style(fig2, logo_base64) # Sem range específico se não houver dados
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
         # NOVO GRÁFICO: Excesso de Retorno Anualizado
         st.subheader("Excesso de Retorno Anualizado")
@@ -1049,7 +1051,7 @@ try:
                     template="plotly_white",
                     hovermode="x unified",
                     height=500,
-                    font=dict(family="Inter, sans-serif")
+                    font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
                 )
                 # Ajusta o range do eixo X para os dados de df
                 df_plot_excess = df.dropna(subset=['EXCESSO_RETORNO_ANUALIZADO']).copy()
@@ -1057,7 +1059,7 @@ try:
                     fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64, x_range=[df_plot_excess['DT_COMPTC'].min(), df_plot_excess['DT_COMPTC'].max()], x_autorange=False)
                 else:
                     fig_excesso_retorno = add_watermark_and_style(fig_excesso_retorno, logo_base64) # Sem range específico se não houver dados
-                st.plotly_chart(fig_excesso_retorno, use_container_width=True)
+                st.plotly_chart(fig_excesso_retorno, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
             else:
                 st.warning(f"⚠️ Não há dados suficientes para calcular o Excesso de Retorno Anualizado (verifique se há dados de {benchmark_name} e CAGR para o período).")
         elif tem_cdi and tem_ibov:
@@ -1090,11 +1092,11 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
         st.subheader(f"Volatilidade Móvel ({vol_window} dias úteis)")
 
@@ -1126,11 +1128,11 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig4, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
         st.subheader("Value at Risk (VaR) e Expected Shortfall (ES)")
 
@@ -1181,11 +1183,11 @@ try:
                 template="plotly_white",
                 hovermode="x unified",
                 height=600,
-                font=dict(family="Inter, sans-serif")
+                font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
             )
             # Ajusta o range do eixo X para os dados de df_plot_var
             fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
-            st.plotly_chart(fig5, use_container_width=True)
+            st.plotly_chart(fig5, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
             st.info(f"""
             **Este gráfico mostra que, em um período de 1 mês:**
@@ -1224,6 +1226,7 @@ try:
 
             # --- Cálculos dos Novos Indicadores ---
             calmar_ratio, sterling_ratio, ulcer_index, martin_ratio, sharpe_ratio, sortino_ratio, information_ratio = [np.nan] * 7
+            beta, alpha_jensen, pain_index = [np.nan] * 3 # Novos indicadores
 
             if not df.empty and len(df) > trading_days_in_year and benchmark_cota_col in df.columns:
                 # Retorno total do fundo e benchmark no período
@@ -1273,22 +1276,63 @@ try:
                 else:
                     annualized_downside_volatility = np.nan
 
-                # Tracking Error
-                if benchmark_daily_rate_col and benchmark_daily_rate_col in df.columns and not df['Variacao_Perc'].empty:
-                    excess_daily_returns = df['Variacao_Perc'] - (df[benchmark_daily_rate_col] / 100)
-                    if not excess_daily_returns.empty:
-                        tracking_error = excess_daily_returns.std() * np.sqrt(trading_days_in_year)
-                    else:
-                        tracking_error = np.nan
-                elif benchmark_cota_col in df.columns and not df['Variacao_Perc'].empty: # Para Ibovespa
+                # Tracking Error (já calculado, mas vamos refazer para garantir consistência com o benchmark selecionado)
+                if benchmark_cota_col in df.columns and not df['Variacao_Perc'].empty:
                     benchmark_daily_returns = df[benchmark_cota_col].pct_change()
+                    # Garante que os retornos diários do benchmark não tenham NaNs no início
+                    benchmark_daily_returns = benchmark_daily_returns.fillna(0) # Preenche NaNs com 0 para o cálculo
                     excess_daily_returns = df['Variacao_Perc'] - benchmark_daily_returns
+                    excess_daily_returns = excess_daily_returns.dropna() # Remove NaNs resultantes da diferença
                     if not excess_daily_returns.empty:
                         tracking_error = excess_daily_returns.std() * np.sqrt(trading_days_in_year)
                     else:
                         tracking_error = np.nan
                 else:
                     tracking_error = np.nan
+
+                # --- Novos Cálculos ---
+                # Beta e Alpha de Jensen (APENAS para Ibovespa como benchmark)
+                if benchmark_name == 'Ibovespa' and 'IBOV' in df.columns:
+                    df['Retorno_Fundo_Diario'] = df['VL_QUOTA'].pct_change()
+                    df['Retorno_IBOV_Diario'] = df['IBOV'].pct_change()
+
+                    # Remove NaNs para o cálculo de covariância/variância
+                    df_temp_beta = df[['Retorno_Fundo_Diario', 'Retorno_IBOV_Diario']].dropna()
+
+                    if not df_temp_beta.empty and df_temp_beta['Retorno_IBOV_Diario'].var() > 0:
+                        beta = df_temp_beta['Retorno_Fundo_Diario'].cov(df_temp_beta['Retorno_IBOV_Diario']) / df_temp_beta['Retorno_IBOV_Diario'].var()
+
+                        # Alpha de Jensen (requer taxa livre de risco, usaremos CDI se disponível, senão 0)
+                        risk_free_rate_daily = 0
+                        if tem_cdi and 'cdi' in df.columns:
+                            # Média da taxa diária do CDI no período, anualizada e depois diária novamente
+                            avg_cdi_daily_rate = df['cdi'].mean() / 100 # Taxa média diária
+                            risk_free_rate_daily = (1 + avg_cdi_daily_rate)**(1/trading_days_in_year) - 1 # Taxa diária efetiva
+
+                        # Retornos médios diários
+                        mean_fund_return_daily = df_temp_beta['Retorno_Fundo_Diario'].mean()
+                        mean_ibov_return_daily = df_temp_beta['Retorno_IBOV_Diario'].mean()
+
+                        # Alpha de Jensen anualizado
+                        if not pd.isna(beta):
+                            alpha_jensen_daily = mean_fund_return_daily - (risk_free_rate_daily + beta * (mean_ibov_return_daily - risk_free_rate_daily))
+                            alpha_jensen = ((1 + alpha_jensen_daily)**trading_days_in_year - 1) * 100 # Anualiza e transforma em %
+                    else:
+                        beta = np.nan
+                        alpha_jensen = np.nan
+                else:
+                    beta = np.nan
+                    alpha_jensen = np.nan
+
+                # Pain Index
+                # O Pain Index é a média dos drawdowns negativos (em valor absoluto)
+                # Uma forma mais robusta é a área sob a curva de drawdown, mas a média é um bom proxy.
+                # Usaremos a média dos drawdowns negativos (em valor absoluto)
+                negative_drawdowns = drawdown_series[drawdown_series < 0]
+                if not negative_drawdowns.empty:
+                    pain_index = abs(negative_drawdowns.mean()) * 100 # Multiplica por 100 para exibir em %
+                else:
+                    pain_index = 0 # Se não houver drawdowns negativos, o pain index é 0
 
                 # --- Cálculo dos Ratios ---
                 # Calmar e Sterling Ratio (usando CAGR do fundo e benchmark)
@@ -1308,9 +1352,13 @@ try:
                 if not pd.isna(annualized_fund_return) and not pd.isna(annualized_benchmark_return) and not pd.isna(annualized_downside_volatility) and annualized_downside_volatility != 0:
                     sortino_ratio = (annualized_fund_return - annualized_benchmark_return) / annualized_downside_volatility
 
-                # Information Ratio
+                # Information Ratio (já calculado, apenas ajusta para o benchmark selecionado)
+                # O tracking_error já foi calculado acima.
                 if not pd.isna(annualized_fund_return) and not pd.isna(annualized_benchmark_return) and not pd.isna(tracking_error) and tracking_error != 0:
                     information_ratio = (annualized_fund_return - annualized_benchmark_return) / tracking_error
+                else:
+                    information_ratio = np.nan
+
 
                 # --- Exibição dos Cards e Explicações ---
                 st.markdown(f"#### RISCO MEDIDO PELA VOLATILIDADE (vs. {benchmark_name}):")
@@ -1348,12 +1396,39 @@ try:
                         *   **> 1.0:** Excelente habilidade e forte superação consistente do benchmark.
                     """)
                 with col_vol_4:
-                    st.metric("Treynor Ratio", "Não Calculável" if benchmark_name != 'Ibovespa' else "N/A") # Treynor precisa de Beta
-                    st.info("""
-                    **Treynor Ratio:** Mede o excesso de retorno por unidade de **risco sistemático (Beta)**. O Beta mede a sensibilidade do fundo aos movimentos do mercado.
-                    *   **Interpretação:** Um valor mais alto é preferível. É mais útil para comparar fundos com Betas semelhantes.
-                    *   **Observação:** *Não é possível calcular este índice sem dados de um índice de mercado (benchmark) para determinar o Beta do fundo.*
+                    st.metric("Tracking Error", f"{tracking_error:.2%}" if not pd.isna(tracking_error) else "N/A")
+                    st.info(f"""
+                    **Tracking Error:** Mede a volatilidade da diferença entre os retornos do fundo e os retornos do {benchmark_name}. Um Tracking Error baixo indica que o fundo segue de perto o benchmark, enquanto um alto sugere que o fundo se desvia significativamente.
+                    *   **Interpretação Geral:**
+                        *   **< 2%:** Muito baixo, fundo com alta aderência ao benchmark (ex: fundos passivos).
+                        *   **2% - 5%:** Baixo a moderado, fundo com alguma gestão ativa, mas ainda próximo ao benchmark.
+                        *   **> 5%:** Moderado a alto, fundo com gestão ativa mais agressiva ou que se desvia bastante do benchmark.
                     """)
+
+                # Novos indicadores Beta e Alpha de Jensen (apenas se Ibovespa for o benchmark)
+                if benchmark_name == 'Ibovespa':
+                    st.markdown(f"#### RISCO SISTEMÁTICO (vs. {benchmark_name}):")
+                    col_beta_1, col_beta_2 = st.columns(2)
+                    with col_beta_1:
+                        st.metric("Beta", f"{beta:.2f}" if not pd.isna(beta) else "N/A")
+                        st.info(f"""
+                        **Beta:** Mede a sensibilidade do retorno do fundo em relação aos retornos do {benchmark_name}.
+                        *   **Beta = 1:** O fundo se move em linha com o mercado.
+                        *   **Beta > 1:** O fundo é mais volátil que o mercado (amplifica movimentos).
+                        *   **Beta < 1:** O fundo é menos volátil que o mercado (atenua movimentos).
+                        *   **Beta < 0:** O fundo se move na direção oposta ao mercado (raro para fundos de ações).
+                        """)
+                    with col_beta_2:
+                        st.metric("Alpha de Jensen", f"{alpha_jensen:.2f}%" if not pd.isna(alpha_jensen) else "N/A")
+                        st.info(f"""
+                        **Alpha de Jensen:** Mede o retorno excedente do fundo em relação ao retorno esperado, dado o seu Beta e o retorno do {benchmark_name}.
+                        *   **Alpha > 0:** O gestor gerou um retorno superior ao esperado para o risco sistemático.
+                        *   **Alpha = 0:** O fundo entregou o retorno esperado para o risco sistemático.
+                        *   **Alpha < 0:** O fundo entregou um retorno inferior ao esperado para o risco sistemático.
+                        """)
+                else:
+                    st.info("ℹ️ Beta e Alpha de Jensen são calculados apenas quando o Ibovespa é selecionado como benchmark, pois são métricas de risco sistemático de mercado.")
+
 
                 st.markdown(f"#### RISCO MEDIDO PELO DRAWDOWN (vs. {benchmark_name}):")
                 col_dd_1, col_dd_2 = st.columns(2)
@@ -1399,6 +1474,17 @@ try:
                         *   **> 1.0:** Bom, o fundo entrega um bom retorno considerando a "dor" dos drawdowns.
                     """)
 
+                # Novo indicador Pain Index
+                col_pain_1, _ = st.columns(2)
+                with col_pain_1:
+                    st.metric("Pain Index", f"{pain_index:.2f}%" if not pd.isna(pain_index) else "N/A")
+                    st.info(f"""
+                    **Pain Index:** Mede a "dor" sentida pelo investidor durante os períodos de drawdown, considerando a magnitude e a duração das quedas. Um valor mais alto indica drawdowns mais longos e/ou mais profundos.
+                    *   **Interpretação Geral:**
+                        *   **Valores mais baixos:** Indicam que o fundo teve quedas menos severas ou de menor duração.
+                        *   **Valores mais altos:** Sugerem que o fundo passou por períodos de perdas mais prolongados ou intensos.
+                    """)
+
                 st.markdown("""
                 ---
                 **Observação Importante sobre as Interpretações:**
@@ -1439,11 +1525,11 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig6 = add_watermark_and_style(fig6, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig6, use_container_width=True)
+        st.plotly_chart(fig6, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
         st.subheader("Captação Líquida Mensal")
 
@@ -1460,7 +1546,8 @@ try:
                 marker_color=colors,
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
-                # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
+                text=[format_brl(v) for v in df_monthly['Captacao_Liquida']], # Adicionado texto nas barras
+                textposition='outside' # Posição do texto
             )
         ])
 
@@ -1470,7 +1557,7 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif"),
+            font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
             # Ajusta o range para evitar cortar barras, mas sem texto
             yaxis=dict(range=[df_monthly['Captacao_Liquida'].min() * 1.1, df_monthly['Captacao_Liquida'].max() * 1.1])
         )
@@ -1479,7 +1566,7 @@ try:
             fig7 = add_watermark_and_style(fig7, logo_base64, x_range=[df_monthly.index.min(), df_monthly.index.max()], x_autorange=False)
         else:
             fig7 = add_watermark_and_style(fig7, logo_base64) # Sem range específico se não houver dados
-        st.plotly_chart(fig7, use_container_width=True)
+        st.plotly_chart(fig7, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
     with tab4:
         st.subheader("Patrimônio Médio e Nº de Cotistas")
@@ -1513,11 +1600,11 @@ try:
             template="plotly_white",
             hovermode="x unified",
             height=500,
-            font=dict(family="Inter, sans-serif")
+            font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
         )
         # Ajusta o range do eixo X para os dados de df
         fig8 = add_watermark_and_style(fig8, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
-        st.plotly_chart(fig8, use_container_width=True)
+        st.plotly_chart(fig8, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
 
     with tab5:
         st.subheader("Retornos em Janelas Móveis")
@@ -1592,7 +1679,7 @@ try:
                 hovermode="x unified",
                 height=500,
                 yaxis=dict(tickformat=".2%"),
-                font=dict(family="Inter, sans-serif")
+                font=dict(family="Montserrat, sans-serif") # Alterado para Montserrat
             )
             # Ajusta o range do eixo X para os dados de df_returns
             df_plot_returns = df_returns.dropna(subset=[f'FUNDO_{janela_selecionada}']).copy()
@@ -1600,7 +1687,7 @@ try:
                 fig9 = add_watermark_and_style(fig9, logo_base64, x_range=[df_plot_returns['DT_COMPTC'].min(), df_plot_returns['DT_COMPTC'].max()], x_autorange=False)
             else:
                 fig9 = add_watermark_and_style(fig9, logo_base64) # Sem range específico se não houver dados
-            st.plotly_chart(fig9, use_container_width=True)
+            st.plotly_chart(fig9, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
         else:
             st.warning(f"⚠️ Não há dados suficientes para calcular {janela_selecionada}.")
 
@@ -1644,7 +1731,8 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
+                    text=[f"{v:.2f}%" for v in df_consistency['Consistencia']], # Adicionado texto nas barras
+                    textposition='outside', # Posição do texto
                     hovertemplate=f'<b>Janela:</b> %{{x}}<br><b>Consistência vs {benchmark_name_consistency}:</b> %{{y:.2f}}%<extra></extra>'
                 ))
 
@@ -1654,11 +1742,11 @@ try:
                     template="plotly_white",
                     hovermode="x unified",
                     height=500,
-                    font=dict(family="Inter, sans-serif"),
+                    font=dict(family="Montserrat, sans-serif"), # Alterado para Montserrat
                     yaxis=dict(range=[0, 100], ticksuffix="%") # Ajusta o range para 0-100%
                 )
                 fig_consistency = add_watermark_and_style(fig_consistency, logo_base64, x_autorange=True)
-                st.plotly_chart(fig_consistency, use_container_width=True)
+                st.plotly_chart(fig_consistency, use_container_width=True, config={'toImageButtonOptions': {'format': 'svg'}}) # Exportar como SVG
             else:
                 st.warning(f"⚠️ Não há dados suficientes para calcular a Consistência em Janelas Móveis vs {benchmark_name_consistency}.")
         elif tem_cdi and tem_ibov:
