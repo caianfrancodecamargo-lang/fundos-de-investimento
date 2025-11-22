@@ -325,19 +325,15 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
     Permite definir o range do eixo X.
     """
     if logo_base64:
-        fig.add_layout_image(
+        fig5.add_layout_image(
             dict(
                 source=f"data:image/png;base64,{logo_base64}",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                sizex=1.75,  # 120% do tamanho do gráfico
-                sizey=1.75,  # 120% do tamanho do gráfico
-                xanchor="center",
-                yanchor="middle",
-                opacity=0.15,  # <<< OPACIDADE DA MARCA D'ÁGUA AUMENTADA PARA 0.15
-                layer="below"
+                xref="paper", yref="paper",
+                x=0.5, y=0.5,
+                sizex=1.46,  # Ajustado para compensar a altura maior (500/600 * 1.75)
+                sizey=1.46,  # Ajustado para compensar a altura maior (500/600 * 1.75)
+                xanchor="center", yanchor="middle",
+                opacity=0.15, layer="below"
             )
         )
 
