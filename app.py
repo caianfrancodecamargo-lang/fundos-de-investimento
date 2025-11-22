@@ -325,15 +325,19 @@ def add_watermark_and_style(fig, logo_base64=None, x_range=None, x_autorange=Tru
     Permite definir o range do eixo X.
     """
     if logo_base64:
-        fig5.add_layout_image(
+        fig.add_layout_image(
             dict(
                 source=f"data:image/png;base64,{logo_base64}",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5,
-                sizex=1.46,  # Ajustado para compensar a altura maior (500/600 * 1.75)
-                sizey=1.46,  # Ajustado para compensar a altura maior (500/600 * 1.75)
-                xanchor="center", yanchor="middle",
-                opacity=0.15, layer="below"
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                sizex=1.75,  # 120% do tamanho do gráfico
+                sizey=1.75,  # 120% do tamanho do gráfico
+                xanchor="center",
+                yanchor="middle",
+                opacity=0.15,  # <<< OPACIDADE DA MARCA D'ÁGUA AUMENTADA PARA 0.15
+                layer="below"
             )
         )
 
@@ -668,10 +672,10 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.mostrar_ibov = mostrar_ibov # NOVO: Salva o estado do checkbox do Ibovespa
 
 if not st.session_state.dados_carregados:
-    st.info("Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+    st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
 
     st.markdown("""
-    ### Como usar:
+    ### 📋 Como usar:
 
     1.  **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2.  **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
@@ -681,7 +685,7 @@ if not st.session_state.dados_carregados:
 
     ---
 
-    ### Análises disponíveis:
+    ### 📊 Análises disponíveis:
     - Rentabilidade histórica e CAGR (com comparação ao CDI e Ibovespa)
     - Análise de risco (Drawdown, Volatilidade, VaR)
     - Evolução patrimonial e captação
@@ -1061,63 +1065,112 @@ try:
 
     with tab2:
         st.subheader("Drawdown Histórico")
+
         fig3 = go.Figure()
+
+        # Drawdown do Fundo (APENAS - SEM CDI)
         fig3.add_trace(go.Scatter(
-            x=df['DT_COMPTC'], y=df['Drawdown'],
-            mode='lines', name='Drawdown',
+            x=df['DT_COMPTC'],
+            y=df['Drawdown'],
+            mode='lines',
+            name='Drawdown do Fundo',
             line=dict(color=color_danger, width=2.5),
-            fill='tozeroy', fillcolor='rgba(220, 53, 69, 0.1)',
-            hovertemplate='%{y:.2f}%<extra></extra>'
+            fill='tozeroy',
+            fillcolor='rgba(220, 53, 69, 0.1)', # Cor de preenchimento para drawdown
+            hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
-        fig3.add_hline(y=0, line_dash='dash', line_color='gray')
-        fig3.update_layout(xaxis_title="Data", yaxis_title="Drawdown (%)", template="plotly_white", hovermode="x unified", height=500)
+
+        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+
+        fig3.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Drawdown (%)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+        # Ajusta o range do eixo X para os dados de df
         fig3 = add_watermark_and_style(fig3, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig3, use_container_width=True)
-    
+
         st.subheader(f"Volatilidade Móvel ({vol_window} dias úteis)")
+
         fig4 = go.Figure()
+
+        # Volatilidade do Fundo (APENAS - SEM CDI)
         fig4.add_trace(go.Scatter(
-            x=df['DT_COMPTC'], y=df['Volatilidade'],
-            mode='lines', name='Volatilidade',
-            line=dict(color=color_primary, width=2.5)
+            x=df['DT_COMPTC'],
+            y=df['Volatilidade'],
+            mode='lines',
+            name=f'Volatilidade do Fundo ({vol_window} dias)',
+            line=dict(color=color_primary, width=2.5),
+            fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
+            hovertemplate='<b>Volatilidade do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
         ))
-        fig4.update_layout(xaxis_title="Data", yaxis_title="Volatilidade (% a.a.)", template="plotly_white", hovermode="x unified", height=500)
+
+        fig4.add_trace(go.Scatter(
+            x=df['DT_COMPTC'],
+            y=[vol_hist] * len(df),
+            mode='lines',
+            line=dict(dash='dash', color=color_secondary, width=2),
+            name=f'Vol. Histórica ({vol_hist:.2f}%)'
+        ))
+
+        fig4.update_layout(
+            xaxis_title="Data",
+            yaxis_title="Volatilidade (% a.a.)",
+            template="plotly_white",
+            hovermode="x unified",
+            height=500,
+            font=dict(family="Inter, sans-serif")
+        )
+        # Ajusta o range do eixo X para os dados de df
         fig4 = add_watermark_and_style(fig4, logo_base64, x_range=[df['DT_COMPTC'].min(), df['DT_COMPTC'].max()], x_autorange=False)
         st.plotly_chart(fig4, use_container_width=True)
-    
+
         st.subheader("Value at Risk (VaR) e Expected Shortfall (ES)")
+
         if not df_plot_var.empty:
             fig5 = go.Figure()
             fig5.add_trace(go.Scatter(
-                x=df_plot_var['DT_COMPTC'], y=df_plot_var['Retorno_21d'] * 100,
-                mode='lines', name='Retorno (21 dias)',
-                line=dict(color=color_primary)
+                x=df_plot_var['DT_COMPTC'],
+                y=df_plot_var['Retorno_21d'] * 100,
+                mode='lines',
+                name='Rentabilidade móvel (1m)',
+                line=dict(color=color_primary, width=2),
+                fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
+                hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[VaR_95 * 100, VaR_95 * 100],
-                mode='lines', name='VaR 95%',
-                line=dict(dash='dash', color='orange')
+                mode='lines',
+                name='VaR 95%',
+                line=dict(dash='dot', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[VaR_99 * 100, VaR_99 * 100],
-                mode='lines', name='VaR 99%',
-                line=dict(dash='dash', color='red')
+                mode='lines',
+                name='VaR 99%',
+                line=dict(dash='dot', color='red', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[ES_95 * 100, ES_95 * 100],
-                mode='lines', name='ES 95%',
+                mode='lines',
+                name='ES 95%',
                 line=dict(dash='dash', color='orange', width=2)
             ))
             fig5.add_trace(go.Scatter(
                 x=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()],
                 y=[ES_99 * 100, ES_99 * 100],
-                mode='lines', name='ES 99%',
+                mode='lines',
+                name='ES 99%',
                 line=dict(dash='dash', color='red', width=2)
             ))
-    
+
             fig5.update_layout(
                 xaxis_title="Data",
                 yaxis_title="Rentabilidade (%)",
@@ -1126,15 +1179,16 @@ try:
                 height=600,
                 font=dict(family="Inter, sans-serif")
             )
+            # Ajusta o range do eixo X para os dados de df_plot_var
             fig5 = add_watermark_and_style(fig5, logo_base64, x_range=[df_plot_var['DT_COMPTC'].min(), df_plot_var['DT_COMPTC'].max()], x_autorange=False)
             st.plotly_chart(fig5, use_container_width=True)
-    
+
             st.info(f"""
             **Este gráfico mostra que, em um período de 1 mês:**
-    
+
             • Há **99%** de confiança de que o fundo não cairá mais do que **{fmt_pct_port(VaR_99)} (VaR)**,
             e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_99)} (ES)**.
-    
+
             • Há **95%** de confiança de que a queda não será superior a **{fmt_pct_port(VaR_95)} (VaR)**,
             e, caso isso ocorra, a perda média esperada será de **{fmt_pct_port(ES_95)} (ES)**.
             """)
@@ -1399,10 +1453,9 @@ try:
                 y=df_monthly['Captacao_Liquida'],
                 name='Captação Líquida Mensal',
                 marker_color=colors,
-                text=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
-                textposition='auto',
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
+                # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
             )
         ])
 
@@ -1584,11 +1637,10 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    text=df_consistency['Consistencia'].apply(lambda x: f"{x:.2f}%"),
-                    textposition='auto',
+                    # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
                     hovertemplate=f'<b>Janela:</b> %{{x}}<br><b>Consistência vs {benchmark_name_consistency}:</b> %{{y:.2f}}%<extra></extra>'
                 ))
-                
+
                 fig_consistency.update_layout(
                     xaxis_title="Janela (meses)",
                     yaxis_title=f"Percentual de Superação do {benchmark_name_consistency} (%)",
