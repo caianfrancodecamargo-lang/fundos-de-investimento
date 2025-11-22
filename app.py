@@ -901,7 +901,7 @@ try:
             mode='lines',
             name='Fundo',
             line=dict(color=color_primary, width=2.5),
-            fill='tozeroy',
+            fill='',
             fillcolor='rgba(26, 95, 63, 0.1)',
             hovertemplate='<b>Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Rentabilidade: %{y:.2f}%<extra></extra>'
         ))
