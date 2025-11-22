@@ -79,7 +79,10 @@ st.markdown("""
         padding: 1rem 0.8rem !important;
     }
 
-    [data-testid="stSidebar"] * {
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] .stAlert,
+    [data-testid="stSidebar"] h4 {
         color: #ffffff !important;
     }
 
