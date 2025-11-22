@@ -1453,9 +1453,10 @@ try:
                 y=df_monthly['Captacao_Liquida'],
                 name='Captação Líquida Mensal',
                 marker_color=colors,
+                text=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
+                textposition='auto',
                 hovertemplate='Mês: %{x|%b/%Y}<br>Captação Líquida: %{customdata}<extra></extra>',
                 customdata=[format_brl(v) for v in df_monthly['Captacao_Liquida']],
-                # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
             )
         ])
 
@@ -1637,10 +1638,11 @@ try:
                     x=df_consistency['Janela'],
                     y=df_consistency['Consistencia'],
                     marker_color=color_primary,
-                    # Removido text e textposition para não exibir valores nas barras (conforme memória do usuário)
+                    text=df_consistency['Consistencia'].apply(lambda x: f"{x:.2f}%"),
+                    textposition='auto',
                     hovertemplate=f'<b>Janela:</b> %{{x}}<br><b>Consistência vs {benchmark_name_consistency}:</b> %{{y:.2f}}%<extra></extra>'
                 ))
-
+                
                 fig_consistency.update_layout(
                     xaxis_title="Janela (meses)",
                     yaxis_title=f"Percentual de Superação do {benchmark_name_consistency} (%)",
