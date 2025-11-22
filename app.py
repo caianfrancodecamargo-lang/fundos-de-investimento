@@ -1176,7 +1176,7 @@ try:
                 yaxis_title="Rentabilidade (%)",
                 template="plotly_white",
                 hovermode="x unified",
-                height=600,
+                height=500,
                 font=dict(family="Inter, sans-serif")
             )
             # Ajusta o range do eixo X para os dados de df_plot_var
