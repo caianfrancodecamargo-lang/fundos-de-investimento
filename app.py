@@ -1039,7 +1039,7 @@ try:
                 ))
 
                 # Adicionar linha de 0% para referência
-                fig_excesso_retorno.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+                fig_excesso_retorno.add_hline(y=0, line_dash='solid', line_color='gray', line_width=1)
 
                 fig_excesso_retorno.update_layout(
                     xaxis_title="Data",
@@ -1080,7 +1080,7 @@ try:
             hovertemplate='<b>Drawdown do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Drawdown: %{y:.2f}%<extra></extra>'
         ))
 
-        fig3.add_hline(y=0, line_dash='dash', line_color='gray', line_width=1)
+        fig3.add_hline(y=0, line_dash='solid', line_color='gray', line_width=1)
 
         fig3.update_layout(
             xaxis_title="Data",
