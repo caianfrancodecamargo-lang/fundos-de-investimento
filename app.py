@@ -1034,7 +1034,6 @@ try:
                     mode='lines',
                     name=f'Excesso de Retorno Anualizado vs {benchmark_name}',
                     line=dict(color=color_primary, width=2.5), # Cor alterada para color_primary
-                    fill='tozeroy', # Adicionado preenchimento
                     fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
                     hovertemplate=f'<b>Excesso de Retorno vs {benchmark_name}</b><br>Data: %{{x|%d/%m/%Y}}<br>Excesso: %{{y:.2f}}%<extra></extra>'
                 ))
@@ -1106,7 +1105,6 @@ try:
             mode='lines',
             name=f'Volatilidade do Fundo ({vol_window} dias)',
             line=dict(color=color_primary, width=2.5),
-            fill='tozeroy', # Adicionado preenchimento
             fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
             hovertemplate='<b>Volatilidade do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Volatilidade: %{y:.2f}%<extra></extra>'
         ))
@@ -1141,7 +1139,6 @@ try:
                 mode='lines',
                 name='Rentabilidade móvel (1m)',
                 line=dict(color=color_primary, width=2),
-                fill='tozeroy', # Adicionado preenchimento
                 fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
                 hovertemplate='Data: %{x|%d/%m/%Y}<br>Rentabilidade 21d: %{y:.2f}%<extra></extra>'
             ))
@@ -1417,7 +1414,6 @@ try:
             mode='lines',
             name='Captação Líquida',
             line=dict(color=color_primary, width=2.5), # Cor primária
-            fill='tozeroy', # Adicionado preenchimento
             fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Captação Líquida Acumulada: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Soma_Acumulada']]
@@ -1490,7 +1486,6 @@ try:
             mode='lines',
             name='Patrimônio Médio por Cotista',
             line=dict(color=color_primary, width=2.5), # Cor primária
-            fill='tozeroy', # Adicionado preenchimento
             fillcolor='rgba(26, 95, 63, 0.1)', # Cor de preenchimento
             hovertemplate='Data: %{x|%d/%m/%Y}<br>Patrimônio Médio: %{customdata}<extra></extra>',
             customdata=[format_brl(v) for v in df['Patrimonio_Liq_Medio']]
@@ -1557,7 +1552,6 @@ try:
                 mode='lines',
                 name=f"Retorno do Fundo — {janela_selecionada}",
                 line=dict(width=2.5, color=color_primary),
-                fill='tozeroy',
                 fillcolor='rgba(26, 95, 63, 0.1)',
                 hovertemplate="<b>Retorno do Fundo</b><br>Data: %{x|%d/%m/%Y}<br>Retorno: %{y:.2%}<extra></extra>"
             ))
