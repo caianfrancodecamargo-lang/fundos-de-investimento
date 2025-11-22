@@ -611,7 +611,6 @@ if cnpjs_limpos:
 else:
     st.sidebar.warning("⚠️ Por favor, insira pelo menos um CNPJ.")
 
-
 datas_validas = False
 
 if data_inicial_input and data_final_input:
