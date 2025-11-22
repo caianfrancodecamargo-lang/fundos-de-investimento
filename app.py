@@ -548,12 +548,12 @@ if logo_base64:
         unsafe_allow_html=True
     )
 
-# Input de CNPJ
-cnpj_input = st.sidebar.text_input(
-    "CNPJ do Fundo",
+# Input de CNPJ - AGORA PARA MÚLTIPLOS FUNDOS
+cnpj_inputs_raw = st.sidebar.text_area(
+    "CNPJs dos Fundos (um por linha ou separados por vírgula)",
     value="",
-    placeholder="00.000.000/0000-00",
-    help="Digite o CNPJ com ou sem formatação"
+    placeholder="00.000.000/0000-00\n11.111.111/1111-11",
+    help="Digite um ou mais CNPJs, um por linha ou separados por vírgula"
 )
 
 # Inputs de data
@@ -581,25 +581,38 @@ with col2_sidebar:
 # Opção para mostrar CDI e Ibovespa
 st.sidebar.markdown("#### Indicadores de Comparação")
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
-mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False) # NOVO
+mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False)
 
 st.sidebar.markdown("---")
 
 # Processar inputs
-cnpj_limpo = limpar_cnpj(cnpj_input)
+# NOVO: Processamento da string de CNPJs para uma lista
+cnpjs_limpos = []
+if cnpj_inputs_raw:
+    # Divide por nova linha ou vírgula, remove espaços e filtra vazios
+    raw_list = re.split(r'[\n,]+', cnpj_inputs_raw)
+    for c in raw_list:
+        limpo = limpar_cnpj(c.strip())
+        if limpo: # Adiciona apenas CNPJs não vazios após limpeza
+            cnpjs_limpos.append(limpo)
+
 data_inicial_formatada = formatar_data_api(data_inicial_input)
 data_final_formatada = formatar_data_api(data_final_input)
 
 # Validação
-cnpj_valido = False
-datas_validas = False
-
-if cnpj_input:
-    if len(cnpj_limpo) != 14:
-        st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+cnpjs_validos = False
+if cnpjs_limpos:
+    invalid_cnpjs = [c for c in cnpjs_limpos if len(c) != 14]
+    if invalid_cnpjs:
+        st.sidebar.error(f"❌ CNPJs inválidos (devem ter 14 dígitos): {', '.join(invalid_cnpjs)}")
     else:
-        st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
-        cnpj_valido = True
+        st.sidebar.success(f"✅ CNPJs carregados: {len(cnpjs_limpos)} fundo(s)")
+        cnpjs_validos = True
+else:
+    st.sidebar.warning("⚠️ Por favor, insira pelo menos um CNPJ.")
+
+
+datas_validas = False
 
 if data_inicial_input and data_final_input:
     if not data_inicial_formatada or not data_final_formatada:
@@ -617,7 +630,7 @@ if data_inicial_input and data_final_input:
             st.sidebar.error("❌ Erro ao processar datas")
 
 # Botão para carregar dados
-carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
+carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpjs_validos and datas_validas))
 
 # Título principal
 st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
