@@ -672,10 +672,10 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.mostrar_ibov = mostrar_ibov # NOVO: Salva o estado do checkbox do Ibovespa
 
 if not st.session_state.dados_carregados:
-    st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+    st.info("Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
 
     st.markdown("""
-    ### 📋 Como usar:
+    ### Como usar:
 
     1.  **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2.  **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
@@ -685,7 +685,7 @@ if not st.session_state.dados_carregados:
 
     ---
 
-    ### 📊 Análises disponíveis:
+    ### Análises disponíveis:
     - Rentabilidade histórica e CAGR (com comparação ao CDI e Ibovespa)
     - Análise de risco (Drawdown, Volatilidade, VaR)
     - Evolução patrimonial e captação
