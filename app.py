@@ -79,10 +79,7 @@ st.markdown("""
         padding: 1rem 0.8rem !important;
     }
 
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] .stMarkdown,
-    [data-testid="stSidebar"] .stAlert,
-    [data-testid="stSidebar"] h4 {
+    [data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
 
@@ -145,13 +142,6 @@ st.markdown("""
         color: #666666 !important;
         opacity: 0.8 !important;
         font-weight: 500 !important;
-        
-    [data-testid="stSidebar"] .stTextInput label,
-    [data-testid="stSidebar"] .stTextArea label,
-    [data-testid="stSidebar"] .stCheckbox label,
-    [data-testid="stSidebar"] .stMarkdown,
-    [data-testid="stSidebar"] h4 {
-        color: #ffffff !important;
     }
 
     [data-testid="stSidebar"] input:focus {
@@ -558,12 +548,12 @@ if logo_base64:
         unsafe_allow_html=True
     )
 
-# Input de CNPJ - AGORA PARA MÚLTIPLOS FUNDOS
-cnpj_inputs_raw = st.sidebar.text_area(
-    "CNPJs dos Fundos (um por linha ou separados por vírgula)",
+# Input de CNPJ
+cnpj_input = st.sidebar.text_input(
+    "CNPJ do Fundo",
     value="",
-    placeholder="00.000.000/0000-00\n11.111.111/1111-11",
-    help="Digite um ou mais CNPJs, um por linha ou separados por vírgula"
+    placeholder="00.000.000/0000-00",
+    help="Digite o CNPJ com ou sem formatação"
 )
 
 # Inputs de data
@@ -591,37 +581,25 @@ with col2_sidebar:
 # Opção para mostrar CDI e Ibovespa
 st.sidebar.markdown("#### Indicadores de Comparação")
 mostrar_cdi = st.sidebar.checkbox("Comparar com CDI", value=True)
-mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False)
+mostrar_ibov = st.sidebar.checkbox("Comparar com Ibovespa", value=False) # NOVO
 
 st.sidebar.markdown("---")
 
 # Processar inputs
-# NOVO: Processamento da string de CNPJs para uma lista
-cnpjs_limpos = []
-if cnpj_inputs_raw:
-    # Divide por nova linha ou vírgula, remove espaços e filtra vazios
-    raw_list = re.split(r'[\n,]+', cnpj_inputs_raw)
-    for c in raw_list:
-        limpo = limpar_cnpj(c.strip())
-        if limpo: # Adiciona apenas CNPJs não vazios após limpeza
-            cnpjs_limpos.append(limpo)
-
+cnpj_limpo = limpar_cnpj(cnpj_input)
 data_inicial_formatada = formatar_data_api(data_inicial_input)
 data_final_formatada = formatar_data_api(data_final_input)
 
 # Validação
-cnpjs_validos = False
-if cnpjs_limpos:
-    invalid_cnpjs = [c for c in cnpjs_limpos if len(c) != 14]
-    if invalid_cnpjs:
-        st.sidebar.error(f"❌ CNPJs inválidos (devem ter 14 dígitos): {', '.join(invalid_cnpjs)}")
-    else:
-        st.sidebar.success(f"✅ CNPJs carregados: {len(cnpjs_limpos)} fundo(s)")
-        cnpjs_validos = True
-else:
-    st.sidebar.warning("⚠️ Por favor, insira pelo menos um CNPJ.")
-
+cnpj_valido = False
 datas_validas = False
+
+if cnpj_input:
+    if len(cnpj_limpo) != 14:
+        st.sidebar.error("❌ CNPJ deve conter 14 dígitos")
+    else:
+        st.sidebar.success(f"✅ CNPJ: {cnpj_limpo}")
+        cnpj_valido = True
 
 if data_inicial_input and data_final_input:
     if not data_inicial_formatada or not data_final_formatada:
@@ -639,7 +617,7 @@ if data_inicial_input and data_final_input:
             st.sidebar.error("❌ Erro ao processar datas")
 
 # Botão para carregar dados
-carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpjs_validos and datas_validas))
+carregar_button = st.sidebar.button("Carregar Dados", type="primary", disabled=not (cnpj_valido and datas_validas))
 
 # Título principal
 st.markdown("<h1>Dashboard de Fundos de Investimentos</h1>", unsafe_allow_html=True)
@@ -694,10 +672,10 @@ if carregar_button and cnpj_valido and datas_validas:
     st.session_state.mostrar_ibov = mostrar_ibov # NOVO: Salva o estado do checkbox do Ibovespa
 
 if not st.session_state.dados_carregados:
-    st.info("👈 Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
+    st.info("Preencha os campos na barra lateral e clique em 'Carregar Dados' para começar a análise.")
 
     st.markdown("""
-    ### 📋 Como usar:
+    ### Como usar:
 
     1.  **CNPJ do Fundo**: Digite o CNPJ do fundo que deseja analisar
     2.  **Data Inicial**: Digite a data inicial no formato DD/MM/AAAA
@@ -707,7 +685,7 @@ if not st.session_state.dados_carregados:
 
     ---
 
-    ### 📊 Análises disponíveis:
+    ### Análises disponíveis:
     - Rentabilidade histórica e CAGR (com comparação ao CDI e Ibovespa)
     - Análise de risco (Drawdown, Volatilidade, VaR)
     - Evolução patrimonial e captação
