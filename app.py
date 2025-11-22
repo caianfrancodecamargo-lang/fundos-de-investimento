@@ -147,6 +147,14 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
+    [data-testid="stSidebar"] .stTextInput label,
+    [data-testid="stSidebar"] .stTextArea label,
+    [data-testid="stSidebar"] .stCheckbox label,
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] h4 {
+        color: #ffffff !important;
+    }
+
     [data-testid="stSidebar"] input:focus {
         color: #000000 !important;
         border-color: #8ba888 !important;
