@@ -145,8 +145,7 @@ st.markdown("""
         color: #666666 !important;
         opacity: 0.8 !important;
         font-weight: 500 !important;
-    }
-
+        
     [data-testid="stSidebar"] .stTextInput label,
     [data-testid="stSidebar"] .stTextArea label,
     [data-testid="stSidebar"] .stCheckbox label,
