@@ -873,17 +873,19 @@ try:
     color_ibov = '#007bff' # Azul para o Ibovespa (conforme memória do usuário)
 
     # Cards de métricas (mantidos como estavam)
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
         st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
     with col2:
-        st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
+        st.metric("Rentabilidade Fundo", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
     with col3:
-        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
+        st.metric("Rentabilidade CDI", fmt_pct_port(cdi_diario['VL_CDI_acum'].iloc[-1] / 100))
     with col4:
-        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
     with col5:
+        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+    with col6:
         st.metric("Vol. Histórica", fmt_pct_port(vol_hist/100))
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
