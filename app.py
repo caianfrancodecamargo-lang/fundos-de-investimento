@@ -879,30 +879,32 @@ try:
         st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
     
     with col2:
-        # Rentabilidade do fundo
+        # Rentabilidade acumulada do fundo (decimal)
         rent_fundo = df['VL_QUOTA_NORM'].iloc[-1] / 100
     
-        # Determinar benchmark ativo
-        benchmark_label = ""
+        # Identificar benchmark ativo
         benchmark_rent = None
+        benchmark_nome = ""
     
         if st.session_state.mostrar_cdi and tem_cdi and 'CDI_NORM' in df.columns:
-            benchmark_label = "CDI"
             benchmark_rent = df['CDI_NORM'].iloc[-1] / 100
+            benchmark_nome = "CDI"
     
         elif st.session_state.mostrar_ibov and tem_ibov and 'IBOV_NORM' in df.columns:
-            benchmark_label = "Ibovespa"
             benchmark_rent = df['IBOV_NORM'].iloc[-1] / 100
+            benchmark_nome = "Ibov"
     
-        # Cálculo da diferença relativa
-        if benchmark_rent is not None:
-            diff = rent_fundo - benchmark_rent
-            diff_str = fmt_pct_port(diff)  # formato +x,xx%
-            value_display = f"{fmt_pct_port(rent_fundo)} ({diff_str})"
+        # Cálculo do percentual relativo do fundo em relação ao benchmark
+        if benchmark_rent is not None and benchmark_rent != 0:
+            relativo = (rent_fundo / benchmark_rent) * 100   # Ex.: 267,35%
+            relativo_str = f" ({relativo:.2f}% do {benchmark_nome})".replace('.', ',')
         else:
-            value_display = fmt_pct_port(rent_fundo)
+            relativo_str = ""
     
-        st.metric("Rentabilidade Acumulada", value_display)
+        # Exibição final: fundo + parênteses com % relativo
+        valor_display = f"{fmt_pct_port(rent_fundo)}{relativo_str}"
+    
+        st.metric("Rentabilidade Acumulada", valor_display)
     
     with col3:
         # Calcula a rentabilidade acumulada do benchmark (CDI ou Ibovespa)
