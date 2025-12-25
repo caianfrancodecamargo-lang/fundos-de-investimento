@@ -879,7 +879,30 @@ try:
         st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
     
     with col2:
-        st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
+        # Rentabilidade do fundo
+        rent_fundo = df['VL_QUOTA_NORM'].iloc[-1] / 100
+    
+        # Determinar benchmark ativo
+        benchmark_label = ""
+        benchmark_rent = None
+    
+        if st.session_state.mostrar_cdi and tem_cdi and 'CDI_NORM' in df.columns:
+            benchmark_label = "CDI"
+            benchmark_rent = df['CDI_NORM'].iloc[-1] / 100
+    
+        elif st.session_state.mostrar_ibov and tem_ibov and 'IBOV_NORM' in df.columns:
+            benchmark_label = "Ibovespa"
+            benchmark_rent = df['IBOV_NORM'].iloc[-1] / 100
+    
+        # Cálculo da diferença relativa
+        if benchmark_rent is not None:
+            diff = rent_fundo - benchmark_rent
+            diff_str = fmt_pct_port(diff)  # formato +x,xx%
+            value_display = f"{fmt_pct_port(rent_fundo)} ({diff_str})"
+        else:
+            value_display = fmt_pct_port(rent_fundo)
+    
+        st.metric("Rentabilidade Acumulada", value_display)
     
     with col3:
         # Calcula a rentabilidade acumulada do benchmark (CDI ou Ibovespa)
