@@ -872,18 +872,39 @@ try:
     color_cdi = '#000000'  # Preto para o CDI (conforme memória do usuário)
     color_ibov = '#007bff' # Azul para o Ibovespa (conforme memória do usuário)
 
-    # Cards de métricas (mantidos como estavam)
-    col1, col2, col3, col4, col5 = st.columns(5)
-
+    # Cards de métricas - AGORA COM 6 COLUNAS
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    
     with col1:
         st.metric("Patrimônio Líquido", format_brl(df['VL_PATRIM_LIQ'].iloc[-1]))
+    
     with col2:
         st.metric("Rentabilidade Acumulada", fmt_pct_port(df['VL_QUOTA_NORM'].iloc[-1] / 100))
+    
     with col3:
-        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
+        # Calcula a rentabilidade acumulada do benchmark (CDI ou Ibovespa)
+        benchmark_label = ""
+        benchmark_rent = 0
+    
+        if tem_cdi and 'CDI_NORM' in df.columns:
+            benchmark_label = "Rent. Acum. CDI"
+            benchmark_rent = df['CDI_NORM'].iloc[-1] / 100
+        elif tem_ibov and 'IBOV_NORM' in df.columns:
+            benchmark_label = "Rent. Acum. Ibovespa"
+            benchmark_rent = df['IBOV_NORM'].iloc[-1] / 100
+        else:
+            benchmark_label = "Rent. Acum. Benchmark"
+            benchmark_rent = 0  # Nenhum benchmark selecionado
+    
+        st.metric(benchmark_label, fmt_pct_port(benchmark_rent))
+    
     with col4:
-        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+        st.metric("CAGR Médio", fmt_pct_port(mean_cagr / 100))
+    
     with col5:
+        st.metric("Max Drawdown", fmt_pct_port(df['Drawdown'].min() / 100))
+    
+    with col6:
         st.metric("Vol. Histórica", fmt_pct_port(vol_hist/100))
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
